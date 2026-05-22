@@ -18,30 +18,6 @@ jobs:
       CANDIDATEVIEW_JAVA_B64: "REMOVED"
       CANDIDATEPAGERVIEW_JAVA_B64: "REMOVED"
     steps:
-      - name: Download wubi86 dict
-        run: |
-          mkdir -p WubiIME/app/src/main/assets/dict
-          curl -fsSL "https://raw.githubusercontent.com/rime/rime-wubi/master/wubi86.dict.yaml" -o /tmp/wubi86_rime.yaml
-          python3 - << 'PYEOF'
-import sys
-with open('/tmp/wubi86_rime.yaml', encoding='utf-8') as f:
-    lines = f.readlines()
-start = next(i for i,l in enumerate(lines) if l.strip()=='...')+1
-entries = []
-for line in lines[start:]:
-    line = line.rstrip('\n')
-    if not line or line.startswith('#'): continue
-    parts = line.split('\t')
-    if len(parts)<2: continue
-    text,code = parts[0].strip(),parts[1].strip()
-    weight = int(parts[2].strip()) if len(parts)>=3 and parts[2].strip().lstrip('-').isdigit() else 0
-    if text and code and code.isalpha():
-        entries.append((code,text,weight))
-entries.sort(key=lambda x:(x[0],-x[2]))
-with open('WubiIME/app/src/main/assets/dict/wubi86.dict','w',encoding='utf-8') as f:
-    f.write('\n'.join(f"{c}\t{t}\t{w}" for c,t,w in entries))
-print(f"wubi86.dict: {len(entries)} entries")
-PYEOF
 
       - name: Decode source
         run: |
