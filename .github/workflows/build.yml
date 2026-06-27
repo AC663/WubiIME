@@ -19,6 +19,8 @@ jobs:
       CANDIDATEVIEW_JAVA_B64: "REMOVED"
       CANDIDATEPAGERVIEW_JAVA_B64: "REMOVED"
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Decode source
         run: |
