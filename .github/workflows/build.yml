@@ -30,6 +30,20 @@ jobs:
           base64 -d <<< "$THEMEMANAGER_B64" > WubiIME/app/src/main/java/com/wubi/ime/theme/ThemeManager.java
           find . -name "SettingsActivity.java" -delete
           base64 -d <<< "$SETTINGSACTIVITY_B64" > WubiIME/app/src/main/java/com/wubi/ime/ime/SettingsActivity.java
+          echo "========== KEYBOARD.HTML 自检 =========="
+          echo "--- assets 目录内容: ---"
+          ls -la WubiIME/app/src/main/assets/ || echo "assets目录不存在!"
+          echo "--- 查找所有 keyboard.html: ---"
+          find . -name "keyboard.html" -exec ls -la {} \; || echo "未找到任何 keyboard.html!"
+          echo "--- 强制检查: ---"
+          if [ -f WubiIME/app/src/main/assets/keyboard.html ]; then
+            echo "OK keyboard.html 存在,大小: $(wc -c < WubiIME/app/src/main/assets/keyboard.html) 字节"
+          else
+            echo "FAIL keyboard.html 不在 assets! 打印完整目录树后终止:"
+            find WubiIME -type f | head -50
+            exit 1
+          fi
+          echo "========== 自检结束 =========="
 
       - name: Download standard dictionaries
         run: |
