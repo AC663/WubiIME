@@ -2119,6 +2119,16 @@ function hideKb(){
 // ===== 内嵌应用（密码生成器等）：在剪贴板面板内覆盖一个全屏 iframe 加载，关闭即返回键盘 =====
 //   应用 HTML 解码到 assets/apps/ 下，离线自包含(内联 React)。数据走 AndroidPW Java 桥加密存本地。
 let _appOverlay=null;
+// ===== 笔记本输入路由：app 打开且笔记本编辑框获得焦点时，把五笔上屏/删除/回车 postMessage 进 iframe =====
+let _appName=null;          // 当前打开的内嵌应用名
+let _noteEditing=false;     // 笔记本是否正在编辑（由 iframe 上报 focus 状态）
+function _noteFrame(){ return _appOverlay ? _appOverlay.querySelector('iframe') : null; }
+function _postNote(msg){ const fr=_noteFrame(); if(fr&&fr.contentWindow){ try{ fr.contentWindow.postMessage(msg,'*'); }catch(e){} } }
+function _routeNote(){ return (typeof Android!=='undefined') && _appName==='note' && _noteEditing && !!_appOverlay; }
+window.addEventListener('message', function(e){
+  const d=e.data; if(!d||d.src!=='note') return;
+  if(d.type==='focus'){ _noteEditing=!!d.editing; }
+});
 function openApp(name){
   closeApp();   // 防止重复叠加
   const panel=document.getElementById('clipPanel');
@@ -2144,11 +2154,13 @@ function openApp(name){
   ov.appendChild(fr);
   panel.appendChild(ov);
   _appOverlay=ov;
+  _appName=name;
   // 暴露关闭回调给 iframe 内应用（其退出按钮调 window.parent.pwgenClose）
   window.pwgenClose=closeApp;
 }
 function closeApp(){
   if(_appOverlay){ _appOverlay.remove(); _appOverlay=null; }
+  _appName=null; _noteEditing=false;
   const o=document.getElementById('appOverlay'); if(o) o.remove();
 }
 function showClipDetail(txt, idx){
@@ -2373,6 +2385,11 @@ const isAndroid = typeof Android !== 'undefined';
 const _origCommit = commit;
 window.commit = function(txt) {
   if (isAndroid) {
+    if (_routeNote()) {
+      if (txt === '\n') { _postNote({src:'wubi',type:'enter'}); }
+      else { _postNote({src:'wubi',type:'commit',text:txt}); }
+      code = ''; revMode = false; updateCode(); showCands([]); return;
+    }
     if (txt === '\n') { Android.commitEnter(); return; }
     Android.commitText(txt);
     // 清除编码状态
@@ -2394,7 +2411,8 @@ window.doDelete = function() {
       if (!code) revMode = false;
       updateCode();
     } else {
-      Android.deleteBefore();
+      if (_routeNote()) { _postNote({src:'wubi',type:'delete'}); }
+      else { Android.deleteBefore(); }
     }
   } else {
     _origDelete();
