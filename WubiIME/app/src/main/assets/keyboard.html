@@ -8,9 +8,15 @@
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
 body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans SC","Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif;padding:0;overflow:hidden}
-/* 表情专用：强制走系统彩色 emoji 字体、不继承文字色(彩色emoji不应被 --ktxt 染色)，
+/* 内置彩色 emoji 字体(COLRv1 矢量，离线打包进 assets/fonts/)：根治安卓机型缺彩色 emoji
+   字体集时回退到低质单色字形导致的"粗糙/发暗"。若机型 WebView 太旧不支持 COLRv1，
+   会静默回退到系统 emoji(与改动前一致，不会更糟)。 */
+@font-face{font-family:'KBEmoji';
+  src:url('fonts/Noto-COLRv1.ttf') format('truetype');
+  font-display:swap;unicode-range:U+1F000-1FAFF,U+2600-27BF,U+2190-21FF,U+2B00-2BFF,U+1F1E6-1F1FF,U+2700-27BF,U+FE00-FE0F,U+1F900-1F9FF,U+2300-23FF}
+/* 表情专用：强制走彩色 emoji 字体、不继承文字色(彩色emoji不应被 --ktxt 染色)，
    修复安卓装机后 emoji 粗糙发暗(回退到低质单色字形)的问题 */
-.emoji-cell{font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
+.emoji-cell{font-family:'KBEmoji',"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
   color:initial!important;-webkit-font-feature-settings:normal;font-variant-emoji:emoji}
 /* 表情格：对标精修——扁平无按钮底，仅圆角点击反馈，emoji 更大更清爽(不被按钮渐变/阴影压暗) */
 .emj-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
@@ -45,10 +51,31 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .ime{width:100%;background:linear-gradient(180deg,var(--bg1,#f5ede5),var(--bg2,#ebd5c5))}
 
 .code-bar{display:flex;align-items:center;gap:6px;
-  padding:3px 4px 3px 10px;min-height:36px;background:rgba(0,0,0,0.04);
-  border-radius:8px 8px 0 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+  padding:3px 4px 3px 12px;min-height:34px;background:rgba(0,0,0,0.05);
+  border-radius:11px 11px 0 0;
+  border-top:1px solid var(--cbar,rgba(0,0,0,0.06));
+  border-bottom:1px solid rgba(0,0,0,0.06)}
 .code-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:#7090ff;font-size:15px;font-weight:700;letter-spacing:4px}
+/* 编码栏内的「符号/表情」分类条：左右滑动，单击切换分类。开启面板时取代编码文字。 */
+.cat-strip{flex:1;min-width:0;display:flex;align-items:center;gap:3px;height:28px;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none}
+.cat-strip::-webkit-scrollbar{display:none}
+.cat-strip.hidden{display:none}
+/* 表情分类(9个)：均分铺满编码栏全宽、间距拉到右端；符号分类(多)仍可左右滚动 */
+.cat-strip.spread{gap:0;justify-content:space-between}
+.cat-strip.spread .cat-chip{flex:1 1 0;min-width:0}
+.cat-chip{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  height:24px;padding:0 11px;border-radius:8px;font-size:13px;font-weight:500;line-height:1;
+  white-space:nowrap;cursor:pointer;color:var(--ktxt,#5d5048);opacity:0.62;
+  transition:background .12s,color .12s,opacity .12s}
+.cat-chip.on{opacity:1;color:#fff;font-weight:600;
+  background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));
+  box-shadow:0 2px 5px rgba(150,60,20,0.28)}
+.cat-chip.emo{padding:0 6px;font-size:18px;min-width:30px}
+.cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
+.cat-chip.emo.on::after{content:'';position:absolute;left:18%;right:18%;bottom:-2px;height:2px;border-radius:2px;background:var(--ac,#c75f33)}
+.cat-chip.emo{position:relative}
 .mode-tag{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:9px;
   background:rgba(100,130,255,0.15);color:#7090ff;letter-spacing:1px}
 
@@ -80,12 +107,26 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   border:1px solid rgba(150,90,40,0.15);
   box-shadow:0 1px 2px rgba(120,60,20,0.12)}
 .sball:active{transform:scale(0.9)}
+/* 工具栏按钮「激活态」：符号/表情/剪贴板/123 面板开启时，按钮呈现当前主题色填充(联动反差)，
+   寓示已按下、再按一下收回。配色随主题(--ac/--acl/--acd)。 */
+.sball.on{background:radial-gradient(circle at 38% 30%,var(--acl,#f8a070),var(--ac,#e86030) 55%,var(--acd,#c03810));
+  border-color:transparent;box-shadow:0 2px 7px rgba(180,70,20,0.38),inset 0 1px 1px rgba(255,255,255,0.25)}
+.sball.on .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
 .sball-text{position:relative;z-index:1;color:var(--acd,#9a4520);font-weight:600;
   font-size:12px}
 /* 模式键(第一个)：accent 强调 */
 #modeBtn{background:radial-gradient(circle at 38% 30%,var(--acl,#f8a070),var(--ac,#e86030) 55%,var(--acd,#c03810));
   border-color:transparent;box-shadow:0 2px 6px rgba(180,70,20,0.35)}
 #modeBtn .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+/* 剪贴板球：陶瓷容器·内部装着内容(下半 50% 实色液面)——区别于"空"的颜色球(仅切色)。色随主题。 */
+.clip-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,0.62) 0%,rgba(255,255,255,0.34) 49.5%,var(--ac,#e86030) 50%,var(--acd,#c03810) 100%);
+  box-shadow:0 3px 9px rgba(0,0,0,0.28),inset 0 -3px 6px rgba(0,0,0,0.30),inset 0 2px 3px rgba(255,255,255,0.55),inset 0 0 0 1px rgba(255,255,255,0.30)}
+.clip-ball::before{content:'';position:absolute;left:8%;right:8%;top:50%;height:1.5px;background:rgba(255,255,255,0.55);transform:translateY(-50%);z-index:1}
+.clip-ball::after{content:'';position:absolute;top:9%;left:24%;width:50%;height:20%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0));z-index:1}
+/* 激活态(剪贴板展开)：保持球体外观，外加主题色高亮环 */
+.sball.clip-ball.on{background:linear-gradient(180deg,rgba(255,255,255,0.62) 0%,rgba(255,255,255,0.34) 49.5%,var(--ac,#e86030) 50%,var(--acd,#c03810) 100%);
+  box-shadow:0 0 0 2px var(--acl,#f8a070),0 3px 10px rgba(0,0,0,0.30),inset 0 -3px 6px rgba(0,0,0,0.30),inset 0 2px 3px rgba(255,255,255,0.55)}
 
 /* 主题球：唯一保留的陶瓷圆球（作品牌点缀）*/
 .theme-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:visible;
@@ -367,7 +408,9 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-dark   .cand-bar,.t-dark   .btn-bar{background:linear-gradient(180deg,var(--kbg1),var(--kbg2))}
 .t-orange .code-bar,.t-blue .code-bar,.t-purple .code-bar,
 .t-red .code-bar,.t-green .code-bar,.t-pink .code-bar,
-.t-brown .code-bar,.t-cyan .code-bar,.t-dark .code-bar{background:linear-gradient(180deg,var(--kbg1),var(--kbg2))}
+.t-brown .code-bar,.t-cyan .code-bar,.t-dark .code-bar{
+  background:linear-gradient(180deg,var(--cbar,rgba(0,0,0,0.04)),transparent 62%),
+             linear-gradient(180deg,var(--kbg2),var(--kbg1))}
 .t-orange .code-text,.t-orange .mode-tag,
 .t-blue   .code-text,.t-blue   .mode-tag,
 .t-purple .code-text,.t-purple .mode-tag,
@@ -406,6 +449,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 <div class="ime t-orange" id="ime" style="width:100%">
 <div class="code-bar">
   <span class="code-text" id="codeText"></span>
+  <div class="cat-strip hidden" id="catStrip"></div>
   <div class="code-hide" id="codeHide" onclick="hideKb()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--acd,#9a4520)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M7 8.5 L12 13 L17 8.5"></path><path d="M7 14 L12 18 L17 14" opacity=".5"></path></svg></div>
 </div>
 <div id="candBar" class="cand-bar hidden">
@@ -418,7 +462,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   <div class="sball" id="symBtn"><span class="sball-text" id="symLbl">符号</span></div>
   <div class="trackpad" id="tp">⇠ ⇢</div>
   <div class="sball" id="emjBtn" onclick="toggleEmoji()"><span class="sball-text">表情</span></div>
-  <div class="sball" id="clipBtn" onclick="toggleClip()"><span class="sball-text">📋</span></div>
+  <div class="sball clip-ball" id="clipBtn" onclick="toggleClip()" title="剪贴板"></div>
   <div class="sball" id="numBtn" onclick="toggleNumKb()"><span class="sball-text" id="numLbl" style="font-size:15px;letter-spacing:0.5px">123</span></div>
 </div>
 <div id="mainKb" class="keyboard">
@@ -430,13 +474,10 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 <div id="numKb" class="hidden">
   <div class="numpad-wrap" id="numpad"></div>
 </div>
-<div id="symPanel" class="panel hidden"><div class="panel-grid" id="punctG"></div>
-  <div class="panel-close" onclick="toggleSym()">收起 ↑</div></div>
-<div id="emjPanel" class="panel hidden"><div class="panel-grid" id="emjG"></div>
-  <div class="panel-close" onclick="toggleEmoji()">收起 ↑</div></div>
+<div id="symPanel" class="panel hidden"><div class="panel-grid" id="punctG"></div></div>
+<div id="emjPanel" class="panel hidden"><div class="panel-grid" id="emjG"></div></div>
 <div id="clipPanel" class="panel hidden" style="padding:8px;position:relative">
-  <div id="clipList"></div>
-  <div class="panel-close" onclick="toggleClip()">关闭</div></div>
+  <div id="clipList"></div></div>
 </div>
 <div class="pager-overlay hidden" id="pagerOv" onclick="closePager()">
   <div class="pager-box" onclick="event.stopPropagation()">
@@ -597,6 +638,8 @@ const FLAG_OTHER=[ // 两者皆非：居于下方
 // ====== 初始化 ======
 window.addEventListener('DOMContentLoaded', () => {
   buildKb(); buildNumpad(); buildPunct(); buildEmoji();
+  initCatStripGestures(); clearCatStrip();   // 编码栏分类条：挂手势(一次) + 初始清空隐藏
+  updateBtnStates();
   updateDisplay();
   installGhostClickGuard();   // 拦截候选字上屏后穿透到顶栏按钮的合成 click
   // 符号按钮：短按=符号面板(原行为)；长按=切数字键盘(替代已移除的"滑切数字键盘"手势)。
@@ -1206,7 +1249,7 @@ function buildNumpad() {
   // ③ [. X] 一键两用（左 . ，右长按 X）—— 与计算器删除归零同款 delz 样式
   const dotX=document.createElement('div');
   dotX.className='num-key calc-delz'; dotX.style.height='44px';
-  dotX.innerHTML=`<span class="delz-l" style="font-size:18px">.</span><span class="delz-r">X</span>`;
+  dotX.innerHTML=`<span class="delz-l" style="font-size:18px">.</span><span class="delz-r" style="font-size:20px;font-weight:400">X</span>`;
   (function(){
     let _dz=null,_long=false;
     const start=()=>{ _long=false; _dz=setTimeout(()=>{ _long=true; playClick(); pressNum('X'); },350); dotX.classList.add('pressed'); };
@@ -1485,21 +1528,83 @@ function calcEval(expr){
 }
 
 let _symCat=0;
+// ===== 符号：每类可长按拖拽自由排序(持久化) + 短前缀在前、长缀加宽排到末行 =====
+let _symOrder={};
+try{ const so=localStorage.getItem('kbSymOrder'); if(so) _symOrder=JSON.parse(so)||{}; }catch(e){ _symOrder={}; }
+function symSaveOrder(){ try{ localStorage.setItem('kbSymOrder', JSON.stringify(_symOrder)); }catch(e){} }
+// 列跨度：短符号占1列(每行8个)，长前缀按字符数加宽以充分显示
+function symSpan(p){ const L=[...p].length; return L<=2?1 : L<=4?2 : L<=6?3 : 4; }
+// 默认顺序：按列跨度升序稳定排序 → 短的在前(密排8/行)，长缀自然落到末行
+function symDefaultOrder(ci){
+  return SYMBOL_CATS[ci].list.map((p,i)=>[p,i])
+    .sort((a,b)=>{ const d=symSpan(a[0])-symSpan(b[0]); return d!==0?d:a[1]-b[1]; })
+    .map(x=>x[0]);
+}
+// 取某类当前顺序：有自定义则用自定义(并校正失效/补齐新增)，否则用默认
+function symGetOrder(ci){
+  const def=symDefaultOrder(ci);
+  const saved=_symOrder[ci];
+  if(!saved || !saved.length) return def;
+  const valid=new Set(SYMBOL_CATS[ci].list), seen=new Set(), out=[];
+  saved.forEach(p=>{ if(valid.has(p)&&!seen.has(p)){ out.push(p); seen.add(p); } });
+  def.forEach(p=>{ if(!seen.has(p)){ out.push(p); seen.add(p); } });
+  return out;
+}
 // ===== 面板高度可拖拽调整（符号/表情共用，持久化）=====
 let _panelH=230;
 try{ const v=parseInt(localStorage.getItem('panelH')); if(v>=80 && v<=420) _panelH=v; }catch(e){}
 function applyPanelH(){ document.documentElement.style.setProperty('--panelH', _panelH+'px'); }
 applyPanelH();
+// ===== 编码栏分类条：符号/表情面板开启时，把分类标签搬到顶部编码栏左右滑动 =====
+let _activePanel=null;   // null | 'sym' | 'emoji'
+let _catSelectFn=null;   // 当前面板的「选中分类」回调(由 buildPunct/buildEmoji 设定)
+function syncCodeBar(){
+  const s=document.getElementById('catStrip'), ct=document.getElementById('codeText');
+  if(!s||!ct) return;
+  if(code && code.length>0){ s.classList.add('hidden'); ct.style.display=''; }       // 正在输入编码 → 显示编码
+  else if(_activePanel){ s.classList.remove('hidden'); ct.style.display='none'; }     // 面板活动 → 显示分类条
+  else { s.classList.add('hidden'); ct.style.display=''; }
+}
+function clearCatStrip(){ const s=document.getElementById('catStrip'); if(s) s.innerHTML=''; _activePanel=null; syncCodeBar(); }
+// 工具栏按钮联动激活态：按面板/数字键盘当前是否开启，给对应按钮加/去 .on(主题色反差)。
+//   单一数据源=DOM 真实状态，故"开A自动关B"也能正确同步。
+function updateBtnStates(){
+  const open=id=>{ const el=document.getElementById(id); return el && !el.classList.contains('hidden'); };
+  const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.classList.toggle('on',!!on); };
+  set('symBtn',open('symPanel'));
+  set('emjBtn',open('emjPanel'));
+  set('clipBtn',open('clipPanel'));
+  set('numBtn',typeof num!=='undefined' && num);
+}
+// 编码栏分类条手势只在 #catStrip 容器上挂一次(容器常驻，标签每次重建)：
+//   位移/横滚判定 → 区分「点击切换分类」与「左右滑动浏览」；命中标签调当前面板的回调。
+function initCatStripGestures(){
+  const tabs=document.getElementById('catStrip');
+  if(!tabs || tabs._wired) return; tabs._wired=true;
+  let x0=0,y0=0,sl0=0;
+  const hit=(cx,cy)=>{ let el=document.elementFromPoint(cx,cy); while(el&&el!==tabs&&!(el.dataset&&el.dataset.tabIdx!=null)) el=el.parentElement; return (el&&el.dataset&&el.dataset.tabIdx!=null)?parseInt(el.dataset.tabIdx):-1; };
+  tabs.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; sl0=tabs.scrollLeft; },{passive:true});
+  tabs.addEventListener('touchend',e=>{
+    const c=e.changedTouches[0];
+    if(Math.abs(c.clientX-x0)>=14 || Math.abs(c.clientY-y0)>=14 || Math.abs(tabs.scrollLeft-sl0)>=6) return;  // 滑动→不选
+    const idx=hit(c.clientX,c.clientY); if(idx>=0 && _catSelectFn) _catSelectFn(idx);
+  },{passive:true});
+  tabs.addEventListener('click',e=>{                                   // 鼠标/模拟器
+    if('ontouchstart' in window) return;
+    let el=e.target; while(el&&el!==tabs&&!(el.dataset&&el.dataset.tabIdx!=null)) el=el.parentElement;
+    if(el&&el.dataset&&el.dataset.tabIdx!=null && _catSelectFn) _catSelectFn(parseInt(el.dataset.tabIdx));
+  });
+}
 // 在面板顶部插入一个拖拽手柄，上下拖动改变面板高度（rAF 节流，丝滑无颤）
 function mkDragHandle(){
   const bar=document.createElement('div');
   // Issue7: 重做为"两条跟随主题色的长直线"——这两条平行直线即调节高度的滑杆。
   //   符号/表情/剪贴板三个面板共用此手柄。背景透明，仅靠两条主题色线表达可拖拽。
-  bar.style.cssText='position:relative;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;height:22px;flex:0 0 auto;cursor:ns-resize;touch-action:none;';
+  bar.style.cssText='position:relative;z-index:5;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;height:14px;flex:0 0 auto;cursor:ns-resize;touch-action:none;padding:0 10px;';
   const line1=document.createElement('div');
-  line1.style.cssText='width:46%;max-width:220px;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--ac,#c75f33),transparent)';
+  line1.style.cssText='width:100%;height:2px;border-radius:2px;background:var(--ac,#c75f33)';
   const line2=document.createElement('div');
-  line2.style.cssText='width:46%;max-width:220px;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--acl,#eb976f),transparent)';
+  line2.style.cssText='width:100%;height:2px;border-radius:2px;background:var(--acl,#eb976f)';
   bar.appendChild(line1); bar.appendChild(line2);
   let startY=0,startH=0,drag=false,pendH=_panelH,raf=0;
   // rAF 节流：touchmove 只记录目标值，下一帧统一应用一次，避免每次事件都 reflow 造成抖动
@@ -1519,70 +1624,116 @@ function buildPunct() {
   wrap.innerHTML = '';
   wrap.style.cssText = 'display:block;padding:0;position:relative;';
   wrap.appendChild(mkDragHandle());   // 顶部拖拽手柄
-  // ===== Issue4 根治：标签栏整条只构建一次，切换分类只更新"高亮 + 下方网格"，
-  //   绝不重建标签条 → 滚动位置永远保留 → 瞬按后排标签必中(不再被甩回第1屏)。
-  //   旧实现每次 buildPunct 全量重建，innerHTML='' 把横滚位置清零，于是下次点到的是前排标签。
-  const tabs=document.createElement('div');
-  tabs.id='symTabs';
-  tabs.style.cssText='position:sticky;top:0;z-index:6;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));display:flex;gap:3px;padding:5px 6px 4px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;border-bottom:1px solid rgba(0,0,0,0.07)';
+  _catSelectFn=null;
+  // 分类标签搬到顶部「编码栏」(catStrip) 左右滑动；面板内只保留拖杆 + 内容网格(紧跟拖杆)。
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip';
   // 网格容器(切换分类时只换它的内容)
   const grid=document.createElement('div');
   grid.id='symGrid';
-  grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:6px;';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:6px;grid-auto-flow:row dense;';
 
-  // 渲染某分类的符号到网格(仅替换网格内容)
+  // 渲染某分类符号到网格(仅替换网格内容)：8/行、单击上屏、长按拖拽排序
   const renderGrid=(ci)=>{
     grid.innerHTML='';
-    SYMBOL_CATS[ci].list.forEach(p=>{
+    const order=symGetOrder(ci);
+    // 拖拽共享态(单指，跨格共用)
+    let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
+    const cleanupDrag=()=>{
+      if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+      if(clone){ clone.remove(); clone=null; }
+      if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
+      dragging=false; dragSym=null;
+      Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+    };
+    const finishReorder=(targetSym,after)=>{
+      const cur=symGetOrder(ci).slice();
+      const from=cur.indexOf(dragSym);
+      if(from<0){ cleanupDrag(); return; }
+      cur.splice(from,1);
+      let to=cur.indexOf(targetSym);
+      if(to<0) cur.push(dragSym);
+      else { if(after) to+=1; cur.splice(to,0,dragSym); }
+      _symOrder[ci]=cur; symSaveOrder();
+      cleanupDrag(); renderGrid(ci);
+    };
+    order.forEach(p=>{
       const div=document.createElement('div');
       div.className='pi';
-      if(p.length>2) div.style.fontSize='11px';
+      const sp=symSpan(p), L=[...p].length;
+      if(sp>1) div.style.gridColumn='span '+sp;
+      div.style.fontSize=(L>5?'12px':L>1?'13px':'18px');
       div.textContent=p;
-      addPanelKey(div, () => insPunct(p));
+      div.dataset.sym=p;
+      let _moved=false,_touched=false,_t0=0;
+      div.addEventListener('touchstart',e=>{
+        _touched=true; _moved=false; _t0=Date.now();
+        startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+        longTimer=setTimeout(()=>{        // 长按 280ms → 进入拖拽排序
+          dragging=true; dragSym=p; dragEl=div;
+          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+          const r=div.getBoundingClientRect();
+          clone=document.createElement('div');
+          clone.textContent=p;
+          clone.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;margin:0;z-index:300;pointer-events:none;opacity:0.96;transform:scale(1.12);box-shadow:0 6px 18px rgba(0,0,0,0.28);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--ac,#e86030);color:#fff;font-size:'+div.style.fontSize;
+          document.body.appendChild(clone);
+          div.style.opacity='0.25';
+        },280);
+      },{passive:true});
+      div.addEventListener('touchmove',e=>{
+        const t=e.touches[0];
+        if(!dragging){     // 未进入拖拽：位移即取消长按，放行面板滚动
+          if(Math.abs(t.clientX-startX)>10||Math.abs(t.clientY-startY)>10){ _moved=true; if(longTimer){ clearTimeout(longTimer); longTimer=null; } }
+          return;
+        }
+        e.preventDefault();
+        if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        let el=document.elementFromPoint(t.clientX,t.clientY);
+        while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+        Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+        if(el&&el.dataset&&el.dataset.sym&&el!==div){ el.style.outline='2px solid var(--ac,#e86030)'; el.style.outlineOffset='-2px'; }
+      },{passive:false});
+      div.addEventListener('touchend',e=>{
+        if(dragging){
+          const t=e.changedTouches[0];
+          let el=document.elementFromPoint(t.clientX,t.clientY);
+          while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+          if(el&&el.dataset&&el.dataset.sym&&el.dataset.sym!==dragSym){
+            const r=el.getBoundingClientRect();
+            finishReorder(el.dataset.sym, t.clientX>r.left+r.width/2);
+          } else cleanupDrag();
+          return;
+        }
+        if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+        if(_touched&&!_moved&&Date.now()-_t0<500){ insPunct(p); }   // 快速点 → 上屏
+        _touched=false;
+      },{passive:true});
+      div.addEventListener('touchcancel',()=>{ cleanupDrag(); _touched=false; },{passive:true});
+      div.addEventListener('click',()=>{ if(!('ontouchstart' in window)) insPunct(p); });  // 模拟器
       grid.appendChild(div);
     });
   };
   // 切换分类：更新高亮 + 换网格，**不动标签条 DOM、不动滚动位置**
   const selectCat=(ci)=>{
     _symCat=ci;
-    Array.from(tabs.children).forEach((t,i)=>{
-      const on=(i===ci);
-      t.style.color=on?'#fff':'var(--ktxt,#5d5048)';
-      t.style.fontWeight=on?'600':'500';
-      t.style.background=on?'linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33))':'transparent';
-      t.style.boxShadow=on?'0 2px 5px rgba(150,60,20,0.3)':'none';
-      t.style.opacity=on?'1':'0.7';
-    });
+    Array.from(tabs.children).forEach((t,i)=>{ t.classList.toggle('on', i===ci); });
     renderGrid(ci);
   };
+  _catSelectFn=selectCat;
 
-  // 标签条手势：位移/滚动判定 + elementFromPoint 取释放点正下方标签(避免冒泡目标错位)
-  let _tX0=0,_tY0=0,_tSL0=0;
-  tabs.addEventListener('touchstart',e=>{ _tX0=e.touches[0].clientX; _tY0=e.touches[0].clientY; _tSL0=tabs.scrollLeft; },{passive:true});
-  tabs.addEventListener('touchend',e=>{
-    const c=e.changedTouches[0];
-    const dx=Math.abs(c.clientX-_tX0), dy=Math.abs(c.clientY-_tY0);
-    const scrolled=Math.abs(tabs.scrollLeft-_tSL0);
-    if(dx>=14 || dy>=14 || scrolled>=6) return;   // 滑动 → 不选
-    let el=document.elementFromPoint(c.clientX,c.clientY);
-    while(el && el!==tabs && el.getAttribute && el.getAttribute('data-tab-idx')===null) el=el.parentElement;
-    if(el && el.getAttribute){ const idx=parseInt(el.getAttribute('data-tab-idx')); if(idx>=0) selectCat(idx); }
-  },{passive:true});
-
+  // 标签条手势统一由 initCatStripGestures() 在 #catStrip 上挂一次处理(点击/横滑判定)。
   SYMBOL_CATS.forEach((cat,i)=>{
     const t=document.createElement('div');
     const active=(i===_symCat);
+    t.className='cat-chip'+(active?' on':'');
     t.setAttribute('data-tab-idx',i);
-    t.style.cssText='position:relative;flex-shrink:0;min-width:40px;text-align:center;font-size:13px;font-weight:'+(active?'600':'500')+';padding:5px 11px;border-radius:9px;cursor:pointer;white-space:nowrap;'+
-      (active?'color:#fff;background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));box-shadow:0 2px 5px rgba(150,60,20,0.3);':'color:var(--ktxt,#5d5048);opacity:0.7;');
     t.textContent=cat.name;
-    t.addEventListener('click',()=>{ selectCat(i); });   // 鼠标/模拟器
     if(active) t.setAttribute('data-active-tab','1');
     tabs.appendChild(t);
   });
-  wrap.appendChild(tabs);
   wrap.appendChild(grid);
   renderGrid(_symCat);
+  syncCodeBar();
   // 首次构建时把当前分类标签滚入可视区(仅不可见才滚，夹紧不越界)；之后切换不再重建、不重置滚动。
   requestAnimationFrame(()=>{
     const at=tabs.querySelector('[data-active-tab]');
@@ -1600,36 +1751,28 @@ function buildEmoji() {
   const g=document.getElementById('emjG'); g.innerHTML='';
   g.style.cssText='display:block;padding:0;';
   g.appendChild(mkDragHandle());   // 顶部拖拽手柄：上下拖动调面板高度
-  // 分类标签栏（iOS 风格）
-  const tabs=document.createElement('div');
-  tabs.style.cssText='position:sticky;top:0;z-index:6;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));display:flex;gap:2px;padding:5px 6px 3px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;';
-  let _ebX0=0,_ebY0=0,_ebT0=0;
-  tabs.addEventListener('touchstart',e=>{ _ebX0=e.touches[0].clientX; _ebY0=e.touches[0].clientY; _ebT0=Date.now(); },{passive:true});
+  _catSelectFn=(i)=>{ _emjCat=i; buildEmoji(); };
+  // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip spread';
   EMOJI_CATS.forEach((cat,i)=>{
     const t=document.createElement('div');
     const active=(i===_emjCat);
-    // 精修：选中分类用主题色半透明叠加层(绝对定位 span，opacity .16)，呼应配色且兼容老 WebView。
-    t.style.cssText='position:relative;flex:1;min-width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:9px;cursor:pointer;'+(active?'':'opacity:0.55;');
-    if(active){
-      const bg=document.createElement('span');
-      bg.style.cssText='position:absolute;inset:0;border-radius:9px;background:var(--ac,#c75f33);opacity:0.16;';
-      t.appendChild(bg);
-    }
-    const lbl=document.createElement('span');
-    lbl.style.cssText='position:relative;';
-    lbl.textContent=cat.n;
-    t.appendChild(lbl);
-    let _touched=false;
-    t.addEventListener('touchstart',()=>{ _touched=true; },{passive:true});
-    t.addEventListener('touchend',e=>{
-      const c=e.changedTouches[0];
-      if(Math.abs(c.clientX-_ebX0)<14 && Math.abs(c.clientY-_ebY0)<14 && Date.now()-_ebT0<600){ _emjCat=i; buildEmoji(); }
-      setTimeout(()=>{_touched=false;},500);
-    },{passive:true});
-    t.addEventListener('click',()=>{ if(_touched) return; _emjCat=i; buildEmoji(); });
+    t.className='cat-chip emo'+(active?' on':'');
+    t.setAttribute('data-tab-idx',i);
+    t.textContent=cat.n;
+    if(active) t.setAttribute('data-active-tab','1');
     tabs.appendChild(t);
   });
-  g.appendChild(tabs);
+  syncCodeBar();
+  // 当前分类图标滚入可视区
+  requestAnimationFrame(()=>{
+    const at=tabs.querySelector('[data-active-tab]'); if(!at) return;
+    const sL=tabs.scrollLeft, sW=tabs.clientWidth, tL=at.offsetLeft, tW=at.offsetWidth;
+    if(tL>=sL && tL+tW<=sL+sW) return;
+    const target=Math.max(0, Math.min(tabs.scrollWidth-sW, tL-(sW-tW)/2));
+    if(tabs.scrollTo) tabs.scrollTo({left:target,behavior:'smooth'}); else tabs.scrollLeft=target;
+  });
   const cat=EMOJI_CATS[_emjCat];
   if(cat.flag){
     // ===== 旗帜：倒品字布局 =====
@@ -1954,6 +2097,7 @@ function updateCode() {
   document.getElementById('codeText').textContent=disp;
   const cands=queryCands();
   if(cands.length>0)showCand(cands);else showBtns();
+  syncCodeBar();   // 编码栏在「分类条 / 编码文字」间切换
 }
 function showCand(cands) {
   document.getElementById('candBar').classList.remove('hidden');
@@ -2075,11 +2219,13 @@ function switchNum() {
   if(num){ buildNumpad(); } else if(calcMode){ calcMode=false; buildNumpad(); }
   document.getElementById('mainKb').classList.toggle('hidden',num);
   document.getElementById('numKb').classList.toggle('hidden',!num);
-  // 顶栏 [123]↔[返回] 文字联动
-  const nl=document.getElementById('numLbl'); if(nl) nl.textContent = num?'返回':'123';
+  // [123] 键标签恒为"123"，开启时靠按钮激活态(主题色反差)指示，再按一下恢复——不再变"返回"文字。
+  const nl=document.getElementById('numLbl'); if(nl) nl.textContent='123';
+  updateBtnStates();
 }
 // 工具栏右上角按钮：主键盘=收起(双线下滑SVG:横线+下箭头)，数字键盘=删除键(单击删除·长按连删)
 function cycleMode() {
+  if(num){ num=false; switchNum(); }   // 切输入法时若处于数字键盘→重置收起，优先呈现主键盘输入区
   const ms=['wubi','pinyin','english'];
   mode=ms[(ms.indexOf(mode)+1)%ms.length];
   if(typeof t9code!=='undefined') t9code='';
@@ -2098,18 +2244,26 @@ function toggleSym(){
   const p=document.getElementById('symPanel');
   ['emjPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); }   // 打开→编码栏显示符号分类
+  else { clearCatStrip(); }                                                   // 关闭→恢复编码栏
+  updateBtnStates();
 }
 function toggleEmoji(){
   closeApp();
   const p=document.getElementById('emjPanel');
   ['symPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')){ _activePanel='emoji'; buildEmoji(); } // 打开→编码栏显示表情分类
+  else { clearCatStrip(); }
+  updateBtnStates();
 }
 function toggleClip(){
   const p=document.getElementById('clipPanel');
   ['symPanel','emjPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  clearCatStrip();   // 剪贴板无分类，编码栏恢复
   if(p.classList.contains('hidden')){refreshClip();p.classList.remove('hidden');}
   else { closeApp(); p.classList.add('hidden'); }
+  updateBtnStates();
 }
 function hideKb(){
   // 收起键盘：真机调 Android 桥接收起输入法；浏览器模拟器无操作
@@ -2131,11 +2285,11 @@ window.addEventListener('message', function(e){
 });
 function openApp(name){
   closeApp();   // 防止重复叠加
-  const panel=document.getElementById('clipPanel');
-  if(!panel) return;
   const ov=document.createElement('div');
   ov.id='appOverlay';
-  ov.style.cssText='position:absolute;inset:0;z-index:120;background:#f6f3ee;display:flex;flex-direction:column';
+  // 真·全屏：固定定位铺满整个视口(配合 Java 把输入法视图撑到整屏-状态栏)，不再局限于剪贴板小面板。
+  //   顶部留出安全区(刘海/状态栏)内边距，返回条不被遮。
+  ov.style.cssText='position:fixed;inset:0;z-index:120;background:#f6f3ee;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)';
   // 顶部返回条
   const bar=document.createElement('div');
   bar.style.cssText='flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ac,#d6822e);color:#fff';
@@ -2152,16 +2306,21 @@ function openApp(name){
   fr.style.cssText='flex:1;width:100%;border:0;background:#f6f3ee';
   fr.src='apps/'+name+'.html';
   ov.appendChild(fr);
-  panel.appendChild(ov);
+  document.body.appendChild(ov);    // 挂到 body：充满真实视口，而非剪贴面板
   _appOverlay=ov;
   _appName=name;
+  // 通知原生把输入法视图撑成整屏高度(撑高后 fixed 覆盖层自动铺满)
+  try{ if(typeof Android!=='undefined' && Android.setAppFullscreen) Android.setAppFullscreen(true); }catch(e){}
   // 暴露关闭回调给 iframe 内应用（其退出按钮调 window.parent.pwgenClose）
   window.pwgenClose=closeApp;
 }
 function closeApp(){
+  const had=!!_appOverlay || !!document.getElementById('appOverlay');
   if(_appOverlay){ _appOverlay.remove(); _appOverlay=null; }
   _appName=null; _noteEditing=false;
   const o=document.getElementById('appOverlay'); if(o) o.remove();
+  // 恢复键盘正常高度
+  if(had){ try{ if(typeof Android!=='undefined' && Android.setAppFullscreen) Android.setAppFullscreen(false); }catch(e){} }
 }
 function showClipDetail(txt, idx){
   const panel=document.getElementById('clipPanel');
@@ -2205,92 +2364,77 @@ function refreshClip() {
   const list=document.getElementById('clipList'); list.innerHTML='';
   // Issue6: 剪贴板面板顶部也加"两条线"拖动手柄，与符号/表情一致，可上下拖调面板高度。
   list.appendChild(mkDragHandle());
-  // ===== 应用入口栏：左=密码生成器(SAFEKEY)，右=笔记本(下一轮并入)。点击图标在面板内打开应用。 =====
-  const appBar=document.createElement('div');
-  appBar.style.cssText='display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.10);margin-bottom:4px';
-  // 单个应用图标卡片构造器
-  const mkAppCell=(label,svg,onTap,enabled)=>{
-    const cell=document.createElement('div');
-    cell.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;'+
-      'padding:10px 6px;border-radius:12px;cursor:pointer;user-select:none;transition:background .12s,transform .1s;'+
-      'background:'+(enabled?'rgba(214,130,46,0.10)':'rgba(0,0,0,0.04)')+';'+
-      'border:1px solid '+(enabled?'rgba(214,130,46,0.22)':'rgba(0,0,0,0.06)')+';'+
-      (enabled?'':'opacity:0.5;');
-    cell.innerHTML='<span style="color:'+(enabled?'var(--ac,#d6822e)':'#999')+';display:flex">'+svg+'</span>'+
-      '<span style="font-size:12px;font-weight:600;color:var(--ktxt,#2a1408)">'+label+'</span>';
-    if(enabled){
-      let _t=false;
-      const fire=()=>{ cell.style.transform='scale(0.96)'; setTimeout(()=>{cell.style.transform='';},100); playClick(); onTap(); };
-      cell.addEventListener('touchstart',e=>{ _t=true; e.preventDefault(); e.stopPropagation(); fire(); setTimeout(()=>{_t=false;},400); },{passive:false});
-      cell.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); e.stopPropagation(); fire(); });
-    }
-    return cell;
+  // ===== 工具行：密码生成器 · 笔记本 · 防截屏 —— 统一卡片、紧凑联动 =====
+  const pwSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 2.5v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V5.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 12.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  const noteSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="3.5" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  const shieldSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 2.5v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V5.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.4l2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const toolRow=document.createElement('div');
+  toolRow.style.cssText='position:relative;display:flex;gap:7px;padding:7px 10px 8px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:3px';
+  // 统一卡片：图标在上、短标签在下，高度紧凑(46px)
+  const mkCard=(svg,label,active)=>{
+    const c=document.createElement('div');
+    c.style.cssText='position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:46px;border-radius:11px;cursor:pointer;user-select:none;'+
+      'transition:background .14s,transform .1s,border-color .15s,box-shadow .15s;'+
+      'background:'+(active?'var(--ac,#d6822e)':'rgba(214,130,46,0.10)')+';'+
+      'border:1px solid '+(active?'transparent':'rgba(214,130,46,0.22)')+';'+
+      (active?'box-shadow:0 2px 7px rgba(180,90,30,0.26);':'');
+    const ic=active?'#fff':'var(--ac,#d6822e)', tc=active?'#fff':'var(--ktxt,#2a1408)';
+    c.innerHTML='<span style="display:flex;color:'+ic+'">'+svg+'</span>'+
+      '<span style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:'+tc+'">'+label+'</span>';
+    return c;
   };
-  // 密码生成器图标（盾牌+钥匙意象）
-  const pwSvg='<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 2.5v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V5.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 12.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-  // 笔记本图标（占位，下一轮接入）
-  const noteSvg='<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="3.5" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-  appBar.appendChild(mkAppCell('密码生成器', pwSvg, ()=>openApp('pwgen'), true));
-  appBar.appendChild(mkAppCell('笔记本', noteSvg, ()=>openApp('note'), true));
-  list.appendChild(appBar);
-  //   布局：开关在第1行，"防截屏"字样在下一行、垂直居中；
-  //   "(可正常截图)/(禁止截图)" 临时显示3秒、跟在"防截屏"后随状态切换、带淡入淡出。
-  //   灵敏度优化：触摸用 pointerdown 即时翻转 + 守卫，杜绝原地反弹/需多次点。
-  const sec=document.createElement('div');
-  sec.style.cssText='display:flex;align-items:center;justify-content:center;padding:10px 12px 12px;border-bottom:1px solid rgba(0,0,0,0.10);margin-bottom:4px';
+  const bindTap=(el,fn)=>{ let _t=false;
+    const fire=()=>{ el.style.transform='scale(0.95)'; setTimeout(()=>{el.style.transform='';},110); fn(); };
+    el.addEventListener('touchstart',e=>{ _t=true; e.preventDefault(); e.stopPropagation(); fire(); setTimeout(()=>{_t=false;},400); },{passive:false});
+    el.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); e.stopPropagation(); fire(); });
+  };
+  // 密码生成器 / 笔记本
+  const cPw=mkCard(pwSvg,'密码生成器',false);
+  bindTap(cPw,()=>{ playClick(); openApp('pwgen'); });
+  const cNote=mkCard(noteSvg,'笔记本',false);
+  bindTap(cNote,()=>{ playClick(); openApp('note'); });
+  // 防截屏：状态卡(开=主题色填充，关=描边)，右上角小圆点指示，临时说明气泡(绝对定位不占高度)
   let secureOn=false;
   try{ const sv=localStorage.getItem('kbFlagSecure'); secureOn=(sv===null?false:sv==='1'); }catch(e){}
-  // 居中容器：开关在上、("防截屏" + 临时说明)在下
-  const sw=document.createElement('div');
-  sw.style.cssText='display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;user-select:none';
-  // 第1行：开关
-  const dot=document.createElement('div');
-  dot.style.cssText='width:44px;height:24px;border-radius:12px;position:relative;transition:background .18s;'+
-    'background:'+(secureOn?'var(--ac,#e86030)':'rgba(0,0,0,0.22)');
-  const knob=document.createElement('div');
-  knob.style.cssText='width:19px;height:19px;border-radius:50%;background:#fff;position:absolute;top:2.5px;transition:left .18s;'+
-    'box-shadow:0 1px 3px rgba(0,0,0,0.3);left:'+(secureOn?'22px':'2.5px');
-  dot.appendChild(knob);
-  // 第2行：防截屏字样 + 临时说明(同一行,垂直居中)
-  const lblRow=document.createElement('div');
-  lblRow.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ktxt,#2a1408)';
-  const lbl=document.createElement('span'); lbl.textContent='防截屏';
-  const hint=document.createElement('span');
-  hint.style.cssText='font-size:11px;font-weight:400;color:rgba(0,0,0,0.45);opacity:0;transition:opacity .35s';
-  lblRow.appendChild(lbl); lblRow.appendChild(hint);
-  sw.appendChild(dot); sw.appendChild(lblRow);
-
-  // 临时显示说明3秒(淡入→停留→淡出)
-  let _hintTimer1=null,_hintTimer2=null;
+  const cSec=mkCard(shieldSvg,'防截屏',secureOn);
+  const dotInd=document.createElement('span');
+  dotInd.style.cssText='position:absolute;top:6px;right:7px;width:7px;height:7px;border-radius:50%;transition:background .18s;background:'+(secureOn?'#fff':'rgba(0,0,0,0.18)');
+  cSec.appendChild(dotInd);
+  const hint=document.createElement('div');
+  hint.style.cssText='position:absolute;left:8px;right:8px;top:-4px;transform:translateY(-100%);text-align:center;font-size:11px;font-weight:600;color:#fff;background:rgba(0,0,0,0.74);border-radius:8px;padding:4px 0;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,0.22)';
+  toolRow.appendChild(hint);
+  let _h1=null;
   const flashHint=()=>{
-    hint.textContent=secureOn?'(禁止截图)':'(可正常截图)';
+    hint.textContent=secureOn?'已开启 · 禁止截图/录屏':'已关闭 · 可正常截图';
     hint.style.opacity='1';
-    if(_hintTimer1)clearTimeout(_hintTimer1);
-    if(_hintTimer2)clearTimeout(_hintTimer2);
-    _hintTimer1=setTimeout(()=>{ hint.style.opacity='0'; },3000);          // 3秒后淡出
-    _hintTimer2=setTimeout(()=>{ hint.textContent=''; },3400);             // 淡出后清空
+    if(_h1)clearTimeout(_h1);
+    _h1=setTimeout(()=>{ hint.style.opacity='0'; },2600);
   };
-  // 即时翻转视图(不重建面板,避免闪烁/丢手势)
-  const applyView=()=>{
-    dot.style.background=secureOn?'var(--ac,#e86030)':'rgba(0,0,0,0.22)';
-    knob.style.left=secureOn?'22px':'2.5px';
+  const applySecView=()=>{
+    cSec.style.background=secureOn?'var(--ac,#d6822e)':'rgba(214,130,46,0.10)';
+    cSec.style.borderColor=secureOn?'transparent':'rgba(214,130,46,0.22)';
+    cSec.style.boxShadow=secureOn?'0 2px 7px rgba(180,90,30,0.26)':'none';
+    if(cSec.children[0]) cSec.children[0].style.color=secureOn?'#fff':'var(--ac,#d6822e)';
+    if(cSec.children[1]) cSec.children[1].style.color=secureOn?'#fff':'var(--ktxt,#2a1408)';
+    dotInd.style.background=secureOn?'#fff':'rgba(0,0,0,0.18)';
   };
   let _busy=false;   // 翻转节流：一次点击只翻一次，杜绝反弹/重复
   const doToggle=()=>{
     if(_busy) return; _busy=true; setTimeout(()=>{_busy=false;},260);
-    secureOn=!secureOn;
-    applyView();
-    flashHint();
+    secureOn=!secureOn; applySecView(); flashHint();
     try{ localStorage.setItem('kbFlagSecure', secureOn?'1':'0'); }catch(e){}
     try{ if(typeof Android!=='undefined'&&Android.setSecure) Android.setSecure(secureOn); }catch(e){}
   };
-  // 触摸即时响应 + 守卫合成鼠标事件；不再 refreshClip 重建(原方案重建导致反弹/失灵)
-  let _swTouched=false;
-  sw.addEventListener('touchstart',e=>{ e.preventDefault(); _swTouched=true; doToggle(); },{passive:false});
-  sw.addEventListener('touchend',e=>{ setTimeout(()=>{_swTouched=false;},400); },{passive:true});
-  sw.addEventListener('mousedown',e=>{ if(_swTouched)return; e.preventDefault(); doToggle(); });
-  sec.appendChild(sw);
-  list.appendChild(sec);
+  bindTap(cSec, doToggle);
+  // 防截屏缩窄并居中(不再占整张卡)，右侧预留第3个独立应用的位置
+  cSec.style.flex='0 0 72px';
+  if(cSec.children[1]){ cSec.children[1].style.fontSize='10px'; cSec.children[1].style.letterSpacing='0'; }
+  // 第3应用·预留：虚线占位(暂不可点)，接入新应用时替换即可
+  const cApp3=document.createElement('div');
+  cApp3.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:46px;border-radius:11px;border:1.5px dashed rgba(214,130,46,0.38);color:rgba(214,130,46,0.6);background:rgba(214,130,46,0.045)';
+  cApp3.innerHTML='<span style="font-size:19px;font-weight:300;line-height:1">＋</span><span style="font-size:10px;font-weight:600;letter-spacing:0">预留</span>';
+  toolRow.appendChild(cPw); toolRow.appendChild(cNote); toolRow.appendChild(cSec); toolRow.appendChild(cApp3);
+  list.appendChild(toolRow);
 
   if(!clips.length){const e=document.createElement('div');e.style.cssText='color:var(--ktxt,#888);opacity:0.6;padding:16px;text-align:center;font-size:13px';e.innerHTML='剪贴历史为空<br><span style="font-size:11px">选中文字后按 Ctrl+C / Ctrl+X 即可存入</span>';list.appendChild(e);return;}
   clips.forEach((txt,idx)=>{
@@ -2536,8 +2680,41 @@ if (isAndroid) {
 // 点击音效：统一走 WebView 自合成黑轴音效（受 soundOn 控制）。
 // 不再调用 Android.playClick（系统音不可换、且无法静音控制）。
 
+// ===== 白屏/卡旧画根治：切到别的 App 再切回时，WebView 的合成缓冲常被系统回收，
+//   表现为整片白屏或停在上一帧、点不动，需反复切换才恢复。这里在「重新可见」的所有
+//   时机强制重绘 + 校验 DOM 完整，零闪烁地把画面拉回来。Java 端也可直接调 window.imeRepaint()。=====
+let _repaintRaf=0;
+function imeRepaint(){
+  const ime=document.getElementById('ime');
+  if(!ime) return;
+  // 1) DOM 兜底：若主键盘行被系统回收成空（极端情况），按当前状态重建一次
+  try{
+    const r1=document.getElementById('r1');
+    const numHidden=document.getElementById('numKb') && document.getElementById('numKb').classList.contains('hidden');
+    if(r1 && r1.childElementCount===0 && numHidden){ buildKb(); }
+  }catch(e){}
+  // 2) 强制合成层重绘：切换一个极廉价、不可见的变换并在下一帧复位，
+  //    迫使 WebView 重新提交缓冲（解决「白屏 / 停在旧帧」两种表现）。
+  if(_repaintRaf) cancelAnimationFrame(_repaintRaf);
+  ime.style.transform='translateZ(0)';
+  void ime.offsetHeight;                 // 同步触发一次回流
+  _repaintRaf=requestAnimationFrame(()=>{
+    ime.style.transform='';
+    // 二次保险：再下一帧轻推 opacity，覆盖个别机型首帧不提交的情况
+    requestAnimationFrame(()=>{ ime.style.opacity='0.999'; requestAnimationFrame(()=>{ ime.style.opacity=''; }); });
+  });
+}
+window.imeRepaint=imeRepaint;            // 暴露给 Java：onStartInputView 里 evaluateJavascript("imeRepaint()")
+// 监听一切「重新回到前台/重新可见」的浏览器侧时机
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) imeRepaint(); });
+window.addEventListener('pageshow',imeRepaint);
+window.addEventListener('focus',imeRepaint);
+window.addEventListener('resume',imeRepaint);      // 部分 WebView 容器会派发
+window.addEventListener('orientationchange',()=>{ setTimeout(imeRepaint,60); });
+
 function onIMEFocus(){
   updateCode();
+  imeRepaint();
 }
 function onIMEBlur(){
   // 失焦时可选择清空编码
