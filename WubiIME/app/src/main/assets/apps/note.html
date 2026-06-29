@@ -98,7 +98,8 @@
   @keyframes fade{from{opacity:0}to{opacity:1}}
   .scrim{animation:fade .25s ease;}
 
-  @media (max-width:600px){
+  /* 嵌入输入法时显示区又窄又矮：窄屏或矮屏一律去外壳全屏铺满(避免"小窗并列"观感) */
+  @media (max-width:600px), (max-height:760px){
     body{background:var(--paper);}
     .phone-outer{padding:0;min-height:100dvh;display:block;}
     .phone-bezel{width:100vw;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;}
