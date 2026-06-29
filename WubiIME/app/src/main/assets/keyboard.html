@@ -19,7 +19,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .emoji-cell{font-family:'KBEmoji',"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
   color:initial!important;-webkit-font-feature-settings:normal;font-variant-emoji:emoji}
 /* 表情格：对标精修——扁平无按钮底，仅圆角点击反馈，emoji 更大更清爽(不被按钮渐变/阴影压暗) */
-.emj-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+.emj-cell{height:38px;display:flex;align-items:center;justify-content:center;
   border-radius:10px;cursor:pointer;font-size:26px;line-height:1;padding:0;
   background:transparent;transition:background .1s,transform .08s}
 .emj-cell:active{background:rgba(0,0,0,0.06);transform:scale(0.9)}
@@ -74,7 +74,6 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   box-shadow:0 2px 5px rgba(150,60,20,0.28)}
 .cat-chip.emo{padding:0 6px;font-size:18px;min-width:30px}
 .cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
-.cat-chip.emo.on::after{content:'';position:absolute;left:18%;right:18%;bottom:-2px;height:2px;border-radius:2px;background:var(--ac,#c75f33)}
 .cat-chip.emo{position:relative}
 .mode-tag{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:9px;
   background:rgba(100,130,255,0.15);color:#7090ff;letter-spacing:1px}
@@ -118,15 +117,25 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 #modeBtn{background:radial-gradient(circle at 38% 30%,var(--acl,#f8a070),var(--ac,#e86030) 55%,var(--acd,#c03810));
   border-color:transparent;box-shadow:0 2px 6px rgba(180,70,20,0.35)}
 #modeBtn .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
-/* 剪贴板球：陶瓷容器·内部装着内容(下半 50% 实色液面)——区别于"空"的颜色球(仅切色)。色随主题。 */
-.clip-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:hidden;
-  background:linear-gradient(180deg,rgba(255,255,255,0.62) 0%,rgba(255,255,255,0.34) 49.5%,var(--ac,#e86030) 50%,var(--acd,#c03810) 100%);
-  box-shadow:0 3px 9px rgba(0,0,0,0.28),inset 0 -3px 6px rgba(0,0,0,0.30),inset 0 2px 3px rgba(255,255,255,0.55),inset 0 0 0 1px rgba(255,255,255,0.30)}
-.clip-ball::before{content:'';position:absolute;left:8%;right:8%;top:50%;height:1.5px;background:rgba(255,255,255,0.55);transform:translateY(-50%);z-index:1}
-.clip-ball::after{content:'';position:absolute;top:9%;left:24%;width:50%;height:20%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0));z-index:1}
-/* 激活态(剪贴板展开)：保持球体外观，外加主题色高亮环 */
-.sball.clip-ball.on{background:linear-gradient(180deg,rgba(255,255,255,0.62) 0%,rgba(255,255,255,0.34) 49.5%,var(--ac,#e86030) 50%,var(--acd,#c03810) 100%);
-  box-shadow:0 0 0 2px var(--acl,#f8a070),0 3px 10px rgba(0,0,0,0.30),inset 0 -3px 6px rgba(0,0,0,0.30),inset 0 2px 3px rgba(255,255,255,0.55)}
+/* 剪贴板球：完全复刻主题颜色球(themeBtn)的釉瓷质感(色随主题 var)，再叠加"内核"填充——寓示球内装着内容，区别于空的颜色球。 */
+.clip-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:visible;
+  background:
+    radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+    radial-gradient(circle at 50% 52%,var(--acl,#f0843a) 0%,var(--ac,#d8500e) 52%,var(--acd,#a8420f) 100%);
+  box-shadow:0 3px 10px rgba(0,0,0,0.30),0 1px 4px rgba(0,0,0,0.20),
+             inset 0 -3px 6px rgba(0,0,0,0.28),inset 0 2px 3px rgba(255,255,255,0.45)}
+/* 内核：球体内部的实心核(顶高光+底内阴影)，让球"有填充感" */
+.clip-ball::before{content:'';position:absolute;inset:27%;border-radius:50%;z-index:1;
+  background:radial-gradient(circle at 50% 34%,rgba(255,255,255,0.58) 0%,rgba(255,255,255,0.12) 44%,rgba(0,0,0,0.20) 100%);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,0.45),inset 0 -2px 3px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.12)}
+/* 釉面顶光：横向柔光带(同主题颜色球) */
+.clip-ball::after{content:'';position:absolute;top:9%;left:26%;width:48%;height:22%;border-radius:50%;z-index:2;
+  background:linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0))}
+/* 激活态(剪贴板展开)：保持釉瓷球外观，外加主题色高亮环 */
+.sball.clip-ball.on{background:
+    radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+    radial-gradient(circle at 50% 52%,var(--acl,#f0843a) 0%,var(--ac,#d8500e) 52%,var(--acd,#a8420f) 100%);
+  box-shadow:0 0 0 2px var(--acl,#f8a070),0 3px 10px rgba(0,0,0,0.30),inset 0 -3px 6px rgba(0,0,0,0.28),inset 0 2px 3px rgba(255,255,255,0.45)}
 
 /* 主题球：唯一保留的陶瓷圆球（作品牌点缀）*/
 .theme-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:visible;
@@ -254,11 +263,13 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   word-break:break-all;max-width:100%}
 .calc-res{font-size:14px;color:var(--ac,#e86030);margin-top:2px;font-weight:600}
 
-.panel{height:var(--panelH,230px);max-height:none;overflow-y:auto;overflow-x:hidden;padding:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;
+.panel{height:var(--panelH,122px);max-height:none;display:flex;flex-direction:column;overflow:hidden;padding:0;
   border-radius:0 0 14px 14px;
   background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+/* 面板内滚动区：拖杆冻结在其上方，内容只在此区域上下滚动(拖杆不随滚动) */
+.panel-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .panel-grid{display:block}
-.pi{height:42px;display:flex;align-items:center;justify-content:center;
+.pi{height:34px;display:flex;align-items:center;justify-content:center;
   text-align:center;font-size:18px;border-radius:10px;
   cursor:pointer;color:var(--ktxt,#2a1408);transition:background .1s,transform .08s;
   background:linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.42));
@@ -476,7 +487,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 </div>
 <div id="symPanel" class="panel hidden"><div class="panel-grid" id="punctG"></div></div>
 <div id="emjPanel" class="panel hidden"><div class="panel-grid" id="emjG"></div></div>
-<div id="clipPanel" class="panel hidden" style="padding:8px;position:relative">
+<div id="clipPanel" class="panel hidden" style="position:relative">
   <div id="clipList"></div></div>
 </div>
 <div class="pager-overlay hidden" id="pagerOv" onclick="closePager()">
@@ -1551,8 +1562,8 @@ function symGetOrder(ci){
   return out;
 }
 // ===== 面板高度可拖拽调整（符号/表情共用，持久化）=====
-let _panelH=230;
-try{ const v=parseInt(localStorage.getItem('panelH')); if(v>=80 && v<=420) _panelH=v; }catch(e){}
+let _panelH=104;   // 默认高度≈展2行内容(Issue: 默认展开2行)
+try{ const v=parseInt(localStorage.getItem('panelH2')); if(v>=80 && v<=420) _panelH=v; }catch(e){}
 function applyPanelH(){ document.documentElement.style.setProperty('--panelH', _panelH+'px'); }
 applyPanelH();
 // ===== 编码栏分类条：符号/表情面板开启时，把分类标签搬到顶部编码栏左右滑动 =====
@@ -1611,7 +1622,7 @@ function mkDragHandle(){
   const flush=()=>{ raf=0; _panelH=pendH; document.documentElement.style.setProperty('--panelH', _panelH+'px'); };
   const down=y=>{ drag=true; startY=y; startH=_panelH; };
   const move=y=>{ if(!drag)return; const dy=startY-y; let h=startH+dy; h=Math.max(80,Math.min(420,h)); pendH=h; if(!raf) raf=requestAnimationFrame(flush); };
-  const up=()=>{ if(!drag)return; drag=false; if(raf){cancelAnimationFrame(raf);flush();} try{localStorage.setItem('panelH',String(_panelH));}catch(e){} };
+  const up=()=>{ if(!drag)return; drag=false; if(raf){cancelAnimationFrame(raf);flush();} try{localStorage.setItem('panelH2',String(_panelH));}catch(e){} };
   bar.addEventListener('touchstart',e=>{ down(e.touches[0].clientY); },{passive:true});
   bar.addEventListener('touchmove',e=>{ e.preventDefault(); move(e.touches[0].clientY); },{passive:false});
   bar.addEventListener('touchend',up,{passive:true});
@@ -1622,8 +1633,8 @@ function mkDragHandle(){
 function buildPunct() {
   const wrap = document.getElementById('punctG');
   wrap.innerHTML = '';
-  wrap.style.cssText = 'display:block;padding:0;position:relative;';
-  wrap.appendChild(mkDragHandle());   // 顶部拖拽手柄
+  wrap.style.cssText = 'display:flex;flex-direction:column;padding:0;position:relative;height:100%;';
+  wrap.appendChild(mkDragHandle());   // 顶部拖拽手柄(冻结置顶，不随内容滚动)
   _catSelectFn=null;
   // 分类标签搬到顶部「编码栏」(catStrip) 左右滑动；面板内只保留拖杆 + 内容网格(紧跟拖杆)。
   const tabs=document.getElementById('catStrip');
@@ -1631,7 +1642,7 @@ function buildPunct() {
   // 网格容器(切换分类时只换它的内容)
   const grid=document.createElement('div');
   grid.id='symGrid';
-  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:6px;grid-auto-flow:row dense;';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:4px 6px;grid-auto-flow:row dense;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;';
 
   // 渲染某分类符号到网格(仅替换网格内容)：8/行、单击上屏、长按拖拽排序
   const renderGrid=(ci)=>{
@@ -1749,8 +1760,9 @@ function buildPunct() {
 let _emjCat=0;
 function buildEmoji() {
   const g=document.getElementById('emjG'); g.innerHTML='';
-  g.style.cssText='display:block;padding:0;';
-  g.appendChild(mkDragHandle());   // 顶部拖拽手柄：上下拖动调面板高度
+  g.style.cssText='display:flex;flex-direction:column;padding:0;height:100%;';
+  g.appendChild(mkDragHandle());   // 顶部拖拽手柄(冻结置顶，不随内容滚动)
+  const body=document.createElement('div'); body.className='panel-scroll'; g.appendChild(body);
   _catSelectFn=(i)=>{ _emjCat=i; buildEmoji(); };
   // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
   const tabs=document.getElementById('catStrip');
@@ -1798,7 +1810,7 @@ function buildEmoji() {
     rightCol.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:3px;padding-left:5px';
     FLAG_RIGHT.forEach(it=>rightCol.appendChild(mkFlagCell(it,true)));
     top.appendChild(leftCol); top.appendChild(div); top.appendChild(rightCol);
-    g.appendChild(top);
+    body.appendChild(top);
     // 下半：其余居中
     const botWrap=document.createElement('div');
     botWrap.style.cssText='border-top:1px solid rgba(0,0,0,0.08);padding:5px 6px';
@@ -1806,12 +1818,12 @@ function buildEmoji() {
     bot.style.cssText='display:grid;grid-template-columns:repeat(6,1fr);gap:3px';
     FLAG_OTHER.forEach(it=>bot.appendChild(mkFlagCell(it,false)));
     botWrap.appendChild(bot);
-    g.appendChild(botWrap);
+    body.appendChild(botWrap);
     return;
   }
   // 普通分类表情网格
   const grid=document.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:4px 8px 8px;';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:3px 8px 5px;';
   cat.list.forEach(e=>{
     const div=document.createElement('div');
     div.className='emj-cell emoji-cell';
@@ -1819,7 +1831,7 @@ function buildEmoji() {
     addPanelKey(div,()=>commit(e));
     grid.appendChild(div);
   });
-  g.appendChild(grid);
+  body.appendChild(grid);
 }
 
 // ====== 输入逻辑 ======
@@ -2362,7 +2374,8 @@ function refreshClip() {
   // 重建列表时关闭可能残留的详情门
   const od=document.getElementById('clipDoor'); if(od) od.remove();
   const list=document.getElementById('clipList'); list.innerHTML='';
-  // Issue6: 剪贴板面板顶部也加"两条线"拖动手柄，与符号/表情一致，可上下拖调面板高度。
+  list.style.cssText='display:flex;flex-direction:column;height:100%;padding:0;';
+  // Issue6: 顶部"两条线"拖动手柄——冻结置顶(与符号/表情一致)；其下工具行固定，剪贴列表在滚动区内滚动。
   list.appendChild(mkDragHandle());
   // ===== 工具行：密码生成器 · 笔记本 · 防截屏 —— 统一卡片、紧凑联动 =====
   const pwSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 2.5v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V5.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10.5" r="2" stroke="currentColor" stroke-width="1.6"/><path d="M12 12.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
@@ -2435,8 +2448,10 @@ function refreshClip() {
   cApp3.innerHTML='<span style="font-size:19px;font-weight:300;line-height:1">＋</span><span style="font-size:10px;font-weight:600;letter-spacing:0">预留</span>';
   toolRow.appendChild(cPw); toolRow.appendChild(cNote); toolRow.appendChild(cSec); toolRow.appendChild(cApp3);
   list.appendChild(toolRow);
+  // 滚动区：剪贴条目与页脚均在此滚动，拖杆/工具行固定不动。
+  const body=document.createElement('div'); body.className='panel-scroll'; list.appendChild(body);
 
-  if(!clips.length){const e=document.createElement('div');e.style.cssText='color:var(--ktxt,#888);opacity:0.6;padding:16px;text-align:center;font-size:13px';e.innerHTML='剪贴历史为空<br><span style="font-size:11px">选中文字后按 Ctrl+C / Ctrl+X 即可存入</span>';list.appendChild(e);return;}
+  if(!clips.length){const e=document.createElement('div');e.style.cssText='color:var(--ktxt,#888);opacity:0.6;padding:16px;text-align:center;font-size:13px';e.innerHTML='剪贴历史为空<br><span style="font-size:11px">選中文字后按 Ctrl+C / Ctrl+X 即可存入</span>';body.appendChild(e);return;}
   clips.forEach((txt,idx)=>{
     const row=document.createElement('div');
     row.style.cssText='position:relative;display:flex;align-items:center;padding:10px 8px;'+
@@ -2484,7 +2499,7 @@ function refreshClip() {
     const doDel=(e)=>{ e.preventDefault(); e.stopPropagation(); clips.splice(idx,1); saveClips(); refreshClip(); };
     del.addEventListener('mousedown',doDel);
     del.addEventListener('touchstart',doDel,{passive:false});
-    list.appendChild(row);
+    body.appendChild(row);
   });
   const foot=document.createElement('div');
   foot.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-top:2px';
@@ -2501,7 +2516,7 @@ function refreshClip() {
   clr.addEventListener('touchstart',e=>{ _clrTouched=true; doClr(e); setTimeout(()=>{_clrTouched=false;},400); },{passive:false});
   clr.addEventListener('mousedown',e=>{ if(_clrTouched)return; doClr(e); });
   foot.appendChild(clr);
-  list.appendChild(foot);
+  body.appendChild(foot);
 }
 function openPager() {
   // 按当前模式取全部候选：T9九宫用 t9Cands，五笔/拼音用 queryCands
