@@ -170,20 +170,46 @@
 
   /* ---- 私有数据通道 ---- */
   const Store = {
-    load(){
+    /* ===== 分块存储 =====================================================
+       真机走 AndroidPW 加密桥：每个 key 落一个独立 {key}.enc 文件(AES-256-GCM)；
+       浏览器回退 localStorage(键加前缀 miaoji_)。笔记本按"本"切块：
+         · nb_index  —— 索引：仅元数据 + 预览/字数(体积极小，秒读)
+         · nb_<id>   —— 每本独立文件，含正文 blocks
+       写入只触碰当前这一本 + 索引；读取在打开某本时才按需载入该本正文。
+       从根本上避免"把全部笔记当一个大文件反复整体加解密"的性能拖累。 ===== */
+    _hasPW(){ return typeof AndroidPW!=='undefined' && !!AndroidPW.saveAppData && !!AndroidPW.loadAppData; },
+    _safe(k){ return String(k).replace(/[^A-Za-z0-9_]/g,'_'); },
+    _get(key){
       try{
-        if(typeof AndroidPW!=='undefined' && AndroidPW.loadAppData){
-          const s = AndroidPW.loadAppData('notebook'); return s ? JSON.parse(s) : null;
-        }
-        const s = localStorage.getItem('miaoji_v2'); return s ? JSON.parse(s) : null;
+        if(this._hasPW()){ const s=AndroidPW.loadAppData(key); return s||null; }
+        return localStorage.getItem('miaoji_'+key);
       }catch(e){ return null; }
     },
-    save(obj){
-      const s = JSON.stringify(obj);
+    _put(key,str){
       try{
-        if(typeof AndroidPW!=='undefined' && AndroidPW.saveAppData){ AndroidPW.saveAppData('notebook', s); return; }
-        localStorage.setItem('miaoji_v2', s);
+        if(this._hasPW()){ AndroidPW.saveAppData(key,str); return; }
+        localStorage.setItem('miaoji_'+key,str);
       }catch(e){}
+    },
+    _del(key){
+      try{
+        if(this._hasPW()){ AndroidPW.saveAppData(key,''); return; }   // 桥无删除接口：写空等效作废
+        localStorage.removeItem('miaoji_'+key);
+      }catch(e){}
+    },
+    bookKey(id){ return 'nb_'+this._safe(id); },
+    loadIndex(){ try{ const s=this._get('nb_index'); const o=s?JSON.parse(s):null; return (o&&o.list)?o:null; }catch(e){ return null; } },
+    saveIndex(idx){ this._put('nb_index', JSON.stringify(idx)); },
+    loadBook(id){ try{ const s=this._get(this.bookKey(id)); return s?JSON.parse(s):null; }catch(e){ return null; } },
+    saveBook(book){ this._put(this.bookKey(book.id), JSON.stringify(book)); },
+    delBook(id){ this._del(this.bookKey(id)); },
+    /* 旧版单文件 blob(notebook / miaoji_v2)：仅迁移时读一次；迁移后保留作备份(数据安全优先，绝不删) */
+    loadLegacy(){
+      try{
+        const s = this._hasPW() ? AndroidPW.loadAppData('notebook') : localStorage.getItem('miaoji_v2');
+        const o = s ? JSON.parse(s) : null;
+        return (o && o.notebooks && o.notebooks.length) ? o : null;
+      }catch(e){ return null; }
     },
     copy(text){
       try{ if(typeof AndroidPW!=='undefined' && AndroidPW.copyToClipboard){ AndroidPW.copyToClipboard(text); return; } }catch(e){}
@@ -234,14 +260,78 @@
       this.persist();
     },
     persist(){
-      // 轻防抖：连续击键合并写，减轻加密落盘压力
+      // 轻防抖：连续击键合并写，只写"当前这一本 + 索引"，不再整库落盘
       clearTimeout(this._save);
-      this._save = setTimeout(()=> this.flush(), 250);
+      this._save = setTimeout(()=> this.flushBook(), 250);
     },
     // 立即落盘（不等防抖）—— 切后台/关闭/锁屏时调，保证最后一字不丢
-    flush(){
+    flush(){ this.flushBook(); },
+    // 只持久化当前笔记本的正文块 + 轻量索引(其余笔记本的正文文件原封不动)
+    flushBook(){
       clearTimeout(this._save); this._save=null;
-      Store.save({notebooks:this.state.notebooks, nextStrat:this.state.nextStrat});
+      const nb=this.cur();
+      if(nb && nb._loaded!==false){ Store.saveBook(this.bookData(nb)); }
+      this.saveMeta();
+    },
+    bookData(nb){ return { id:nb.id, tag:nb.tag, accent:nb.accent, foot:nb.foot,
+      seedTitle:nb.seedTitle||null, seedBody:nb.seedBody||null, blocks:nb.blocks||[] }; },
+    // 索引：全部笔记本的元数据 + 预览卡片摘要(无正文)，体积极小，按显示顺序排列
+    saveMeta(){
+      const idx={ v:3, nextStrat:this.state.nextStrat, list:this.state.notebooks.map(n=>{
+        const card = (n._loaded!==false) ? this.cardSummary(n)
+                   : (n._card || {has:false,title:n.seedTitle||'未命名',snippet:n.seedBody||'',words:0});
+        n._card=card;
+        return { id:n.id, tag:n.tag, accent:n.accent, foot:n.foot,
+          seedTitle:n.seedTitle||null, seedBody:n.seedBody||null, card };
+      })};
+      Store.saveIndex(idx);
+    },
+    // 由正文计算卡片摘要(标题/预览/字数)；供索引与库视图复用
+    cardSummary(nb){
+      const blocks=nb.blocks||[];
+      const has=blocks.some(b=>(b.text||'').trim());
+      let title,snippet,wtext;
+      if(has){
+        title=(blocks.find(b=>b.type==='h1'&&b.text.trim())||blocks.find(b=>(b.text||'').trim())||{}).text||'未命名';
+        snippet=blocks.filter(b=>(b.type==='p'||b.type==='h2')&&b.text.trim()).map(b=>b.text).join('  ')||'（空笔记）';
+        wtext=blocks.map(b=>b.text||'').join('');
+      } else if(nb.seedTitle){ title=nb.seedTitle; snippet=nb.seedBody||''; wtext=nb.seedTitle+(nb.seedBody||''); }
+      else { title='未命名'; snippet='空白笔记 · 待书写'; wtext=''; }
+      return { has, title, snippet, words:(wtext||'').replace(/\s/g,'').length };
+    },
+    // 库视图取卡片数据：已载入则实时算，未载入(瘦身 stub)则用索引里存的摘要
+    cardOf(n){
+      if(n._loaded!==false && n.blocks){ const c=this.cardSummary(n); n._card=c; return c; }
+      const c=n._card||{};
+      return { title:c.title||n.seedTitle||'未命名', snippet:c.snippet||n.seedBody||'空白笔记 · 待书写', words:c.words||0 };
+    },
+    // 按需载入某本正文(打开时调用)：一点即开，只读这一本的文件
+    ensureLoaded(id){
+      const nb=this.state.notebooks.find(n=>n.id===id);
+      if(!nb || nb._loaded!==false) return nb;
+      const data=Store.loadBook(id);
+      nb.blocks = (data && Array.isArray(data.blocks) && data.blocks.length) ? data.blocks
+                : [ {id:uid(),type:'h1',text:''},{id:uid(),type:'p',text:''} ];
+      if(data){ if(data.tag!=null)nb.tag=data.tag; if(data.accent)nb.accent=data.accent;
+        if(data.foot)nb.foot=data.foot; if('seedTitle' in data)nb.seedTitle=data.seedTitle; if('seedBody' in data)nb.seedBody=data.seedBody; }
+      nb._loaded=true; return nb;
+    },
+    // 启动：只载索引→建立瘦身列表(正文按需);无索引则从旧 blob 迁移或用内置种子
+    loadLibrary(){
+      let idx=Store.loadIndex();
+      if(!idx){
+        const legacy=Store.loadLegacy();
+        const seed=(legacy&&legacy.notebooks)?legacy.notebooks:this.state.notebooks;
+        const nextStrat=(legacy&&legacy.nextStrat)?legacy.nextStrat:this.state.nextStrat;
+        seed.forEach(nb=>{ Store.saveBook(this.bookData(nb)); });   // 切块落盘每一本
+        idx={ v:3, nextStrat, list:seed.map(nb=>({ id:nb.id, tag:nb.tag, accent:nb.accent, foot:nb.foot,
+          seedTitle:nb.seedTitle||null, seedBody:nb.seedBody||null, card:this.cardSummary(nb) })) };
+        Store.saveIndex(idx);
+      }
+      this.state.notebooks = idx.list.map(e=>({ id:e.id, tag:e.tag, accent:e.accent, foot:e.foot,
+        seedTitle:e.seedTitle||null, seedBody:e.seedBody||null, blocks:[], _loaded:false, _card:e.card||null }));
+      this.state.nextStrat = idx.nextStrat||4;
+      if(this.state.notebooks.length) this.state.currentId=this.state.notebooks[0].id;
     },
     flash(msg, ms){
       this.state.toast = msg; this.renderToast();
@@ -252,7 +342,7 @@
     render(){
       const s=this.state;
       if(s.view==='library') this.root.innerHTML = this.libHTML();
-      else this.root.innerHTML = this.edHTML();
+      else { this.ensureLoaded(s.currentId); this.root.innerHTML = this.edHTML(); }
       this.wire();
       this.renderToast();
     },
@@ -268,15 +358,7 @@
     libHTML(){
       const s=this.state;
       const cards = s.notebooks.map(n=>{
-        const has = n.blocks.some(b=>(b.text||'').trim());
-        let title, snippet, wtext;
-        if(has){
-          title = (n.blocks.find(b=>b.type==='h1'&&b.text.trim()) || n.blocks.find(b=>(b.text||'').trim()) || {}).text || '未命名';
-          snippet = n.blocks.filter(b=>(b.type==='p'||b.type==='h2')&&b.text.trim()).map(b=>b.text).join('  ') || '（空笔记）';
-          wtext = n.blocks.map(b=>b.text||'').join('');
-        } else if(n.seedTitle){ title=n.seedTitle; snippet=n.seedBody; wtext=n.seedTitle+n.seedBody; }
-        else { title='未命名'; snippet='空白笔记 · 待书写'; wtext=''; }
-        const words = wtext.replace(/\s/g,'').length;
+        const c = this.cardOf(n), title=c.title, snippet=c.snippet, words=c.words;
         return `<div class="nb" data-card="1" data-id="${n.id}">
           <div class="nb-title">${esc(title)}</div>
           <div class="nb-rule"><div class="nb-dot" style="background:${n.accent}"></div><div class="nb-line"></div></div>
@@ -997,8 +1079,7 @@
     /* ---------------- mount ---------------- */
     mount(){
       this.root=document.getElementById('app');
-      const d=Store.load();
-      if(d && d.notebooks && d.notebooks.length){ this.state.notebooks=d.notebooks; this.state.nextStrat=d.nextStrat||4; this.state.currentId=d.notebooks[0].id; }
+      this.loadLibrary();
       document.addEventListener('pointerdown', (e)=>{
         if(e.button!=null && e.button!==0) return;
         const t=e.target; if(!t||!t.closest) return;
