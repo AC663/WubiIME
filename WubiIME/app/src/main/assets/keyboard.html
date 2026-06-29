@@ -124,11 +124,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
     radial-gradient(circle at 50% 52%,var(--acl,#f0843a) 0%,var(--ac,#d8500e) 52%,var(--acd,#a8420f) 100%);
   box-shadow:0 3px 10px rgba(0,0,0,0.30),0 1px 4px rgba(0,0,0,0.20),
              inset 0 -3px 6px rgba(0,0,0,0.28),inset 0 2px 3px rgba(255,255,255,0.45)}
-/* 内核：球体内部的实心核(顶高光+底内阴影)，让球"有填充感" */
-.clip-ball::before{content:'';position:absolute;inset:27%;border-radius:50%;z-index:1;
-  background:radial-gradient(circle at 50% 34%,rgba(255,255,255,0.58) 0%,rgba(255,255,255,0.12) 44%,rgba(0,0,0,0.20) 100%);
-  box-shadow:inset 0 1px 2px rgba(255,255,255,0.45),inset 0 -2px 3px rgba(0,0,0,0.32),0 0 0 1px rgba(255,255,255,0.12)}
-/* 釉面顶光：横向柔光带(同主题颜色球) */
+/* 釉面顶光：横向柔光带(同主题颜色球)。不再加"内核/细胞核"，保持与颜色球一致的纯净釉瓷球。 */
 .clip-ball::after{content:'';position:absolute;top:9%;left:26%;width:48%;height:22%;border-radius:50%;z-index:2;
   background:linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0))}
 /* 激活态(剪贴板展开)：保持釉瓷球外观，外加主题色高亮环 */
@@ -269,6 +265,8 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 /* 面板内滚动区：拖杆冻结在其上方，内容只在此区域上下滚动(拖杆不随滚动) */
 .panel-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .panel-grid{display:block}
+/* 表情面板独立高度：默认正好 2 行，与符号/剪贴(--panelH)分开，可各自拖杆调整 */
+#emjPanel{height:var(--emjH,100px)}
 .pi{height:34px;display:flex;align-items:center;justify-content:center;
   text-align:center;font-size:18px;border-radius:10px;
   cursor:pointer;color:var(--ktxt,#2a1408);transition:background .1s,transform .08s;
@@ -278,6 +276,21 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .panel-close{padding:7px;text-align:center;color:var(--ac,#e86030);opacity:0.7;
   font-size:12px;cursor:pointer;border-top:1px solid rgba(0,0,0,0.06);margin-top:3px}
 
+/* 造词(Ctrl+F)顶部条：词 + 码 + 添加/取消，不遮挡候选栏/键盘 */
+.wm-bar{background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));border-bottom:1px solid rgba(0,0,0,0.10);padding:8px 12px 10px;display:flex;flex-direction:column;gap:7px}
+.wm-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:var(--ac,#d6822e)}
+.wm-x{font-size:20px;line-height:1;color:var(--ktxt,#2a1408);opacity:0.5;cursor:pointer;padding:0 4px}
+.wm-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.55);border:1.5px solid transparent;cursor:pointer}
+.wm-row.on{border-color:var(--ac,#d6822e);background:#fff}
+.wm-lbl{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--ac,#d6822e);width:16px;text-align:center}
+.wm-val{flex:1;min-width:0;font-size:16px;font-weight:600;color:var(--ktxt,#2a1408);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;letter-spacing:1px}
+.wm-ph{color:var(--ktxt,#888);opacity:0.45;font-weight:400;font-size:13px;letter-spacing:0}
+#wmCodeText{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px}
+#wmCodeText.custom{color:var(--ac,#d6822e)}
+.wm-actions{display:flex;gap:8px}
+.wm-btn{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;user-select:none}
+.wm-cancel{background:rgba(0,0,0,0.07);color:var(--ktxt,#2a1408)}
+.wm-add{background:linear-gradient(180deg,var(--ac,#d6822e),var(--acd,#a8420f));color:#fff;box-shadow:0 2px 7px rgba(180,90,30,0.3)}
 .pager-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;
   display:flex;flex-direction:column;justify-content:flex-end}
 .pager-box{border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
@@ -462,6 +475,21 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   <span class="code-text" id="codeText"></span>
   <div class="cat-strip hidden" id="catStrip"></div>
   <div class="code-hide" id="codeHide" onclick="hideKb()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--acd,#9a4520)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M7 8.5 L12 13 L17 8.5"></path><path d="M7 14 L12 18 L17 14" opacity=".5"></path></svg></div>
+</div>
+<div id="wmOv" class="wm-bar hidden">
+  <div class="wm-head"><span id="wmTitle">造词</span><span class="wm-x" onclick="closeWordMaker()">×</span></div>
+  <div class="wm-row on" id="wmWordField" onclick="wmSetField('word')">
+    <span class="wm-lbl">词</span>
+    <span class="wm-val"><span id="wmWordText"></span><span class="wm-ph" id="wmWordPh">输入要造的词…</span></span>
+  </div>
+  <div class="wm-row" id="wmCodeField" onclick="wmSetField('code')">
+    <span class="wm-lbl">码</span>
+    <span class="wm-val"><span id="wmCodeText"></span><span class="wm-ph" id="wmCodePh">自动反显 · 点此键入自定义码</span></span>
+  </div>
+  <div class="wm-actions">
+    <div class="wm-btn wm-cancel" onclick="closeWordMaker()">取消</div>
+    <div class="wm-btn wm-add" onclick="wmCommitAdd()">添加</div>
+  </div>
 </div>
 <div id="candBar" class="cand-bar hidden">
   <div class="cand-list" id="candList"></div>
@@ -1182,6 +1210,9 @@ function buildNumpad() {
   const np=document.getElementById('numpad'); np.innerHTML='';
   np.style.cssText='display:flex;gap:5px;padding:5px';
   if(calcMode){ buildCalcPad(np); return; }
+  // Issue: 普通数字键盘总高 = 主键盘(220)，切换无高度跳动。
+  // 主键盘 4 行×(44键+10行距)+4 = 220；数字键亦 4 行×44，行距拉10px、底部+4，凑足 220。
+  np.style.padding='5px 5px 9px';
   // ===== Issue3 普通数字键盘（重构）=====
   // 布局：
   //   7 8 9 | [删除·返回](双用：左半删除/长按连删，右半返回上一键盘)
@@ -1192,7 +1223,7 @@ function buildNumpad() {
   const RIGHT_W=76;
   // 左侧 3 列（数字 + 计算器/0/空格）
   const leftGrid=document.createElement('div');
-  leftGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,44px);gap:5px;flex:1';
+  leftGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,44px);gap:10px 5px;flex:1';
   [['7','8','9'],['4','5','6'],['1','2','3'],['CALC','0','SPACE']].forEach(row=>{
     row.forEach(k=>{
       const div=document.createElement('div');
@@ -1215,7 +1246,7 @@ function buildNumpad() {
   np.appendChild(leftGrid);
   // 右列：删除·返回(双用) / [- +] / [. X] / 回车
   const rightCol=document.createElement('div');
-  rightCol.style.cssText='display:flex;flex-direction:column;gap:5px;width:'+RIGHT_W+'px';
+  rightCol.style.cssText='display:flex;flex-direction:column;gap:10px;width:'+RIGHT_W+'px';
 
   // ① 删除键（纯删除：单击删除·长按连删；返回功能已移至顶栏 [123]↔[返回] 键）
   const delRet=document.createElement('div');
@@ -1305,7 +1336,7 @@ function buildCalcPad(np){
     [{k:'%',c:'func'},{k:'×',c:'func'},{k:'÷',c:'func'},{k:'DELZ',c:'func',dual:true}],
     [{k:'7'},{k:'8'},{k:'9'},{k:'-',c:'func'}],
     [{k:'4'},{k:'5'},{k:'6'},{k:'+',c:'func'}],
-    [{k:'1'},{k:'2'},{k:'3'},{k:'PUTZ',c:'accent',putdual:true}],
+    [{k:'1'},{k:'2'},{k:'3'},{k:'PUTZ',c:'func',putdual:true}],
   ];
   layout.forEach(row=>row.forEach(o=>{
     const div=document.createElement('div');
@@ -1566,6 +1597,11 @@ let _panelH=104;   // 默认高度≈展2行内容(Issue: 默认展开2行)
 try{ const v=parseInt(localStorage.getItem('panelH2')); if(v>=80 && v<=420) _panelH=v; }catch(e){}
 function applyPanelH(){ document.documentElement.style.setProperty('--panelH', _panelH+'px'); }
 applyPanelH();
+// 表情面板独立高度：默认正好 2 行表情(手柄14 + 网格 8padding + 38×2 + 2gap = 100)，整洁不切第3行
+let _emjH=100;
+try{ const v=parseInt(localStorage.getItem('emjH')); if(v>=80 && v<=420) _emjH=v; }catch(e){}
+function applyEmjH(){ document.documentElement.style.setProperty('--emjH', _emjH+'px'); }
+applyEmjH();
 // ===== 编码栏分类条：符号/表情面板开启时，把分类标签搬到顶部编码栏左右滑动 =====
 let _activePanel=null;   // null | 'sym' | 'emoji'
 let _catSelectFn=null;   // 当前面板的「选中分类」回调(由 buildPunct/buildEmoji 设定)
@@ -1607,7 +1643,7 @@ function initCatStripGestures(){
   });
 }
 // 在面板顶部插入一个拖拽手柄，上下拖动改变面板高度（rAF 节流，丝滑无颤）
-function mkDragHandle(){
+function mkDragHandle(kind){
   const bar=document.createElement('div');
   // Issue7: 重做为"两条跟随主题色的长直线"——这两条平行直线即调节高度的滑杆。
   //   符号/表情/剪贴板三个面板共用此手柄。背景透明，仅靠两条主题色线表达可拖拽。
@@ -1617,12 +1653,18 @@ function mkDragHandle(){
   const line2=document.createElement('div');
   line2.style.cssText='width:100%;height:2px;border-radius:2px;background:var(--acl,#eb976f)';
   bar.appendChild(line1); bar.appendChild(line2);
-  let startY=0,startH=0,drag=false,pendH=_panelH,raf=0;
+  let startY=0,startH=0,drag=false,raf=0;
+  const isEmj=(kind==='emj');
+  const cssVar=isEmj?'--emjH':'--panelH';
+  const lsKey=isEmj?'emjH':'panelH2';
+  const getH=()=> isEmj?_emjH:_panelH;
+  const setH=v=>{ if(isEmj)_emjH=v; else _panelH=v; };
+  let pendH=getH();
   // rAF 节流：touchmove 只记录目标值，下一帧统一应用一次，避免每次事件都 reflow 造成抖动
-  const flush=()=>{ raf=0; _panelH=pendH; document.documentElement.style.setProperty('--panelH', _panelH+'px'); };
-  const down=y=>{ drag=true; startY=y; startH=_panelH; };
+  const flush=()=>{ raf=0; setH(pendH); document.documentElement.style.setProperty(cssVar, pendH+'px'); };
+  const down=y=>{ drag=true; startY=y; startH=getH(); };
   const move=y=>{ if(!drag)return; const dy=startY-y; let h=startH+dy; h=Math.max(80,Math.min(420,h)); pendH=h; if(!raf) raf=requestAnimationFrame(flush); };
-  const up=()=>{ if(!drag)return; drag=false; if(raf){cancelAnimationFrame(raf);flush();} try{localStorage.setItem('panelH2',String(_panelH));}catch(e){} };
+  const up=()=>{ if(!drag)return; drag=false; if(raf){cancelAnimationFrame(raf);flush();} try{localStorage.setItem(lsKey,String(getH()));}catch(e){} };
   bar.addEventListener('touchstart',e=>{ down(e.touches[0].clientY); },{passive:true});
   bar.addEventListener('touchmove',e=>{ e.preventDefault(); move(e.touches[0].clientY); },{passive:false});
   bar.addEventListener('touchend',up,{passive:true});
@@ -1758,10 +1800,23 @@ function buildPunct() {
 }
 
 let _emjCat=0;
+// ===== 表情：每类可长按拖拽自由排序(持久化)，与符号一致 =====
+let _emjOrder={};
+try{ const eo=localStorage.getItem('kbEmjOrder'); if(eo) _emjOrder=JSON.parse(eo)||{}; }catch(e){ _emjOrder={}; }
+function emjSaveOrder(){ try{ localStorage.setItem('kbEmjOrder', JSON.stringify(_emjOrder)); }catch(e){} }
+function emjGetOrder(ci){
+  const def=EMOJI_CATS[ci].list;
+  const saved=_emjOrder[ci];
+  if(!saved || !saved.length) return def.slice();
+  const valid=new Set(def), seen=new Set(), out=[];
+  saved.forEach(p=>{ if(valid.has(p)&&!seen.has(p)){ out.push(p); seen.add(p); } });
+  def.forEach(p=>{ if(!seen.has(p)){ out.push(p); seen.add(p); } });
+  return out;
+}
 function buildEmoji() {
   const g=document.getElementById('emjG'); g.innerHTML='';
   g.style.cssText='display:flex;flex-direction:column;padding:0;height:100%;';
-  g.appendChild(mkDragHandle());   // 顶部拖拽手柄(冻结置顶，不随内容滚动)
+  g.appendChild(mkDragHandle('emj'));   // 顶部拖拽手柄(冻结置顶，不随内容滚动)——表情独立高度
   const body=document.createElement('div'); body.className='panel-scroll'; g.appendChild(body);
   _catSelectFn=(i)=>{ _emjCat=i; buildEmoji(); };
   // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
@@ -1821,22 +1876,97 @@ function buildEmoji() {
     body.appendChild(botWrap);
     return;
   }
-  // 普通分类表情网格
+  // 普通分类表情网格：8/行，单击上屏，长按拖拽自由排序(与符号一致)
   const grid=document.createElement('div');
   grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:3px 8px 5px;';
-  cat.list.forEach(e=>{
-    const div=document.createElement('div');
-    div.className='emj-cell emoji-cell';
-    div.textContent=e;
-    addPanelKey(div,()=>commit(e));
-    grid.appendChild(div);
-  });
+  const ci=_emjCat;
+  const renderEmjGrid=()=>{
+    grid.innerHTML='';
+    const order=emjGetOrder(ci);
+    let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
+    const cleanupDrag=()=>{
+      if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+      if(clone){ clone.remove(); clone=null; }
+      if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
+      dragging=false; dragSym=null;
+      Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+    };
+    const finishReorder=(targetSym,after)=>{
+      const cur=emjGetOrder(ci).slice();
+      const from=cur.indexOf(dragSym);
+      if(from<0){ cleanupDrag(); return; }
+      cur.splice(from,1);
+      let to=cur.indexOf(targetSym);
+      if(to<0) cur.push(dragSym);
+      else { if(after) to+=1; cur.splice(to,0,dragSym); }
+      _emjOrder[ci]=cur; emjSaveOrder();
+      cleanupDrag(); renderEmjGrid();
+    };
+    order.forEach(e=>{
+      const div=document.createElement('div');
+      div.className='emj-cell emoji-cell';
+      div.textContent=e;
+      div.dataset.sym=e;
+      let _moved=false,_touched=false,_t0=0;
+      div.addEventListener('touchstart',ev=>{
+        _touched=true; _moved=false; _t0=Date.now();
+        startX=ev.touches[0].clientX; startY=ev.touches[0].clientY;
+        longTimer=setTimeout(()=>{        // 长按 280ms → 进入拖拽排序
+          dragging=true; dragSym=e; dragEl=div;
+          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+          const r=div.getBoundingClientRect();
+          clone=document.createElement('div');
+          clone.textContent=e;
+          clone.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;margin:0;z-index:300;pointer-events:none;opacity:0.96;transform:scale(1.15);box-shadow:0 6px 18px rgba(0,0,0,0.28);border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(214,130,46,0.18);font-size:26px';
+          document.body.appendChild(clone);
+          div.style.opacity='0.25';
+        },280);
+      },{passive:true});
+      div.addEventListener('touchmove',ev=>{
+        const t=ev.touches[0];
+        if(!dragging){     // 未进入拖拽：位移即取消长按，放行面板滚动
+          if(Math.abs(t.clientX-startX)>10||Math.abs(t.clientY-startY)>10){ _moved=true; if(longTimer){ clearTimeout(longTimer); longTimer=null; } }
+          return;
+        }
+        ev.preventDefault();
+        if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        let el=document.elementFromPoint(t.clientX,t.clientY);
+        while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+        Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+        if(el&&el.dataset&&el.dataset.sym&&el!==div){ el.style.outline='2px solid var(--ac,#e86030)'; el.style.outlineOffset='-2px'; }
+      },{passive:false});
+      div.addEventListener('touchend',ev=>{
+        if(dragging){
+          const t=ev.changedTouches[0];
+          let el=document.elementFromPoint(t.clientX,t.clientY);
+          while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+          if(el&&el.dataset&&el.dataset.sym&&el.dataset.sym!==dragSym){
+            const r=el.getBoundingClientRect();
+            finishReorder(el.dataset.sym, t.clientX>r.left+r.width/2);
+          } else cleanupDrag();
+          return;
+        }
+        if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+        if(_touched&&!_moved&&Date.now()-_t0<500){ commit(e); }   // 快速点 → 上屏
+        _touched=false;
+      },{passive:true});
+      div.addEventListener('touchcancel',()=>{ cleanupDrag(); _touched=false; },{passive:true});
+      div.addEventListener('click',()=>{ if(!('ontouchstart' in window)) commit(e); });  // 模拟器
+      grid.appendChild(div);
+    });
+  };
+  renderEmjGrid();
   body.appendChild(grid);
 }
 
 // ====== 输入逻辑 ======
 function pressKey(k) {
   const l=k.toLowerCase();
+  // 造词·自定义编码字段：字母直接进自定义码(最多4键)，不走编码/候选；其余忽略
+  if(_wmActive && _wmField==='code'){
+    if(/^[a-z]$/.test(l) && _wmCustomCode.length<4){ _wmCustomCode+=l; wmRefresh(); }
+    return;
+  }
   // ===== Ctrl 锁定层：连续输入数字，方向键可用，仅按 Ctrl 键本身退出 =====
   if(ctrlLock){
     const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
@@ -1845,6 +1975,7 @@ function pressKey(k) {
     // 编辑功能键：与单击 Ctrl 同款，锁定层保持不退出，可连续操作
     if(l==='a'){ handleCtrl('a'); return; }   // 全选
     if(l==='z'){ handleCtrl('z'); return; }   // 撤销
+    if(l==='f'){ openWordMaker(); return; }   // Ctrl+F：造词(锁定层保持)
     if(l==='x'){ handleCtrl('x'); return; }   // 剪切
     if(l==='c'){ handleCtrl('c'); return; }   // 复制
     if(l==='v'){ handleCtrl('v'); return; }   // 粘贴
@@ -1866,6 +1997,7 @@ function pressKey(k) {
       const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
       if(numMap[l]){ ctrl=false; commit(numMap[l]); setTimeout(buildKb,0); return; }   // 第一排数字
       if(l==='l'){ ctrl=false; toggleSound(); return; }                                 // Ctrl+L：音效开关
+      if(l==='f'){ ctrl=false; openWordMaker(); setTimeout(buildKb,0); return; }          // Ctrl+F：造词
       if(l==='g'&&mode==='pinyin'){ ctrl=false; togglePyGrid(); return; }               // Ctrl+G：拼音九宫格
     }
     if(alt){ alt=false; setTimeout(buildKb,0); }   // Alt 模式按非方向键：自动退出 Alt，继续正常输入该键
@@ -2011,8 +2143,188 @@ function commitCand(c){commit(c.w);clearCode();if(typeof _t9QueryTimer!=='undefi
 function clearCode(){code='';revMode=false;updateCode();}
 function insPunct(p){lastSym=p;commit(p);}
 
+// ====== 用户词库：造词(Ctrl+F) + 候选前置/删除(Ctrl+单击) ======
+// userTop[m][code]=[词...] 置顶(造词新增+前置)；userHide[m][code]=[词...] 隐藏(删除)。m: 'wubi'|'pinyin'
+let userTop={wubi:{},pinyin:{}}, userHide={wubi:{},pinyin:{}};
+try{ const t=localStorage.getItem('kbUserTop'); if(t){ const o=JSON.parse(t); if(o&&o.wubi&&o.pinyin) userTop=o; } }catch(e){}
+try{ const h=localStorage.getItem('kbUserHide'); if(h){ const o=JSON.parse(h); if(o&&o.wubi&&o.pinyin) userHide=o; } }catch(e){}
+function saveUserDict(){ try{ localStorage.setItem('kbUserTop',JSON.stringify(userTop)); localStorage.setItem('kbUserHide',JSON.stringify(userHide)); }catch(e){} }
+function hanCount(s){ return [...String(s)].filter(ch=>/[\u4e00-\u9fff]/.test(ch)).length; }
+function dictKey(){ return mode==='pinyin'?'pinyin':'wubi'; }
+function applyUserDict(cands, codeKey){
+  if(!codeKey || mode==='english') return cands;
+  const m=dictKey();
+  const hide=(userHide[m]&&userHide[m][codeKey])||[];
+  const top=(userTop[m]&&userTop[m][codeKey])||[];
+  let out=cands.filter(c=>!hide.includes(c.w));
+  if(top.length){
+    out=out.filter(c=>!top.includes(c.w));
+    const tops=top.map(w=>{ const ex=cands.find(c=>c.w===w); return ex?ex:{w:w,f:99999,user:true}; });
+    out=tops.concat(out);
+  }
+  return out;
+}
+function userAddTop(codeKey, word){   // 前置/造词：放到该码置顶组(造词词在前、前置词紧随其后)
+  if(!codeKey||!word) return;
+  const m=dictKey();
+  if(!userTop[m]) userTop[m]={};
+  if(!userHide[m]) userHide[m]={};
+  if(userHide[m][codeKey]) userHide[m][codeKey]=userHide[m][codeKey].filter(w=>w!==word);
+  const arr=userTop[m][codeKey]||[];
+  const i=arr.indexOf(word); if(i>=0) arr.splice(i,1);
+  arr.push(word);
+  userTop[m][codeKey]=arr; saveUserDict();
+}
+function userHideWord(codeKey, word){   // 删除：隐藏该码下这个词(单字调用方已拦截，不会到这)
+  if(!codeKey||!word) return;
+  const m=dictKey();
+  if(!userHide[m]) userHide[m]={};
+  if(!userTop[m]) userTop[m]={};
+  if(userTop[m][codeKey]) userTop[m][codeKey]=userTop[m][codeKey].filter(w=>w!==word);
+  const arr=userHide[m][codeKey]||[];
+  if(!arr.includes(word)) arr.push(word);
+  userHide[m][codeKey]=arr; saveUserDict();
+}
+function refreshCandsAfterEdit(){ const cands=queryCands(); if(cands.length>0) showCand(cands); else showBtns(); }
+
+// ====== 造词(Ctrl+F) ======
+let _wmActive=false, _wmWord='', _wmCustomCode='', _wmField='word', _wmUsedCodes=[];
+function deriveWubiCode(word){
+  const chars=[...word].filter(ch=>/[\u4e00-\u9fff]/.test(ch));
+  if(!chars.length) return '';
+  const codes=chars.map(c=>lookupWubi(c)||'');
+  if(chars.length===1) return codes[0].slice(0,4);
+  if(chars.length===2) return codes[0].slice(0,2)+codes[1].slice(0,2);
+  if(chars.length===3) return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,2);
+  return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,1)+codes[chars.length-1].slice(0,1);
+}
+function lookupPinyin(ch){ for(const[k,v]of Object.entries(PINYIN)) if(v.some(c=>c.w===ch)) return k; return ''; }
+function derivePinyinCode(word){ return [...word].filter(ch=>/[\u4e00-\u9fff]/.test(ch)).map(c=>lookupPinyin(c)).join(''); }
+function wmDerivedCode(){
+  // 优先用用户真实键入的整字码(device 上无需反查词库即可成码)
+  if(_wmUsedCodes.length){
+    const codes=_wmUsedCodes.map(x=>x.c).filter(Boolean);
+    if(codes.length){
+      if(mode==='pinyin') return codes.join('');
+      const n=codes.length;
+      if(n===1) return codes[0].slice(0,4);
+      if(n===2) return codes[0].slice(0,2)+codes[1].slice(0,2);
+      if(n===3) return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,2);
+      return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,1)+codes[n-1].slice(0,1);
+    }
+  }
+  // 回退：扫描内嵌词库(浏览器/常用字)
+  return mode==='pinyin'?derivePinyinCode(_wmWord):deriveWubiCode(_wmWord);
+}
+function wmEffectiveCode(){ return _wmCustomCode || wmDerivedCode(); }
+function openWordMaker(){
+  if(mode==='english'){ wmToast('英文模式不支持造词'); return; }
+  _wmActive=true; _wmWord=''; _wmCustomCode=''; _wmField='word'; _wmUsedCodes=[];
+  code=''; revMode=false; ctrlLock=false;
+  // 关闭面板/数字键盘，回到主键盘以便输入
+  ['symPanel','emjPanel','clipPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden');});
+  _activePanel=null; if(typeof clearCatStrip==='function') clearCatStrip();
+  if(typeof num!=='undefined' && num){ num=false; }
+  const nk=document.getElementById('numKb'), mk=document.getElementById('mainKb');
+  if(nk) nk.classList.add('hidden'); if(mk) mk.classList.remove('hidden');
+  const ov=document.getElementById('wmOv'); if(ov) ov.classList.remove('hidden');
+  const tt=document.getElementById('wmTitle'); if(tt) tt.textContent='造词 · '+(mode==='pinyin'?'拼音':'五笔');
+  updateCode(); wmRefresh(); buildKb(); if(typeof updateBtnStates==='function') updateBtnStates();
+}
+function closeWordMaker(){
+  _wmActive=false; _wmWord=''; _wmCustomCode=''; _wmField='word'; _wmUsedCodes=[];
+  const ov=document.getElementById('wmOv'); if(ov) ov.classList.add('hidden');
+  code=''; revMode=false; updateCode(); buildKb();
+}
+function wmSetField(f){ _wmField=f; wmRefresh(); }
+function wmInput(txt){   // 候选/字符进入"词"
+  const usedCode=(revMode?code.slice(1):code)||'';   // 捕获本次上屏所用编码(用户真实键入)
+  _wmField='word'; _wmWord+=txt;
+  if(usedCode) _wmUsedCodes.push({t:txt,c:usedCode});
+  code=''; revMode=false; updateCode(); wmRefresh();
+}
+function wmBackspace(){
+  if(code.length>0){ code=code.slice(0,-1); if(!code)revMode=false; updateCode(); return; }
+  if(_wmField==='code'){ if(_wmCustomCode.length>0){ _wmCustomCode=_wmCustomCode.slice(0,-1); wmRefresh(); } return; }
+  if(_wmWord.length>0){ _wmWord=[..._wmWord].slice(0,-1).join(''); _wmUsedCodes.pop(); wmRefresh(); }
+}
+function wmRefresh(){
+  const wt=document.getElementById('wmWordText'), wph=document.getElementById('wmWordPh');
+  const ct=document.getElementById('wmCodeText'), cph=document.getElementById('wmCodePh');
+  if(!wt) return;
+  wt.textContent=_wmWord; if(wph) wph.style.display=_wmWord?'none':'';
+  const eff=wmEffectiveCode();
+  ct.textContent=eff; if(cph) cph.style.display=eff?'none':'';
+  const wf=document.getElementById('wmWordField'), cf=document.getElementById('wmCodeField');
+  if(wf) wf.classList.toggle('on',_wmField==='word');
+  if(cf) cf.classList.toggle('on',_wmField==='code');
+  ct.classList.toggle('custom', !!_wmCustomCode);
+}
+function wmCommitAdd(){
+  const word=_wmWord.trim();
+  const codeK=(wmEffectiveCode()||'').toLowerCase();
+  if(!word){ wmToast('请先输入要造的词'); return; }
+  if(hanCount(word)<1){ wmToast('请输入汉字词'); return; }
+  if(!codeK){ wmToast('无法生成编码，请点"编码"自定义'); _wmField='code'; wmRefresh(); return; }
+  userAddTop(codeK, word);
+  wmToast('已添加  '+word+' = '+codeK);
+  closeWordMaker();
+}
+function wmToast(msg){
+  let t=document.getElementById('wmToast');
+  if(!t){ t=document.createElement('div'); t.id='wmToast'; t.style.cssText='position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:400;background:rgba(0,0,0,0.84);color:#fff;padding:10px 18px;border-radius:11px;font-size:13px;font-weight:600;pointer-events:none;opacity:0;transition:opacity .2s;box-shadow:0 6px 20px rgba(0,0,0,0.3)'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._h); t._h=setTimeout(()=>{ t.style.opacity='0'; },1700);
+}
+
+// ====== Ctrl+单击候选 → 前置/删除菜单 ======
+function showCandMenu(c, anchorEl){
+  closeCandMenu();
+  const codeK=code.toLowerCase();
+  const menu=document.createElement('div');
+  menu.id='candMenu';
+  menu.style.cssText='position:fixed;z-index:350;background:#fff;border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,0.30);display:flex;overflow:hidden;border:1px solid rgba(0,0,0,0.10)';
+  const mk=(label,color,fn)=>{
+    const b=document.createElement('div'); b.textContent=label;
+    b.style.cssText='padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;color:'+color+';white-space:nowrap';
+    b.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();fn();});
+    b.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();fn();},{passive:false});
+    return b;
+  };
+  const lbl=document.createElement('div');
+  lbl.textContent=c.w; lbl.style.cssText='padding:11px 14px;font-size:14px;font-weight:700;color:var(--ktxt,#2a1408);background:rgba(0,0,0,0.05);white-space:nowrap';
+  const sep=()=>{ const s=document.createElement('div'); s.style.cssText='width:1px;background:rgba(0,0,0,0.10)'; return s; };
+  menu.appendChild(lbl); menu.appendChild(sep());
+  menu.appendChild(mk('前置','var(--ac,#d6822e)',()=>{ userAddTop(codeK,c.w); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已前置  '+c.w); }));
+  menu.appendChild(sep());
+  menu.appendChild(mk('删除','#c0392b',()=>{ userHideWord(codeK,c.w); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已删除  '+c.w); }));
+  document.body.appendChild(menu);
+  const r=anchorEl.getBoundingClientRect();
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let left=r.left+r.width/2-mw/2; left=Math.max(6,Math.min(window.innerWidth-mw-6,left));
+  let top=r.top-mh-8; if(top<6) top=r.bottom+8;
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+  setTimeout(()=>{ document.addEventListener('touchstart',_candMenuOutside,{passive:true,capture:true}); document.addEventListener('mousedown',_candMenuOutside,{capture:true}); },0);
+}
+function _candMenuOutside(e){ const m=document.getElementById('candMenu'); if(m && !m.contains(e.target)) closeCandMenu(); }
+function closeCandMenu(){ const m=document.getElementById('candMenu'); if(m) m.remove(); document.removeEventListener('touchstart',_candMenuOutside,{capture:true}); document.removeEventListener('mousedown',_candMenuOutside,{capture:true}); }
+// 候选点击统一处理：Ctrl(或锁定层)+ 多字词 → 弹前置/删除菜单；否则正常上屏(单字锁死不可改)
+function onCandTap(c, anchorEl){
+  if((ctrl||ctrlLock) && hanCount(c.w)>=2 && code){
+    showCandMenu(c, anchorEl);
+    if(ctrl){ ctrl=false; setTimeout(buildKb,0); }
+    return;
+  }
+  commitCand(c);
+}
+
 // ====== 查询 ======
-function queryCands(maxN) {
+function queryCands(maxN){
+  const raw=_queryCandsRaw(maxN);
+  if(mode==='english') return raw;
+  return applyUserDict(raw, code?code.toLowerCase():'');
+}
+function _queryCandsRaw(maxN) {
   maxN=maxN||15; if(!code)return[];
   const lcode=code.toLowerCase();
   // Android模式: 走Java DictEngine查完整词库
@@ -2121,7 +2433,7 @@ function showCand(cands) {
     div.className='cand-item';
     div.textContent=c.w;
     if(revMode&&c.wbCode){const s=document.createElement('span');s.className='cand-sub';s.textContent=c.wbCode;div.appendChild(s);}
-    addCandListeners(div,()=>commitCand(c));
+    addCandListeners(div,()=>onCandTap(c,div));
     list.appendChild(div);
   });
   document.getElementById('candMore').style.display=cands.length>=6?'flex':'none';
@@ -2382,34 +2694,42 @@ function refreshClip() {
   const noteSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="3.5" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
   const shieldSvg='<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 2.5v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V5.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 11.4l2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const toolRow=document.createElement('div');
-  toolRow.style.cssText='position:relative;display:flex;gap:7px;padding:7px 10px 8px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:3px';
-  // 统一卡片：图标在上、短标签在下，高度紧凑(46px)
-  const mkCard=(svg,label,active)=>{
+  toolRow.style.cssText='position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:3px';
+  // 按钮样式：图标+短标签横排药丸，紧凑不需顶满宽度
+  const mkBtn=(svg,label,active)=>{
     const c=document.createElement('div');
-    c.style.cssText='position:relative;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:46px;border-radius:11px;cursor:pointer;user-select:none;'+
+    c.style.cssText='position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:11px;cursor:pointer;user-select:none;white-space:nowrap;'+
       'transition:background .14s,transform .1s,border-color .15s,box-shadow .15s;'+
       'background:'+(active?'var(--ac,#d6822e)':'rgba(214,130,46,0.10)')+';'+
       'border:1px solid '+(active?'transparent':'rgba(214,130,46,0.22)')+';'+
       (active?'box-shadow:0 2px 7px rgba(180,90,30,0.26);':'');
     const ic=active?'#fff':'var(--ac,#d6822e)', tc=active?'#fff':'var(--ktxt,#2a1408)';
     c.innerHTML='<span style="display:flex;color:'+ic+'">'+svg+'</span>'+
-      '<span style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:'+tc+'">'+label+'</span>';
+      '<span style="font-size:12px;font-weight:600;letter-spacing:0.3px;color:'+tc+'">'+label+'</span>';
     return c;
   };
-  const bindTap=(el,fn)=>{ let _t=false;
+  // 单击(抬指/点击)才生效，滑过/碰到不生效：touchend 且位移<10px·时长<600ms 才算点击；鼠标走 click
+  const bindTap=(el,fn)=>{
+    let sx=0,sy=0,moved=false,t0=0,usedTouch=false;
     const fire=()=>{ el.style.transform='scale(0.95)'; setTimeout(()=>{el.style.transform='';},110); fn(); };
-    el.addEventListener('touchstart',e=>{ _t=true; e.preventDefault(); e.stopPropagation(); fire(); setTimeout(()=>{_t=false;},400); },{passive:false});
-    el.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); e.stopPropagation(); fire(); });
+    el.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; moved=false; t0=Date.now(); e.stopPropagation(); },{passive:true});
+    el.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10) moved=true; },{passive:true});
+    el.addEventListener('touchend',e=>{ if(moved||Date.now()-t0>600) return; e.preventDefault(); e.stopPropagation(); usedTouch=true; setTimeout(()=>{usedTouch=false;},500); fire(); },{passive:false});
+    el.addEventListener('click',e=>{ if(usedTouch) return; e.preventDefault(); e.stopPropagation(); fire(); });
   };
-  // 密码生成器 / 笔记本
-  const cPw=mkCard(pwSvg,'密码生成器',false);
+  // 左：密码生成器
+  const cPw=mkBtn(pwSvg,'密码生成器',false);
   bindTap(cPw,()=>{ playClick(); openApp('pwgen'); });
-  const cNote=mkCard(noteSvg,'笔记本',false);
+  cPw.style.justifySelf='start';
+  // 右：笔记本
+  const cNote=mkBtn(noteSvg,'笔记本',false);
   bindTap(cNote,()=>{ playClick(); openApp('note'); });
-  // 防截屏：状态卡(开=主题色填充，关=描边)，右上角小圆点指示，临时说明气泡(绝对定位不占高度)
+  cNote.style.justifySelf='end';
+  // 中：防截屏(状态按钮：开=主题色填充，关=描边，右上小圆点指示，临时说明气泡)
   let secureOn=false;
   try{ const sv=localStorage.getItem('kbFlagSecure'); secureOn=(sv===null?false:sv==='1'); }catch(e){}
-  const cSec=mkCard(shieldSvg,'防截屏',secureOn);
+  const cSec=mkBtn(shieldSvg,'防截屏',secureOn);
+  cSec.style.justifySelf='center';
   const dotInd=document.createElement('span');
   dotInd.style.cssText='position:absolute;top:6px;right:7px;width:7px;height:7px;border-radius:50%;transition:background .18s;background:'+(secureOn?'#fff':'rgba(0,0,0,0.18)');
   cSec.appendChild(dotInd);
@@ -2439,14 +2759,8 @@ function refreshClip() {
     try{ if(typeof Android!=='undefined'&&Android.setSecure) Android.setSecure(secureOn); }catch(e){}
   };
   bindTap(cSec, doToggle);
-  // 防截屏缩窄并居中(不再占整张卡)，右侧预留第3个独立应用的位置
-  cSec.style.flex='0 0 72px';
-  if(cSec.children[1]){ cSec.children[1].style.fontSize='10px'; cSec.children[1].style.letterSpacing='0'; }
-  // 第3应用·预留：虚线占位(暂不可点)，接入新应用时替换即可
-  const cApp3=document.createElement('div');
-  cApp3.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:46px;border-radius:11px;border:1.5px dashed rgba(214,130,46,0.38);color:rgba(214,130,46,0.6);background:rgba(214,130,46,0.045)';
-  cApp3.innerHTML='<span style="font-size:19px;font-weight:300;line-height:1">＋</span><span style="font-size:10px;font-weight:600;letter-spacing:0">预留</span>';
-  toolRow.appendChild(cPw); toolRow.appendChild(cNote); toolRow.appendChild(cSec); toolRow.appendChild(cApp3);
+  // 三键均点击生效、各居一方：密码生成器(左) · 防截屏(中) · 笔记本(右)
+  toolRow.appendChild(cPw); toolRow.appendChild(cSec); toolRow.appendChild(cNote);
   list.appendChild(toolRow);
   // 滚动区：剪贴条目与页脚均在此滚动，拖杆/工具行固定不动。
   const body=document.createElement('div'); body.className='panel-scroll'; list.appendChild(body);
@@ -2529,7 +2843,7 @@ function openPager() {
     const div=document.createElement('div'); div.className='pager-item';
     div.textContent=c.w;
     if(revMode&&c.wbCode){const s=document.createElement('span');s.className='wb-code';s.style.color='rgba(120,160,255,0.6)';s.textContent=c.wbCode;div.appendChild(s);}
-    addCandListeners(div,()=>{commitCand(c);closePager();});
+    addCandListeners(div,()=>{ if((ctrl||ctrlLock)&&hanCount(c.w)>=2&&code){ showCandMenu(c,div); if(ctrl){ctrl=false;setTimeout(buildKb,0);} } else { commitCand(c); closePager(); } });
     grid.appendChild(div);
   });
   document.getElementById('pagerOv').classList.remove('hidden');
@@ -2543,6 +2857,7 @@ const isAndroid = typeof Android !== 'undefined';
 // 覆盖commit函数：在Android中调用JSBridge，否则保持原有模拟器行为
 const _origCommit = commit;
 window.commit = function(txt) {
+  if (_wmActive) { wmInput(txt); return; }   // 造词模式：上屏内容进入"词"缓冲，不发往宿主
   if (isAndroid) {
     if (_routeNote()) {
       if (txt === '\n') { _postNote({src:'wubi',type:'enter'}); }
@@ -2563,6 +2878,7 @@ function commitFlag(f){ commit(f); }
 // 覆盖doDelete
 const _origDelete = doDelete;
 window.doDelete = function() {
+  if (_wmActive) { wmBackspace(); return; }   // 造词模式：退格作用于编码/词缓冲
   if (isAndroid) {
     // 先清编码，无编码则删字符
     if (code.length > 0) {
@@ -2598,6 +2914,7 @@ window.pressSpace = function() {
 // 覆盖pressEnter
 const _origEnter = pressEnter;
 window.pressEnter = function() {
+  if (_wmActive) { wmCommitAdd(); return; }   // 造词模式：回车 = 添加
   if (isAndroid) {
     if (code.length > 0) {
       // 编码态回车：上屏编码原文(字母)，而非候选。空格才上屏首选候选。
