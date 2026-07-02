@@ -75,9 +75,9 @@
   .blk .body{flex:1;min-width:0;}
   .blk .del{opacity:0;cursor:pointer;font-size:13px;color:#bbb;padding:4px 2px 4px 6px;transition:opacity .15s;}
   .blk:hover .del{opacity:1;}
-  .b-h1{margin:0;font-weight:900;font-size:33px;line-height:1.08;letter-spacing:-1px;color:#111;}
-  .b-h2{margin:0;font-weight:700;font-size:21px;line-height:1.25;color:#111;}
-  .b-p{margin:0;font-weight:400;font-size:17px;line-height:1.72;color:#222;}
+  .b-h1{margin:0;font-weight:900;font-size:33px;line-height:1.08;letter-spacing:-1px;color:#111;white-space:pre-wrap;word-break:break-word;}
+  .b-h2{margin:0;font-weight:700;font-size:21px;line-height:1.25;color:#111;white-space:pre-wrap;word-break:break-word;}
+  .b-p{margin:0;font-weight:400;font-size:17px;line-height:1.72;color:#222;white-space:pre-wrap;word-break:break-word;}
   .b-div{display:flex;align-items:center;gap:10px;padding:8px 0;}
   .b-div .sq{width:7px;height:7px;background:var(--accent);}
   .b-div .ln{flex:1;height:1.5px;background:#111;}
@@ -522,20 +522,50 @@
       });
     },
     insertAtCaret(text){
+      const s=String(text).replace(/\r\n?/g,'\n');
+      // 多行内容：保真粘贴——每行一个块，原样保留缩进/项目符号/空格(配合 pre-wrap 呈现)，不再挤成一块
+      if(s.includes('\n')){ this.insertBlocksVerbatim(s); return; }
       const c=this._caret;
       const ed = c ? document.querySelector('#editor-scroll [data-blk="'+c.id+'"] [contenteditable]') : null;
       if(!ed){
-        const nb={ id:uid(), type:'p', text:String(text) };
+        const nb={ id:uid(), type:'p', text:s };
         this.setCur([...this.cur().blocks, nb]); this.render();
         this.flash('已粘贴到新段落'); return;
       }
       ed.focus();
       try{ if(c && c.range){ const sel=getSelection(); sel.removeAllRanges(); sel.addRange(c.range); } }catch(e){}
-      let ok=false; try{ ok=document.execCommand('insertText', false, String(text)); }catch(e){}
-      if(!ok){ try{ const sel=getSelection(); if(sel&&sel.rangeCount){ const r=sel.getRangeAt(0); r.deleteContents(); r.insertNode(document.createTextNode(String(text))); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);} else { ed.textContent += String(text); } }catch(e){} }
+      let ok=false; try{ ok=document.execCommand('insertText', false, s); }catch(e){}
+      if(!ok){ try{ const sel=getSelection(); if(sel&&sel.rangeCount){ const r=sel.getRangeAt(0); r.deleteContents(); r.insertNode(document.createTextNode(s)); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);} else { ed.textContent += s; } }catch(e){} }
       const id=ed.dataset.id, blk=this.cur().blocks.find(b=>b.id===id);
       if(blk){ blk.text=ed.innerText.replace(/\n+$/,''); this.persist(); this.saveCaret(ed); }
       this.flash('已粘贴');
+    },
+    // 原样入块：按行拆块，识别 Markdown 标题(#/##)映射为标题块，其余逐字保留(含项目符号、缩进、行内空格)；
+    // 插入位置：光标所在块之后，无光标则追加到末尾
+    insertBlocksVerbatim(s){
+      const lines=s.split('\n');
+      const mk=[];
+      let blanks=0;
+      for(const raw of lines){
+        if(!raw.trim()){ blanks++; continue; }               // 空行不造幽灵块：段间距由块间距自然表达
+        let type='p', text=raw.replace(/\s+$/,'');           // 去行尾空白，行首缩进保留
+        const t=text.trimStart();
+        if(/^#\s+/.test(t)){ type='h1'; text=t.replace(/^#\s+/,''); }
+        else if(/^##+\s+/.test(t)){ type='h2'; text=t.replace(/^##+\s+/,''); }
+        else if(/^(---+|\*\*\*+|___+)$/.test(t)){ type='divider'; text=''; }
+        mk.push({ id:uid(), type, text });
+        blanks=0;
+      }
+      if(!mk.length){ this.flash('内容为空'); return; }
+      const blocks=this.cur().blocks.slice();
+      const c=this._caret;
+      let at=blocks.length;
+      if(c){ const i=blocks.findIndex(b=>b.id===c.id); if(i>=0) at=i+1; }
+      blocks.splice(at,0,...mk);
+      this.setCur(blocks); this.render();
+      const last=mk[mk.length-1];
+      this.focusBlock(last.id,true);
+      this.flash('已保真粘贴 '+mk.length+' 段');
     },
 
     /* ---------------- 五笔输入路由：接收父键盘 postMessage，写入当前焦点 ---------------- */
@@ -724,7 +754,7 @@
         '<title>'+title+'</title><style>body{max-width:680px;margin:48px auto;padding:0 24px;font-family:'+SANS+';color:#222;line-height:1.75}'+
         'h1{font-size:40px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#111;margin:0 0 8px}'+
         'h1:after{content:"";display:block;height:2px;background:#111;margin-top:16px}'+
-        'h2{font-size:22px;font-weight:700;color:#111;margin:34px 0 6px}p{font-size:17px;margin:14px 0}'+
+        'h2{font-size:22px;font-weight:700;color:#111;margin:34px 0 6px}p{font-size:17px;margin:14px 0;white-space:pre-wrap}'+
         'hr{border:none;height:2px;background:#111;width:60px;margin:28px 0}</style></head><body>'+body+'</body></html>';
     },
 
@@ -752,7 +782,7 @@
         if(b.type==='h1') return '<div style="font-weight:900;font-size:42px;line-height:1.1;letter-spacing:-1.5px;color:#111;margin:0 0 10px;">'+t+'</div><div style="height:2px;background:#111;margin:0 0 26px;"></div>';
         if(b.type==='h2') return '<div style="font-weight:700;font-size:25px;line-height:1.3;color:#111;margin:30px 0 8px;">'+t+'</div>';
         if(b.type==='divider') return '<div style="display:flex;align-items:center;gap:10px;padding:14px 0;"><div style="width:8px;height:8px;background:#E8451F;"></div><div style="flex:1;height:2px;background:#111;"></div></div>';
-        return '<div style="font-weight:400;font-size:19px;line-height:1.75;color:#222;margin:14px 0;">'+t+'</div>';
+        return '<div style="font-weight:400;font-size:19px;line-height:1.75;color:#222;margin:14px 0;white-space:pre-wrap;word-break:break-word;">'+t+'</div>';
       }).join('');
       const html='<div xmlns="http://www.w3.org/1999/xhtml" style="width:'+W+'px;background:#fff;padding:52px 46px;box-sizing:border-box;font-family:'+SANS+';">'+inner+'</div>';
       // measure height in a real offscreen node
