@@ -1,0 +1,96 @@
+# 安键输入法 · 拼音口语补充词表（随仓库维护，CI 构建时追加进 pinyin.dict）
+# 格式：词<TAB>带空格拼音<TAB>频率(可省略,默认90000)。#开头为注释。
+# 自动同时生成简拼(~声母)条目；与主词库按(码,词)去重，保留更高频。
+# 想加新词：直接补一行，提交后下次构建生效。
+今天太晚	jin tian tai wan	95000
+今天太晚了	jin tian tai wan le	92000
+太晚	tai wan	90000
+太晚了	tai wan le	92000
+有点晚	you dian wan	88000
+你爱咋咋地	ni ai za za di	92000
+你爱咋咋地吧	ni ai za za di ba	92000
+爱咋咋地	ai za za di	93000
+咋咋地	za za di	88000
+咋样	za yang	93000
+咋了	za le	93000
+咋回事	za hui shi	92000
+咋整	za zheng	90000
+晚点去公司	wan dian qu gong si	92000
+晚点去	wan dian qu	91000
+晚点到	wan dian dao	90000
+去公司	qu gong si	92000
+到公司	dao gong si	91000
+在公司	zai gong si	91000
+下班了	xia ban le	93000
+上班了	shang ban le	92000
+加班中	jia ban zhong	89000
+在路上	zai lu shang	93000
+马上到	ma shang dao	93000
+我到了	wo dao le	93000
+到家了	dao jia le	93000
+出发了	chu fa le	92000
+等我一下	deng wo yi xia	92000
+等一下	deng yi xia	93000
+稍等	shao deng	92000
+等会	deng hui	91000
+待会	dai hui	91000
+回头说	hui tou shuo	90000
+回聊	hui liao	90000
+好嘞	hao lei	91000
+好的呀	hao de ya	92000
+好的好的	hao de hao de	91000
+没问题	mei wen ti	93000
+没事没事	mei shi mei shi	90000
+有点忙	you dian mang	91000
+忙完了	mang wan le	90000
+在忙吗	zai mang ma	92000
+方便吗	fang bian ma	92000
+有空吗	you kong ma	92000
+啥时候	sha shi hou	93000
+干啥呢	gan sha ne	92000
+干嘛呢	gan ma ne	92000
+在干嘛	zai gan ma	93000
+吃了吗	chi le ma	93000
+吃饭了	chi fan le	92000
+吃饭了吗	chi fan le ma	91000
+睡了吗	shui le ma	92000
+睡觉了	shui jiao le	91000
+起床了	qi chuang le	91000
+早点睡	zao dian shui	92000
+晚安啦	wan an la	91000
+明天见	ming tian jian	92000
+周末见	zhou mo jian	90000
+回见	hui jian	90000
+拜拜	bai bai	93000
+好久不见	hao jiu bu jian	92000
+最近咋样	zui jin za yang	91000
+别忘了	bie wang le	92000
+记得	ji de	93000
+辛苦了	xin ku le	93000
+麻烦了	ma fan le	92000
+谢谢啦	xie xie la	92000
+不客气	bu ke qi	92000
+打电话	da dian hua	93000
+发语音	fa yu yin	92000
+发定位	fa ding wei	91000
+发我一下	fa wo yi xia	91000
+看情况	kan qing kuang	92000
+都行	dou xing	92000
+随便你	sui bian ni	91000
+你说了算	ni shuo le suan	91000
+先这样	xian zhe yang	92000
+就这样	jiu zhe yang	92000
+改天约	gai tian yue	89000
+约起来	yue qi lai	89000
+安排上	an pai shang	91000
+走起	zou qi	91000
+绝了	jue le	92000
+无语了	wu yu le	92000
+离谱	li pu	93000
+靠谱	kao pu	93000
+给力	gei li	92000
+上头了	shang tou le	90000
+破防了	po fang le	90000
+麻了	ma le	91000
+汗流浃背了	han liu jia bei le	85000
+听我说谢谢你	ting wo shuo xie xie ni	82000
