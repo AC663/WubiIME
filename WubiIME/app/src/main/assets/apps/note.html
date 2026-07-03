@@ -105,8 +105,8 @@
     .phone-bezel{width:100vw;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;}
     .phone-screen{border-radius:0;}
     .status-bar,.home-indicator{display:none;}
-    .lib-head{padding-top:24px;}
-    .ed-nav{padding-top:20px;}
+    .lib-head{padding-top:14px;}
+    .ed-nav{padding-top:10px;padding-bottom:8px;}
   }
 </style>
 </head>
@@ -372,7 +372,7 @@
             <div class="brand">妙计 · 笔记本</div>
             <div class="head-right">
               <span class="count">${s.notebooks.length} 本</span>
-              <div class="kb-exit" data-act="exit">⌨ 键盘</div>
+              <div class="kb-exit" data-act="exit">⌨ 返回键盘</div>
             </div>
           </div>
           <div class="rule"></div>
@@ -409,7 +409,7 @@
         <div class="ed-nav">
           <div class="nav-back" data-act="back">← 笔记本</div>
           <div class="nav-actions">
-            <div class="kb-exit" data-act="exit">⌨ 键盘</div>
+            <div class="kb-exit" data-act="exit">⌨ 返回键盘</div>
             <div class="nav-exp" data-act="export">导出 ↧</div>
           </div>
         </div>
@@ -476,7 +476,7 @@
     },
     /* ---------------- paste: 私有剪贴板 ---------------- */
     saveCaret(el){
-      try{ const sel=getSelection(); if(sel&&sel.rangeCount && el.contains(sel.anchorNode)){ this._caret={ id:el.dataset.id, range:sel.getRangeAt(0).cloneRange() }; } }catch(e){}
+      try{ const sel=getSelection(); if(sel&&sel.rangeCount && el.contains(sel.anchorNode)){ this._caret={ id:el.dataset.id, off:this.caretOffset(el), range:sel.getRangeAt(0).cloneRange() }; } }catch(e){}
     },
     readClips(){
       try{ if(typeof AndroidPW!=='undefined' && AndroidPW.getClipboardAll){ const a=JSON.parse(AndroidPW.getClipboardAll()||'[]'); return Array.isArray(a)?a:[]; } }catch(e){}
@@ -525,19 +525,23 @@
       const s=String(text).replace(/\r\n?/g,'\n');
       // 多行内容：保真粘贴——每行一个块，原样保留缩进/项目符号/空格(配合 pre-wrap 呈现)，不再挤成一块
       if(s.includes('\n')){ this.insertBlocksVerbatim(s); return; }
+      // 单行：状态直写。真机上 focus()+execCommand 在弹层关闭/输入法窗口切换的窗口期经常静默失败，
+      //   还会把输入法搅成无响应——现在直接改块数据→重渲染→复位光标，与输入法零纠缠，百发百中。
       const c=this._caret;
-      const ed = c ? document.querySelector('#editor-scroll [data-blk="'+c.id+'"] [contenteditable]') : null;
-      if(!ed){
+      const blocks=this.cur().blocks.slice();
+      const idx=c ? blocks.findIndex(b=>b.id===c.id) : -1;
+      if(idx<0){
         const nb={ id:uid(), type:'p', text:s };
-        this.setCur([...this.cur().blocks, nb]); this.render();
+        this.setCur([...blocks, nb]); this.render();
+        this.focusBlock(nb.id,true);
         this.flash('已粘贴到新段落'); return;
       }
-      ed.focus();
-      try{ if(c && c.range){ const sel=getSelection(); sel.removeAllRanges(); sel.addRange(c.range); } }catch(e){}
-      let ok=false; try{ ok=document.execCommand('insertText', false, s); }catch(e){}
-      if(!ok){ try{ const sel=getSelection(); if(sel&&sel.rangeCount){ const r=sel.getRangeAt(0); r.deleteContents(); r.insertNode(document.createTextNode(s)); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);} else { ed.textContent += s; } }catch(e){} }
-      const id=ed.dataset.id, blk=this.cur().blocks.find(b=>b.id===id);
-      if(blk){ blk.text=ed.innerText.replace(/\n+$/,''); this.persist(); this.saveCaret(ed); }
+      const blk=blocks[idx];
+      const old=blk.text||'';
+      const off=Math.max(0, Math.min((c.off==null?old.length:c.off), old.length));
+      blocks[idx]=Object.assign({},blk,{text: old.slice(0,off)+s+old.slice(off)});
+      this.setCur(blocks); this.render();
+      this.focusBlockAt(blk.id, off+s.length);
       this.flash('已粘贴');
     },
     // 原样入块：按行拆块，识别 Markdown 标题(#/##)映射为标题块，其余逐字保留(含项目符号、缩进、行内空格)；
@@ -1069,7 +1073,7 @@
       const geom=els.map(el=>{ const r=el.getBoundingClientRect(); return {el,top:r.top,h:r.height}; });
       geom.forEach((g,i)=>{ const next=geom[i+1], prev=geom[i-1]; g.slot=next?(next.top-g.top):(prev?(g.top-prev.top):g.h); });
       const dragEl=geom[fromIdx].el;
-      this._drag={ id,fromIdx,target:fromIdx,dragEl,scroll,geom,startY:e.clientY,slotH:geom[fromIdx].slot };
+      this._drag={ id,fromIdx,target:fromIdx,dragEl,scroll,geom,startY:e.clientY,slotH:geom[fromIdx].slot,scrollTop0:scroll.scrollTop };
       document.body.style.userSelect='none';
       dragEl.style.transition='none'; dragEl.style.zIndex='50'; dragEl.style.position='relative'; dragEl.style.background='#fff';
       dragEl.style.boxShadow='4px 8px 0 rgba(232,69,31,.3)'; dragEl.style.outline='1.5px solid #E8451F'; dragEl.style.borderRadius='2px';
@@ -1081,8 +1085,17 @@
     },
     onDragMove(ev){
       const d=this._drag; if(!d) return;
-      const dy=ev.clientY-d.startY; d.dragEl.style.transform='translateY('+dy+'px)';
-      const y=ev.clientY; let target=d.geom.length-1;
+      // 边缘自动滚动：拖近容器上/下沿时自动滚动，长文里也能把块送到任何位置
+      try{
+        const r=d.scroll.getBoundingClientRect();
+        if(ev.clientY < r.top+44) d.scroll.scrollTop -= 12;
+        else if(ev.clientY > r.bottom-44) d.scroll.scrollTop += 12;
+      }catch(e){}
+      const scDelta=d.scroll.scrollTop-d.scrollTop0;                    // 拖动期间容器滚过的距离
+      const dy=ev.clientY-d.startY+scDelta;                             // 补偿滚动，块始终跟手
+      d.dragEl.style.transform='translateY('+dy+'px)';
+      const y=ev.clientY+scDelta;                                        // 命中判定换算回起始坐标系
+      let target=d.geom.length-1;
       for(let i=0;i<d.geom.length;i++){ if(y<d.geom[i].top+d.geom[i].h/2){ target=i; break; } }
       if(target!==d.target){
         d.target=target;
