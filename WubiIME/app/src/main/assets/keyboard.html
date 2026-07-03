@@ -48,7 +48,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-cyan .sel{background:rgba(0,150,190,0.3)}
 .t-dark .sel{background:rgba(200,160,20,0.35)}
 
-.ime{width:100%;background:linear-gradient(180deg,var(--bg1,#f5ede5),var(--bg2,#ebd5c5))}
+.ime{width:100%;position:relative;background:linear-gradient(180deg,var(--bg1,#f5ede5),var(--bg2,#ebd5c5))}
 
 .code-bar{display:flex;align-items:center;gap:6px;
   padding:3px 4px 3px 12px;min-height:34px;background:rgba(0,0,0,0.05);
@@ -79,20 +79,13 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .cat-chip.emo{position:relative}
 /* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
    底部铁轨+枕木，车轮搭轨，车厢间联轴器相连；横滑时整列车在轨上滑动 */
-.cat-strip.train{gap:8px;padding:0 4px 5px;align-items:flex-end;
-  background:
-    linear-gradient(rgba(0,0,0,0.20),rgba(0,0,0,0.20)) left bottom 3.5px/100% 1.5px no-repeat,
-    repeating-linear-gradient(90deg,rgba(0,0,0,0.13) 0 5px,transparent 5px 15px) left bottom/100% 3px no-repeat}
+.cat-strip.train{gap:8px;padding:0 4px 4px;align-items:center}   /* 铁轨/枕木已撤：纯胶囊列车更清爽 */
 .cat-chip.car{position:relative;height:21px;padding:0 10px;border-radius:5px;opacity:0.92;font-size:12.5px;
   background:linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.38));
   border:1px solid rgba(0,0,0,0.15);box-shadow:0 1px 2px rgba(0,0,0,0.13)}
 .cat-chip.car-head{border-radius:12px 6px 5px 5px}
 .cat-chip.car-tail{border-radius:6px 12px 5px 5px}
-.car .wheel{position:absolute;bottom:-4px;width:7px;height:7px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle at 35% 30%,#9a9a9a,#2c2c2c 72%);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.22)}
-.car .wheel.wl{left:3px}.car .wheel.wr{right:3px}
-.car .coupler{position:absolute;left:-9px;top:52%;width:9px;height:2.5px;border-radius:2px;pointer-events:none;
-  background:rgba(0,0,0,0.38)}
+/* 车轮/联轴器已撤（视觉减负），保留车头/车尾圆角轮廓 */
 .t-dark .cat-chip.car{background:linear-gradient(180deg,rgba(255,225,120,0.20),rgba(255,225,120,0.08));border-color:rgba(255,220,80,0.30)}
 .mode-tag{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:9px;
   background:rgba(100,130,255,0.15);color:#7090ff;letter-spacing:1px}
@@ -297,15 +290,18 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .wm-lbl{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--ac,#d6822e);width:16px;text-align:center}
 .wm-val{flex:1;min-width:0;font-size:16px;font-weight:600;color:var(--ktxt,#2a1408);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;letter-spacing:1px}
 .wm-ph{color:var(--ktxt,#888);opacity:0.45;font-weight:400;font-size:13px;letter-spacing:0}
+.wm-caret{display:inline-block;width:2px;height:1.05em;background:var(--ac,#e86030);vertical-align:-0.14em;margin-left:1px;border-radius:1px;animation:wmBlink 1s steps(1,end) infinite}
+@keyframes wmBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
 #wmCodeText{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px}
 #wmCodeText.custom{color:var(--ac,#d6822e)}
 .wm-actions{display:flex;gap:8px}
 .wm-btn{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;user-select:none}
 .wm-cancel{background:rgba(0,0,0,0.07);color:var(--ktxt,#2a1408)}
 .wm-add{background:linear-gradient(180deg,var(--ac,#d6822e),var(--acd,#a8420f));color:#fff;box-shadow:0 2px 7px rgba(180,90,30,0.3)}
-.pager-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;
-  display:flex;flex-direction:column;justify-content:flex-end}
-.pager-box{border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+.pager-overlay{position:absolute;left:0;right:0;bottom:0;top:0;background:rgba(0,0,0,0.35);z-index:100;
+  display:flex;flex-direction:column}
+.pager-box{flex:1;min-height:0;border-radius:12px 12px 0 0;padding:10px 12px;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
 .pager-title{display:flex;align-items:center;justify-content:space-between;
   font-size:13px;margin-bottom:8px;padding-bottom:6px;color:var(--ktxt,#2a1408);
   border-bottom:1px solid rgba(0,0,0,0.10)}
@@ -473,10 +469,12 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-red .trackpad,.t-green .trackpad,.t-pink .trackpad,
 .t-brown .trackpad,.t-cyan .trackpad{
   background:linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.08));
-  border-color:rgba(0,0,0,0.1);color:var(--ac)}
+  border-color:rgba(0,0,0,0.1);color:#a2a2a2}
 .t-dark .trackpad{
   background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.1));
-  border-color:rgba(255,255,255,0.08);color:var(--ac)}
+  border-color:rgba(255,255,255,0.08);color:#8b8b8b}
+/* 剪贴隔离激活 → 触控条箭头联动主题色(默认灰色) */
+.trackpad.iso{color:var(--ac)!important}
 /* 防截屏激活：触控条戴主题色"光环"——改内沿圈际(inset)：白金夹环+主色描边+内圈柔光呼吸，
    全部收在触控条内侧，不再外包围；关闭即恢复默认 */
 .trackpad.sec{border-color:transparent!important;
@@ -486,6 +484,11 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   50%{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.80),inset 0 0 0 3.5px var(--ac,#c75f33),inset 0 0 15px 4px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
 }
 
+/* 分类切换滑入动画（纯CSS驱动，真机稳定） */
+.panel-swap-r{animation:panelSwapR .23s cubic-bezier(.2,.7,.3,1)}
+.panel-swap-l{animation:panelSwapL .23s cubic-bezier(.2,.7,.3,1)}
+@keyframes panelSwapR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes panelSwapL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
 .hidden{display:none!important}
 </style>
 </head>
@@ -592,6 +595,36 @@ function addClip(txt){
   if(clips.length>50) clips.pop();   // 私有历史最多 50 条
   saveClips();
 }
+// ===== Java 私有剪贴板 → JS 剪贴列表 单向合并同步 =====
+//   根治"Ctrl+X/C 后剪贴板条不立即显示"：复制走系统剪贴板监听→Java privClip 的那条路径
+//   只落在 Java 侧，JS clips(面板数据源)看不见，何时出现全凭下次某处 addClip 撞上——现在
+//   在复制/剪切后、打开剪贴面板时、键盘获得焦点时都主动拉取 Android.getClipboardAll() 合并。
+function syncPrivClips(refreshUI){
+  try{
+    if(typeof Android==='undefined' || !Android.getClipboardAll) return;
+    const a=JSON.parse(Android.getClipboardAll()||'[]');
+    if(!Array.isArray(a) || !a.length) return;
+    let changed=false;
+    // Java 列表最新在前：倒序逐条 unshift，最终顺序与 Java 一致且 JS 独有条目保留在后
+    for(let i=a.length-1;i>=0;i--){
+      const t=a[i]; if(!t || !String(t).trim()) continue;
+      const j=clips.indexOf(t);
+      if(j===0 && i===0) continue;
+      if(j>=0) clips.splice(j,1);
+      clips.unshift(t); changed=true;
+    }
+    while(clips.length>50) clips.pop();
+    if(changed){
+      saveClips();
+      if(refreshUI){
+        const p=document.getElementById('clipPanel');
+        if(p && !p.classList.contains('hidden')) refreshClip();
+      }
+    }
+  }catch(e){}
+}
+// 复制/剪切动作后延时双拍拉取（覆盖系统剪贴板监听回调的异步窗口），保证"随即显示"
+function scheduleClipSync(){ setTimeout(()=>syncPrivClips(true),160); setTimeout(()=>syncPrivClips(true),650); }
 let calcMode=false, calcExpr='', calcResult=null;
 let calcFromGrid=false;   // 计算器是否由九宫格进入：EXIT 时据此退回九宫格而非数字键盘
 const THEMES=['t-orange','t-blue','t-purple','t-red','t-green','t-pink','t-brown','t-cyan','t-dark'];
@@ -897,6 +930,14 @@ function togglePyGrid(){
   buildKb();
 }
 
+// 全局连发登记表：所有键的长按取消函数都登记于此；抬指(document 级)兜底全清，
+//   即使按键元素已被重建摘除、自身 touchend 丢失，也绝不出现"幽灵连发"。
+const _kbRepeatCancels = new Set();
+function cancelAllKeyRepeats(){ [..._kbRepeatCancels].forEach(c=>{ try{c();}catch(e){} }); }
+document.addEventListener('touchend',   ()=>cancelAllKeyRepeats(), {passive:true});
+document.addEventListener('touchcancel',()=>cancelAllKeyRepeats(), {passive:true});
+window.addEventListener('blur',         ()=>cancelAllKeyRepeats());
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) cancelAllKeyRepeats(); });
 function addKeyListeners(div, fn, immediate, noRepeat) {
   // 普通键盘键（重写 v2）：
   //   immediate=true（纯字母输入态）→ touchstart 按下**立即**出码，零延迟、零横移取消。
@@ -906,12 +947,26 @@ function addKeyListeners(div, fn, immediate, noRepeat) {
   //   immediate=false（修饰层 alt/ctrl 的方向键/Tab）→ 保持 touchend 触发，防误触连发。
   let _t=null, _r=null, _fired=false, _moved=false, _sx=0, _sy=0, _touched=false, _longFired=false;
   const fire = () => { playClick(); fn(); };
+  // 连发根治(真机崩溃根因)：键盘层重建(buildKb/buildPyGridKb 把行 innerHTML 清空)会把正被按住的键
+  //   从 DOM 摘除 → 该键的 touchend 再也送不到 → 长按 interval 永不停止 → 每 50ms 连发一次直到 ANR。
+  //   三重保险：① interval 每拍检查 div.isConnected，键已摘除立即自停；② cancel 登记到全局
+  //   _kbRepeatCancels，document 级 touchend/touchcancel 兜底全清；③ startLong 前也校验 isConnected。
+  const cancelRepeat = () => {
+    clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
+    div.classList.remove('pressed');
+    _kbRepeatCancels.delete(cancelRepeat);
+  };
   const startLong = () => {
     if (noRepeat) return;   // 空格等：不连发
+    _kbRepeatCancels.add(cancelRepeat);
     _t = setTimeout(() => {
+      if (!div.isConnected) { cancelRepeat(); return; }
       if (immediate || !_moved) {
         _longFired = true;
-        _r = setInterval(() => { if (immediate || !_moved) { playClick(); fn(); } }, 50);
+        _r = setInterval(() => {
+          if (!div.isConnected) { cancelRepeat(); return; }
+          if (immediate || !_moved) { playClick(); fn(); }
+        }, 50);
       }
     }, 400);
   };
@@ -946,8 +1001,7 @@ function addKeyListeners(div, fn, immediate, noRepeat) {
     }
   };
   const stop = () => {
-    div.classList.remove('pressed');
-    clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
+    cancelRepeat();
     // 非即时键：抬指触发(无大幅移动)。即时键已在按下时出码，此处不再补发。
     if (!immediate && !_moved && !_longFired && _touched && !_fired) { fire(); _fired = true; }
     setTimeout(() => { _touched = false; }, 350);
@@ -955,7 +1009,7 @@ function addKeyListeners(div, fn, immediate, noRepeat) {
   div.addEventListener('touchstart', start, {passive:false});
   div.addEventListener('touchmove',  move,  {passive:true});
   div.addEventListener('touchend',   stop,  {passive:true});
-  div.addEventListener('touchcancel',()=>{ _moved=true; div.classList.remove('pressed'); clearTimeout(_t); clearInterval(_r); }, {passive:true});
+  div.addEventListener('touchcancel',()=>{ _moved=true; cancelRepeat(); }, {passive:true});
   div.addEventListener('mousedown', e => { e.preventDefault(); if (_touched) return; playClick(); fn(); });
   div.addEventListener('mouseup',   ()=>{ div.classList.remove('pressed'); });
   div.addEventListener('mouseleave', ()=>{ div.classList.remove('pressed'); clearTimeout(_t); clearInterval(_r); });
@@ -1047,10 +1101,11 @@ function buildPyGridKb(){
       d.innerHTML=t9Ctrl
         ? `<span class="km" style="font-size:14px;font-weight:600">造词</span>`
         : `<span class="km" style="font-size:13px;font-weight:600">Tab</span><span class="ks" style="font-size:8px">下一段</span>`;
+      // Ctrl层=造词(单发)；Alt层=Tab跳段(支持长按连续跳段——noRepeat 仅在 Ctrl 层生效)
       addKeyListeners(d,()=>{
         if(t9Ctrl){ t9Ctrl=false; openWordMaker(); }
-        else { if(typeof Android!=='undefined'&&Android.moveCursor) Android.moveCursor(12,false); }
-      },false,true);
+        else { handleAlt('q'); }
+      },false,t9Ctrl);
       return d;
     }
     const d=document.createElement('div');
@@ -1072,22 +1127,36 @@ function buildPyGridKb(){
     addKeyListenersOnce(d,fn);
     return d;
   };
-  // 功能层键面映射（主字=功能，小字=原数字，样式同主键盘方向键 arrow-active）
+  // ===== 功能层键面：九宫组合键 = 主键盘组合键 100% 同款(功效+主字+副字) =====
+  //   Ctrl 方向：↑文首 ←行首 →行尾 ↓文末(与主键盘 Ctrl+J/B/M/N 完全一致，经同一 handleCtrl 通道)
+  //   Alt  方向：↑选上行 ←左扩选 →右扩选 ↓选下行(与主键盘 Alt+J/B/M/N 一致，可长按连续扩选)
+  //   剪切/复制/粘贴：副字改剪刀/复制/粘贴图标。
+  const _icoCut=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><line x1="20" y1="4" x2="8.2" y2="15.9"/><line x1="14.5" y1="12.4" x2="20" y2="20"/><line x1="8.2" y1="8.1" x2="12.3" y2="12.2"/></svg>`;
+  const _icoCopy=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`;
+  const _icoPaste=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4a2.5 2.5 0 0 1 5 0"/><path d="M9 12h6M9 16h4"/></svg>`;
   const fnMap = t9Ctrl ? {
-    '1':{t:'全选',fn:()=>handleCtrl('a'),one:true}, '2':{t:'↑',fn:()=>t9Arrow('up')},
+    '1':{t:'全选',fn:()=>handleCtrl('a'),one:true},
+    '2':{t:'↑',s:'文首',fn:()=>handleCtrl('j')},
     '3':{t:(soundOn?'音效':'静音'),fn:()=>{toggleSound();buildPyGridKb();},one:true},
-    '4':{t:'←',fn:()=>t9Arrow('left')}, '5':{t:'粘贴',fn:()=>handleCtrl('v'),one:true},
-    '6':{t:'→',fn:()=>t9Arrow('right')}, '7':{t:'剪切',fn:()=>handleCtrl('x'),one:true},
-    '8':{t:'↓',fn:()=>t9Arrow('down')}, '9':{t:'复制',fn:()=>handleCtrl('c'),one:true},
+    '4':{t:'←',s:'行首',fn:()=>handleCtrl('b')},
+    '5':{t:_icoPaste,s:'粘贴',fn:()=>handleCtrl('v'),one:true},
+    '6':{t:'→',s:'行尾',fn:()=>handleCtrl('m')},
+    '7':{t:_icoCut,s:'剪切',fn:()=>handleCtrl('x'),one:true},
+    '8':{t:'↓',s:'文末',fn:()=>handleCtrl('n')},
+    '9':{t:_icoCopy,s:'复制',fn:()=>handleCtrl('c'),one:true},
     '0':{t:'撤销',fn:()=>handleCtrl('z'),one:true}
   } : t9Alt ? {
-    '2':{t:'↑',fn:()=>t9Arrow('up')}, '4':{t:'←',fn:()=>t9Arrow('left')},
-    '6':{t:'→',fn:()=>t9Arrow('right')}, '8':{t:'↓',fn:()=>t9Arrow('down')}
+    '1':{t:'Tab',s:'下一段',fn:()=>handleAlt('q')},            // 与主键盘 Alt+Q 同款，可长按连续跳段
+    '2':{t:'↑',s:'选上行',fn:()=>handleAlt('j')},
+    '4':{t:'←',s:'左',fn:()=>handleAlt('b')},
+    '5':{t:'Tab',s:'下一项',fn:()=>handleAlt('a'),one:true},    // 与主键盘 Alt+E 同款：跨文本框跳转
+    '6':{t:'→',s:'右',fn:()=>handleAlt('m')},
+    '8':{t:'↓',s:'选下行',fn:()=>handleAlt('n')}
   } : null;
   const numKey=(d0,sub,grow)=>{
     if(fnMap && fnMap[d0]){
       const m=fnMap[d0];
-      const k=mk(m.t, d0, ' t9num', m.fn, grow==null?1:grow, !m.one, !!m.one);   // 方向键可长按连发；编辑键单发
+      const k=mk(m.t, m.s||d0, ' t9num', m.fn, grow==null?1:grow, !m.one, !!m.one);   // 方向/Tab键可长按连发；编辑键单发
       k.classList.add('arrow-active');
       return k;
     }
@@ -1108,7 +1177,7 @@ function buildPyGridKb(){
                        : mk('1', '(主键盘)', ' t9num', ()=>{ if(t9NumMode){ t9press('1'); } else { togglePyGrid(); } }, 1, t9NumMode));
   r1.appendChild(numKey('2','ABC'));
   r1.appendChild(numKey('3','DEF'));
-  r1.appendChild(mk('⌫','',' func',()=>t9del(),RW,true));
+  r1.appendChild(mk(`<svg width="20" height="14" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,'',' func',()=>t9del(),RW,true,false));
   // 行2: [空] 4GHI 5JKL 6MNO  0
   r2.appendChild(pad(LW));
   r2.appendChild(numKey('4','GHI'));
@@ -1116,11 +1185,13 @@ function buildPyGridKb(){
   r2.appendChild(numKey('6','MNO'));
   r2.appendChild(numKey('0','',RW));
   // 行3: [Ctrl] 7PQRS 8TUV 9WXYZ [Alt]
-  r3.appendChild(mkMod('Ctrl',t9Ctrl,()=>{ t9code=''; showCands([]); t9Ctrl=!t9Ctrl; if(t9Ctrl)t9Alt=false; buildPyGridKb(); },LW));
+  // 激活功能层【不清】t9code/候选：编码与候选保留在栏上，才能 Ctrl+单击候选做前置/删除；
+  //   编码残留无忧——功能层内 t9press 直接 return，数字键绝不进拼音编码。
+  r3.appendChild(mkMod('Ctrl',t9Ctrl,()=>{ t9Ctrl=!t9Ctrl; if(t9Ctrl)t9Alt=false; buildPyGridKb(); },LW));
   r3.appendChild(numKey('7','PQRS'));
   r3.appendChild(numKey('8','TUV'));
   r3.appendChild(numKey('9','WXYZ'));
-  r3.appendChild(mkMod('Alt',t9Alt,()=>{ t9code=''; showCands([]); t9Alt=!t9Alt; if(t9Alt)t9Ctrl=false; buildPyGridKb(); },RW));
+  r3.appendChild(mkMod('Alt',t9Alt,()=>{ t9Alt=!t9Alt; if(t9Alt)t9Ctrl=false; buildPyGridKb(); },RW));
   // 行4: [计算器] 空格(=中3列宽) 回车
   r4.appendChild(mk('计算器','',' func',()=>{ t9code=''; showCands([]); calcFromGrid=true; num=true; calcMode=true; calcReset(); switchNum(); },LW));
   r4.appendChild(mk('空格','',' ',()=>{ if(t9code){t9commitFirst();} else commit(' '); },3));
@@ -1180,13 +1251,17 @@ function t9commitRaw(){ t9code=''; t9UpdateCode(); showCands([]); }
 // T9 候选：真机走 Java 真实词库(含连打)，模拟器回退到内嵌 PINYIN
 function t9Cands(code,maxN){
   if(!code) return [];
+  let out=null;
   if(typeof Android!=='undefined' && Android.queryT9){
     try{
       const r=JSON.parse(Android.queryT9(code)||'[]');
-      if(r&&r.length) return r.slice(0,maxN);
+      if(r&&r.length) out=r.slice(0,maxN);
     }catch(e){}
   }
-  return t9CandsLocal(code,maxN);
+  if(!out) out=t9CandsLocal(code,maxN);
+  // 用户词库对九宫同样生效：键=数字串（Ctrl+候选的前置/删除即按此键落库）
+  try{ out=applyUserDict(out, code); }catch(e){}
+  return out;
 }
 // 模拟器本地回退（内嵌小词库，仅供浏览器预览）
 function t9CandsLocal(code,maxN){
@@ -1810,25 +1885,18 @@ function initCatStripGestures(){
     if(el&&el.dataset&&el.dataset.tabIdx!=null && _catSelectFn) _catSelectFn(parseInt(el.dataset.tabIdx));
   });
 }
-// 分类切换动效：优先走 Web Animations API(真机 WebView 稳定生效，不依赖 CSS transition 时序)，
-//   无 WAAPI 才回退双 rAF + transition。内容网格按切换方向轻滑淡入。
+// 分类切换动效(装机不生效已两轮返修，根因：WAAPI/双rAF+transition 在部分真机 WebView 里
+//   与大块 innerHTML 重排同帧竞争被合成器丢弃)。现改【纯 CSS animation 类】：
+//   移类 → 强制回流重置动画 → 加类，由样式系统自驱，与 JS 帧时序完全解耦，WebView 上最稳。
 function animPanelSwap(el,dir){
   if(!el) return;
-  if(el.animate){
-    try{
-      el.animate(
-        [{opacity:0,transform:'translateX('+(18*(dir||0))+'px)'},{opacity:1,transform:'translateX(0)'}],
-        {duration:230,easing:'cubic-bezier(.2,.7,.3,1)'});
-      return;
-    }catch(e){}
+  el.classList.remove('panel-swap-l','panel-swap-r');
+  void el.offsetWidth;                        // 强制回流：同名动画可重复触发
+  el.classList.add(dir<0?'panel-swap-l':'panel-swap-r');
+  if(!el._swapWired){
+    el._swapWired=true;
+    el.addEventListener('animationend',()=>{ el.classList.remove('panel-swap-l','panel-swap-r'); },{passive:true});
   }
-  el.style.transition='none';
-  el.style.opacity='0';
-  el.style.transform='translateX('+(16*(dir||0))+'px)';
-  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
-    el.style.transition='opacity .16s ease-out,transform .22s cubic-bezier(.2,.7,.3,1)';
-    el.style.opacity='1'; el.style.transform='translateX(0)';
-  });});
 }
 // rAF 自驱横向平滑滚动：不依赖 scrollTo({behavior:'smooth'})(部分真机 WebView 不支持→生硬跳切)
 function smoothScrollX(el,target){
@@ -2435,7 +2503,16 @@ function userHideWord(codeKey, word){   // 删除：隐藏该码下这个词(单
   if(!arr.includes(word)) arr.push(word);
   userHide[m][codeKey]=arr; saveUserDict();
 }
-function refreshCandsAfterEdit(){ const cands=queryCands(); if(cands.length>0) showCand(cands); else showBtns(); }
+function refreshCandsAfterEdit(){
+  let cands;
+  if(!code && typeof t9code!=='undefined' && t9code){ cands=t9Cands(t9code,30); showCands(cands); }
+  else { cands=queryCands(); if(cands.length>0) showCand(cands); else showBtns(); }
+  // 候选展开池若开着，同步重建（否则池内顺序看起来"没生效"）
+  try{
+    const pv=document.getElementById('pagerOv');
+    if(pv && !pv.classList.contains('hidden')) openPager();
+  }catch(e){}
+}
 
 // ====== 造词(Ctrl+F) ======
 let _wmActive=false, _wmWord='', _wmCustomCode='', _wmField='word', _wmUsedCodes=[];
@@ -2493,7 +2570,13 @@ function closeWordMaker(){
   const ov=document.getElementById('wmOv'); if(ov) ov.classList.add('hidden');
   code=''; revMode=false; updateCode(); buildKb();
 }
-function wmSetField(f){ _wmField=f; wmRefresh(); }
+function wmSetField(f){
+  _wmField=f;
+  // 点进"码"字段：把当前自动反显码接管为自定义码底稿——在已有编码基础上退格/续键自由修改，
+  //   而不是从零开始输(旧版退格无感、体验像"改不了")。
+  if(f==='code' && !_wmCustomCode){ _wmCustomCode=(wmDerivedCode()||'').toLowerCase(); }
+  wmRefresh();
+}
 function wmInput(txt){   // 候选/字符进入"词"
   const usedCode=(revMode?code.slice(1):code)||'';   // 捕获本次上屏所用编码(用户真实键入)
   _wmField='word'; _wmWord+=txt;
@@ -2512,6 +2595,10 @@ function wmRefresh(){
   wt.textContent=_wmWord; if(wph) wph.style.display=_wmWord?'none':'';
   const eff=wmEffectiveCode();
   ct.textContent=eff; if(cph) cph.style.display=eff?'none':'';
+  // 活动字段末尾渲染闪烁光标：明确"正在输入哪一栏 + 插入点在哪"
+  let caret=document.getElementById('wmCaret');
+  if(!caret){ caret=document.createElement('span'); caret.id='wmCaret'; caret.className='wm-caret'; }
+  (_wmField==='word'?wt:ct).appendChild(caret);
   const wf=document.getElementById('wmWordField'), cf=document.getElementById('wmCodeField');
   if(wf) wf.classList.toggle('on',_wmField==='word');
   if(cf) cf.classList.toggle('on',_wmField==='code');
@@ -2541,9 +2628,51 @@ function wmToast(msg){
 }
 
 // ====== Ctrl+单击候选 → 前置/删除菜单 ======
+// 当前"生效编码键"：全键盘取 code；九宫取 t9code(数字串)。用户词库(前置/删除/造词)统一按此键落库。
+function activeCodeKey(){
+  if(code) return code.toLowerCase();
+  if(typeof t9code!=='undefined' && t9code) return t9code;
+  return '';
+}
+// 前置双键落库：既存"当前键入的前缀码"，也存"候选自身完整码"(c.c)。
+//   根治"前置显示生效实际没生效"——用户下次少打/多打一两码时，两个键任一命中都能置顶。
+function userAddTopBoth(codeK, c){
+  userAddTop(codeK, c.w);
+  const own=(c.c||'').toLowerCase();
+  if(own && own!==codeK) userAddTop(own, c.w);
+}
+// 通用确认弹窗（贴合造词 toast 风格，防误删）
+function kbConfirm(msg, onYes){
+  let ov=document.getElementById('kbConfirm'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='kbConfirm';
+  ov.style.cssText='position:fixed;inset:0;z-index:390;background:rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,0.32);padding:16px 18px 12px;min-width:210px;max-width:76vw';
+  const m=document.createElement('div');
+  m.textContent=msg;
+  m.style.cssText='font-size:14.5px;font-weight:600;color:#2a1408;text-align:center;line-height:1.5;padding-bottom:12px';
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:10px';
+  const mkBtn=(label,bg,fg,fn)=>{
+    const b=document.createElement('div'); b.textContent=label;
+    b.style.cssText='flex:1;text-align:center;padding:9px 0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;background:'+bg+';color:'+fg;
+    let _t=false;
+    b.addEventListener('touchend',e=>{ e.preventDefault(); e.stopPropagation(); _t=true; fn(); },{passive:false});
+    b.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); e.stopPropagation(); fn(); });
+    return b;
+  };
+  const close=()=>{ ov.remove(); };
+  row.appendChild(mkBtn('取消','rgba(0,0,0,0.08)','#2a1408',close));
+  row.appendChild(mkBtn('确认删除','#c0392b','#fff',()=>{ close(); onYes(); }));
+  box.appendChild(m); box.appendChild(row); ov.appendChild(box);
+  // 点遮罩=取消
+  ov.addEventListener('touchend',e=>{ if(e.target===ov){ e.preventDefault(); close(); } },{passive:false});
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); });
+  document.body.appendChild(ov);
+}
 function showCandMenu(c, anchorEl){
   closeCandMenu();
-  const codeK=code.toLowerCase();
+  const codeK=activeCodeKey();
   const menu=document.createElement('div');
   menu.id='candMenu';
   menu.style.cssText='position:fixed;z-index:350;background:#fff;border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,0.30);display:flex;overflow:hidden;border:1px solid rgba(0,0,0,0.10)';
@@ -2558,9 +2687,16 @@ function showCandMenu(c, anchorEl){
   lbl.textContent=c.w; lbl.style.cssText='padding:11px 14px;font-size:14px;font-weight:700;color:var(--ktxt,#2a1408);background:rgba(0,0,0,0.05);white-space:nowrap';
   const sep=()=>{ const s=document.createElement('div'); s.style.cssText='width:1px;background:rgba(0,0,0,0.10)'; return s; };
   menu.appendChild(lbl); menu.appendChild(sep());
-  menu.appendChild(mk('前置','var(--ac,#d6822e)',()=>{ userAddTop(codeK,c.w); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已前置  '+c.w); }));
+  menu.appendChild(mk('前置','var(--ac,#d6822e)',()=>{ userAddTopBoth(codeK,c); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已前置  '+c.w); }));
   menu.appendChild(sep());
-  menu.appendChild(mk('删除','#c0392b',()=>{ userHideWord(codeK,c.w); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已删除  '+c.w); }));
+  menu.appendChild(mk('删除','#c0392b',()=>{
+    closeCandMenu();
+    kbConfirm('确认删除该词？「'+c.w+'」',()=>{
+      userHideWord(codeK,c.w);
+      const own=(c.c||'').toLowerCase(); if(own && own!==codeK) userHideWord(own,c.w);
+      refreshCandsAfterEdit(); wmToast('已删除  '+c.w);
+    });
+  }));
   document.body.appendChild(menu);
   const r=anchorEl.getBoundingClientRect();
   const mw=menu.offsetWidth, mh=menu.offsetHeight;
@@ -2575,9 +2711,11 @@ function closeCandMenu(){ const m=document.getElementById('candMenu'); if(m) m.r
 //   Shift(或Caps)+单击多字词 → 直接删除该词条(组合键快捷删词)；单字硬编码不可删。
 //   Ctrl(或锁定层)+多字词 → 弹前置/删除菜单；其余正常上屏。
 function onCandTap(c, anchorEl){
-  if((shift||caps) && code){
+  const ck=activeCodeKey();   // 全键盘 code / 九宫 t9code 通吃
+  if((shift||caps) && ck){
     if(hanCount(c.w)>=2){
-      userHideWord(code.toLowerCase(), c.w);
+      userHideWord(ck, c.w);
+      const own=(c.c||'').toLowerCase(); if(own && own!==ck) userHideWord(own,c.w);
       wmToast('已删除  '+c.w);
       refreshCandsAfterEdit();
     } else {
@@ -2586,7 +2724,7 @@ function onCandTap(c, anchorEl){
     if(shift){ shift=false; setTimeout(buildKb,0); }
     return;
   }
-  if((ctrl||ctrlLock) && hanCount(c.w)>=2 && code){
+  if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl)) && hanCount(c.w)>=2 && ck){
     showCandMenu(c, anchorEl);
     if(ctrl){ ctrl=false; setTimeout(buildKb,0); }
     return;
@@ -2742,6 +2880,14 @@ function addCandListeners(div, fn){
   div.addEventListener('touchcancel',()=>{ _moved=true; },{passive:true});
   div.addEventListener('mousedown',e=>{ e.preventDefault(); playClick(); fn(); });
 }
+// 按钮栏气泡音：所有 .sball 按钮(模式/主题/符号/表情/应用/123)按下即响与分类胶囊同款气泡音。
+//   触屏走 touchstart(真实触摸必有)，桌面无触屏才走 mousedown——幽灵合成事件不会响。
+(function(){
+  const bar=document.getElementById('btnBar'); if(!bar) return;
+  const hitBall=t=>{ let el=t; while(el&&el!==bar){ if(el.classList&&el.classList.contains('sball')) return true; el=el.parentElement; } return false; };
+  bar.addEventListener('touchstart',e=>{ if(hitBall(e.target)) { try{playPop();}catch(_){}} },{passive:true,capture:true});
+  bar.addEventListener('mousedown',e=>{ if(!('ontouchstart' in window) && hitBall(e.target)) { try{playPop();}catch(_){}} },true);
+})();
 // 防穿透：candBar 上屏后的时间戳；btnBar 捕获阶段拦截短窗口内的合成 click。
 let _candCommitTs=0;
 function installGhostClickGuard(){
@@ -2764,6 +2910,14 @@ function installGhostClickGuard(){
   });
 }
 function showBtns() {
+  // 正在输入编码时(全键盘 code / 九宫 t9code 任一非空)绝不退回按钮栏——
+  //   否则 Ctrl 想调次序时编码栏一有内容就被清成按钮栏，没法 Ctrl+单击候选。
+  //   此时保持候选栏可见(候选可暂空)，编码文字仍显示在编码栏。
+  if((code&&code.length>0) || (typeof t9code!=='undefined'&&t9code&&t9code.length>0)){
+    document.getElementById('candBar').classList.remove('hidden');
+    document.getElementById('btnBar').classList.add('hidden');
+    return;
+  }
   document.getElementById('candBar').classList.add('hidden');
   document.getElementById('btnBar').classList.remove('hidden');
 }
@@ -2871,6 +3025,7 @@ function toggleClip(){
   const p=document.getElementById('clipPanel');
   ['symPanel','emjPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   if(p.classList.contains('hidden')){
+    syncPrivClips(false);   // 先并入 Java 侧新捕获的复制内容，再渲染
     refreshClip(); p.classList.remove('hidden');
     _activePanel='clip'; buildClipStrip();   // 编码栏轨道: [剪贴板|密码生成器|笔记本|防截屏] 胶囊
   } else { closeApp(); p.classList.add('hidden'); clearCatStrip(); }
@@ -2944,12 +3099,15 @@ function closeApp(){
   if(had){ try{ if(typeof Android!=='undefined' && Android.setAppFullscreen) Android.setAppFullscreen(false); }catch(e){} }
 }
 function showClipDetail(txt, idx){
-  const panel=document.getElementById('clipPanel');
+  const panel=document.getElementById('ime');   // 挂到整个输入法容器：覆盖编码栏之下全部区域
   let door=document.getElementById('clipDoor');
   if(door) door.remove();
   door=document.createElement('div');
   door.id='clipDoor';
-  door.style.cssText='position:absolute;inset:0;z-index:20;background:var(--panel,#f3e8e0);display:flex;flex-direction:column;padding:10px;box-sizing:border-box';
+  // 覆盖范围=编码栏底边 → 键盘底：单条内容获得最大呈现面积，正文区可上下滚动
+  let topPx=0;
+  try{ const cb=document.querySelector('.code-bar'); if(cb) topPx=cb.offsetTop+cb.offsetHeight; }catch(e){}
+  door.style.cssText='position:absolute;left:0;right:0;bottom:0;top:'+topPx+'px;z-index:130;background:var(--panel,#f3e8e0);display:flex;flex-direction:column;padding:10px;box-sizing:border-box';
   // 顶部栏：返回 + 删除
   const bar=document.createElement('div');
   bar.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
@@ -2987,20 +3145,11 @@ const CLIP_APPS=[
   {id:'iso',   label:'剪贴隔离',   type:'toggle'}   // 开=复制只进私有剪贴板；关=跨App粘贴不受影响
 ];
 function kbSecureOn(){ try{ return localStorage.getItem('kbFlagSecure')==='1'; }catch(e){ return false; } }
-// 给车厢装轮子与联轴器(innerHTML 重写后需重新装饰)
-function _dressCar(t){
-  if(!t||!t.classList.contains('car')) return;
-  if(!t.querySelector('.wheel.wl')){
-    const wl=document.createElement('span'); wl.className='wheel wl'; t.appendChild(wl);
-    const wr=document.createElement('span'); wr.className='wheel wr'; t.appendChild(wr);
-  }
-  if(t.getAttribute('data-coupler')==='1' && !t.querySelector('.coupler')){
-    const c=document.createElement('span'); c.className='coupler'; t.appendChild(c);
-  }
-}
+// 车轮/铁轨/联轴器已全部移除（用户定案：太丑）；保留函数占位以免旧调用点报错
+function _dressCar(t){}
 function applySecChip(t){
   const on=kbSecureOn();
-  t.innerHTML='防截屏<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:5px;vertical-align:1px;transition:background .18s;background:'+(on?'#fff':'rgba(0,0,0,0.25)')+'"></span>';
+  t.innerHTML='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:1px;transition:background .18s;background:'+(on?'#fff':'rgba(0,0,0,0.25)')+'"></span>防截屏';
   if(on){ t.style.opacity='1'; t.style.color='#fff'; t.style.fontWeight='600'; t.style.background='linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33))'; t.style.boxShadow='0 2px 5px rgba(150,60,20,0.28)'; }
   else { t.style.opacity=''; t.style.color=''; t.style.fontWeight=''; t.style.background=''; t.style.boxShadow=''; }
   _dressCar(t);
@@ -3026,6 +3175,7 @@ function clipIsoOn(){
 }
 function applyIsoChip(t){
   const on=clipIsoOn();
+  try{ const tp=document.getElementById('tp'); if(tp) tp.classList.toggle('iso',on); }catch(e){}
   t.innerHTML='剪贴隔离<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:5px;vertical-align:1px;transition:background .18s;background:'+(on?'#fff':'rgba(0,0,0,0.25)')+'"></span>';
   if(on){ t.style.opacity='1'; t.style.color='#fff'; t.style.fontWeight='600'; t.style.background='linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33))'; t.style.boxShadow='0 2px 5px rgba(150,60,20,0.28)'; }
   else { t.style.opacity=''; t.style.color=''; t.style.fontWeight=''; t.style.background=''; t.style.boxShadow=''; }
@@ -3036,6 +3186,7 @@ function toggleClipIsolation(){
   try{ localStorage.setItem('kbClipIso', on?'1':'0'); mirrorPrefs(); }catch(e){}
   try{ if(typeof Android!=='undefined'&&Android.setClipIsolation) Android.setClipIsolation(on); }catch(e){}
   const t=document.getElementById('isoChip'); if(t) applyIsoChip(t);
+  try{ const tp=document.getElementById('tp'); if(tp) tp.classList.toggle('iso',on); }catch(e){}
   playClick();
   wmToast(on?'剪贴隔离已开启 · 复制只进输入法私有剪贴板':'剪贴隔离已关闭 · 复制照常进系统剪贴板，跨App可粘贴');
 }
@@ -3043,6 +3194,7 @@ function toggleClipIsolation(){
 (function(){
   try{ if(typeof Android!=='undefined'&&Android.isSecure){ localStorage.setItem('kbFlagSecure', Android.isSecure()?'1':'0'); } }catch(e){}
   try{ syncSecureUI(); }catch(e){}
+  try{ const tp=document.getElementById('tp'); if(tp) tp.classList.toggle('iso',clipIsoOn()); }catch(e){}   // 开机同步触控条隔离色
 })();
 function buildClipStrip(){
   const tabs=document.getElementById('catStrip');
@@ -3157,10 +3309,18 @@ function openPager() {
     const div=document.createElement('div'); div.className='pager-item';
     div.textContent=c.w;
     if(revMode&&c.wbCode){const s=document.createElement('span');s.className='wb-code';s.style.color='rgba(120,160,255,0.6)';s.textContent=c.wbCode;div.appendChild(s);}
-    addCandListeners(div,()=>{ if((shift||caps)&&code){ onCandTap(c,div); openPager(); } else if((ctrl||ctrlLock)&&hanCount(c.w)>=2&&code){ showCandMenu(c,div); if(ctrl){ctrl=false;setTimeout(buildKb,0);} } else { commitCand(c); closePager(); } });
+    addCandListeners(div,()=>{ const ck=activeCodeKey(); if((shift||caps)&&ck){ onCandTap(c,div); openPager(); } else if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl))&&hanCount(c.w)>=2&&ck){ showCandMenu(c,div); if(ctrl){ctrl=false;setTimeout(buildKb,0);} } else { commitCand(c); closePager(); } });
     grid.appendChild(div);
   });
-  document.getElementById('pagerOv').classList.remove('hidden');
+  // 主流输入法样式：候选池直接在键盘区内展开覆盖(编码/候选栏保持可见)，
+  //   而不是吊在输入法窗口最底(真机窗口高度与可视键盘不一致时会被裁到看不见)。
+  const pv=document.getElementById('pagerOv');
+  try{
+    const kbEl=(document.getElementById('numKb')&&!document.getElementById('numKb').classList.contains('hidden'))
+      ? document.getElementById('numKb') : document.getElementById('mainKb');
+    pv.style.top=(kbEl&&kbEl.offsetTop?kbEl.offsetTop:0)+'px';
+  }catch(e){ pv.style.top='0px'; }
+  pv.classList.remove('hidden');
 }
 function closePager(){document.getElementById('pagerOv').classList.add('hidden');}
 
@@ -3297,11 +3457,13 @@ if (isAndroid) {
         // 私有捕获：把选区文本存入输入法私有历史（不依赖系统剪贴板）
         try{ const s=Android.getSelectedText&&Android.getSelectedText(); if(s) addClip(s); }catch(e){}
         Android.copyText();
+        scheduleClipSync();   // 系统剪贴路径捕获的内容延时合并进面板，随即可见
         break;
       case 'v': Android.pasteText(); break;
       case 'x':
         try{ const s=Android.getSelectedText&&Android.getSelectedText(); if(s) addClip(s); }catch(e){}
         Android.cutText();
+        scheduleClipSync();
         break;
       case 'z': Android.undoText(); break;
       case 'b': Android.moveCursor(4, false); break; // ←: 光标移到当前行最左端
@@ -3309,7 +3471,9 @@ if (isAndroid) {
       case 'j': Android.moveCursor(6, false); break; // ↑: 跳全文开头
       case 'n': Android.moveCursor(7, false); break; // ↓: 跳全文末尾
     }
-    if(!ctrlLock){ ctrl = false; buildKb(); }   // 锁定层保持，不复位
+    // 仅当瞬时 Ctrl 确实处于按下态才复位并重建；九宫功能层/锁定层调用时 ctrl 本就为 false，
+    //   绝不重建——否则方向键长按连发每拍重建整个键盘 DOM(键被摘除→连发失控/卡死的帮凶)。
+    if(ctrl && !ctrlLock){ ctrl = false; buildKb(); }
   };
   window.handleAlt = function(l) {
     // J=上 B=左 N=下 M=右(扩选); Q=Tab(段末); A=跨文本框跳转
@@ -3362,6 +3526,7 @@ window.addEventListener('orientationchange',()=>{ setTimeout(imeRepaint,60); });
 function onIMEFocus(){
   updateCode();
   imeRepaint();
+  try{ syncPrivClips(true); }catch(e){}   // 跨窗口(记事本/别的App)复制的内容回键盘立即并入面板
 }
 function onIMEBlur(){
   // 失焦时可选择清空编码
