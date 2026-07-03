@@ -10,6 +10,9 @@
       · THUOCL 词表(可选): 清华开放词库 "词<tab/空格>频率" 格式，每表取前 N 条(freq 归档 120000)
       已存在的词跳过；含生僻字(单字码缺失)的词跳过——绝不会产出错码。
 
+  python3 prepare_dicts.py pinyin_extra <pinyin.dict> <pinyin_extra.txt>
+      口语补充词表(词<TAB>带空格拼音<TAB>频率)追加进最终拼音词典，自动含简拼，按(码,词)去重。
+
   python3 prepare_dicts.py pinyin_dedup <merged.yaml>
       合并多个拼音源(base+ext)后按 (词,音) 去重，保留先出现者(base 优先)，防止候选重复。
 """
@@ -101,6 +104,56 @@ def cmd_wubi_supplement(argv):
         f.write('\n' + '\n'.join(out) + '\n')
     print('wubi supplement: +%d words (modern+THUOCL)' % len(out))
 
+def cmd_pinyin_extra(argv):
+    """pinyin_extra <pinyin.dict> <pinyin_extra.txt>
+    口语补充词表追加进最终 pinyin.dict：自动生成全拼码 + 简拼(~声母)条目，
+    与已有条目按 (码,词) 去重且保留更高频率。TreeMap 加载与顺序无关，直接重写整文件。"""
+    dict_path, extra_path = argv[0], argv[1]
+    ent = {}          # (code,word) -> freq
+    order = []        # 保持首次出现顺序（稳定输出，方便 diff）
+    for ln in read_text(dict_path).splitlines():
+        p = ln.split('\t')
+        if len(p) < 2:
+            continue
+        try:
+            fr = int(p[2]) if len(p) > 2 else 100
+        except ValueError:
+            fr = 100
+        k = (p[0].strip(), p[1].strip())
+        if k not in ent:
+            order.append(k)
+        ent[k] = max(ent.get(k, 0), fr)
+    added = 0
+    for ln in read_text(extra_path).splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith('#'):
+            continue
+        p = ln.split('\t')
+        if len(p) < 2:
+            continue
+        word, spaced = p[0].strip(), p[1].strip()
+        try:
+            fr = int(p[2]) if len(p) > 2 else 90000
+        except ValueError:
+            fr = 90000
+        sylls = [x for x in spaced.split() if x]
+        if not word or not sylls:
+            continue
+        full = ''.join(sylls)
+        keys = [(full, word)]
+        if len(sylls) >= 2:
+            brief = ''.join(x[0] for x in sylls)
+            if len(brief) >= 2 and brief != full:
+                keys.append(('~' + brief, word))
+        for k in keys:
+            if k not in ent:
+                order.append(k)
+                added += 1
+            ent[k] = max(ent.get(k, 0), fr)
+    with io.open(dict_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join('%s\t%s\t%d' % (k[0], k[1], ent[k]) for k in order))
+    print('pinyin extra: +%d new entries, total %d' % (added, len(order)))
+
 def cmd_pinyin_dedup(argv):
     path = argv[0]
     seen, out = set(), []
@@ -136,5 +189,7 @@ if __name__ == '__main__':
         cmd_wubi_supplement(sys.argv[2:])
     elif cmd == 'pinyin_dedup':
         cmd_pinyin_dedup(sys.argv[2:])
+    elif cmd == 'pinyin_extra':
+        cmd_pinyin_extra(sys.argv[2:])
     else:
         sys.exit('unknown command: ' + cmd)
