@@ -94,3 +94,162 @@
 麻了	ma le	91000
 汗流浃背了	han liu jia bei le	85000
 听我说谢谢你	ting wo shuo xie xie ni	82000
+# ===== v13.1 扩充：用户点名短语 + 高频口语短句 =====
+山高水远	shan gao shui yuan	93000
+今晚有没有空	jin wan you mei you kong	91000
+今晚有空吗	jin wan you kong ma	91000
+有没有空	you mei you kong	92000
+我跟你说	wo gen ni shuo	95000
+跟你说	gen ni shuo	93000
+并不束缚你	bing bu shu fu ni	88000
+束缚	shu fu	93000
+束缚你	shu fu ni	88000
+不束缚	bu shu fu	88000
+很智能	hen zhi neng	92000
+超智能	chao zhi neng	91000
+智能	zhi neng	95000
+我不记得了	wo bu ji de le	92000
+不记得了	bu ji de le	92000
+不记得	bu ji de	93000
+记得了	ji de le	90000
+童话里	tong hua li	93000
+童话	tong hua	94000
+我愿变成童话里	wo yuan bian cheng tong hua li	90000
+愿变成	yuan bian cheng	87000
+变成	bian cheng	94000
+你爱的那个天使	ni ai de na ge tian shi	90000
+你爱的	ni ai de	91000
+那个天使	na ge tian shi	88000
+天使	tian shi	94000
+你在哪呢	ni zai na ne	94000
+你在哪	ni zai na	94000
+在哪呢	zai na ne	93000
+在哪儿	zai nar	90000
+我在哪	wo zai na	91000
+去哪了	qu na le	92000
+干什么呢	gan shen me ne	92000
+你干嘛	ni gan ma	92000
+说什么呢	shuo shen me ne	90000
+想什么呢	xiang shen me ne	90000
+怎么回事	zen me hui shi	93000
+怎么了	zen me le	94000
+怎么办	zen me ban	94000
+为什么呢	wei shen me ne	91000
+凭什么	ping shen me	92000
+差不多了	cha bu duo le	91000
+差不多	cha bu duo	94000
+可以了	ke yi le	93000
+够了	gou le	92000
+算了吧	suan le ba	92000
+算了	suan le	93000
+行了	xing le	93000
+好了好了	hao le hao le	91000
+别这样	bie zhe yang	92000
+别闹了	bie nao le	91000
+别生气	bie sheng qi	91000
+别担心	bie dan xin	92000
+放心吧	fang xin ba	92000
+没关系	mei guan xi	93000
+真的假的	zhen de jia de	92000
+真的吗	zhen de ma	93000
+不会吧	bu hui ba	92000
+可能吧	ke neng ba	91000
+应该是	ying gai shi	92000
+应该可以	ying gai ke yi	91000
+肯定的	ken ding de	91000
+必须的	bi xu de	91000
+那当然	na dang ran	90000
+当然可以	dang ran ke yi	91000
+听你的	ting ni de	91000
+看你的	kan ni de	89000
+交给我	jiao gei wo	90000
+包在我身上	bao zai wo shen shang	87000
+我来吧	wo lai ba	91000
+我来搞定	wo lai gao ding	88000
+搞定了	gao ding le	91000
+搞不定	gao bu ding	89000
+弄好了	nong hao le	90000
+弄完了	nong wan le	89000
+做完了	zuo wan le	91000
+快好了	kuai hao le	90000
+还没好	hai mei hao	90000
+还没呢	hai mei ne	91000
+快了快了	kuai le kuai le	89000
+马上马上	ma shang ma shang	89000
+再等等	zai deng deng	91000
+再说吧	zai shuo ba	91000
+回头聊	hui tou liao	90000
+先忙了	xian mang le	91000
+先睡了	xian shui le	91000
+困了	kun le	92000
+累了	lei le	92000
+饿了	e le	92000
+渴了	ke le	89000
+热死了	re si le	91000
+冷死了	leng si le	90000
+笑死了	xiao si le	92000
+笑死我了	xiao si wo le	91000
+太好笑了	tai hao xiao le	90000
+太可爱了	tai ke ai le	91000
+太棒了	tai bang le	92000
+太厉害了	tai li hai le	92000
+真厉害	zhen li hai	91000
+牛啊	niu a	91000
+可以啊	ke yi a	92000
+不错不错	bu cuo bu cuo	90000
+挺好的	ting hao de	92000
+还行吧	hai xing ba	91000
+一般般	yi ban ban	90000
+不咋地	bu za di	89000
+没意思	mei yi si	91000
+有意思	you yi si	92000
+好玩吗	hao wan ma	90000
+好吃吗	hao chi ma	91000
+好看吗	hao kan ma	91000
+多少钱	duo shao qian	94000
+贵不贵	gui bu gui	90000
+太贵了	tai gui le	92000
+便宜点	pian yi dian	91000
+划算	hua suan	92000
+值了	zhi le	90000
+买它	mai ta	91000
+下单了	xia dan le	91000
+到货了	dao huo le	90000
+发货了吗	fa huo le ma	89000
+退了吧	tui le ba	89000
+在吗	zai ma	94000
+在不在	zai bu zai	92000
+睡了没	shui le mei	91000
+吃了没	chi le mei	91000
+下班没	xia ban mei	90000
+到了没	dao le mei	91000
+好了没	hao le mei	91000
+出来玩	chu lai wan	90000
+出去玩	chu qu wan	91000
+一起吃饭	yi qi chi fan	91000
+一起玩	yi qi wan	90000
+约饭	yue fan	90000
+改天吧	gai tian ba	91000
+下次吧	xia ci ba	91000
+下周吧	xia zhou ba	89000
+周末呢	zhou mo ne	89000
+今晚见	jin wan jian	90000
+一路平安	yi lu ping an	91000
+注意安全	zhu yi an quan	92000
+照顾好自己	zhao gu hao zi ji	91000
+保重	bao zhong	91000
+想你了	xiang ni le	92000
+爱你哦	ai ni o	91000
+么么哒	me me da	90000
+抱抱	bao bao	91000
+乖乖	guai guai	90000
+宝贝儿	bao beir	88000
+亲爱的	qin ai de	92000
+老婆大人	lao po da ren	88000
+遵命	zun ming	89000
+收到	shou dao	93000
+明白了	ming bai le	93000
+懂了	dong le	92000
+知道啦	zhi dao la	92000
+晓得了	xiao de le	89000
+明白明白	ming bai ming bai	88000
