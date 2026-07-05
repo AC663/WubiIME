@@ -47,8 +47,9 @@
   .kb-exit:active{background:#111;color:#fff;}
   .rule{height:1.5px;background:#111;margin-top:14px;}
   .lib-scroll{flex:1;overflow-y:auto;padding:6px 18px 24px;}
-  .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .lib-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;width:100%;box-sizing:border-box;}   /* minmax(0,1fr)：长串永远撑不破列宽 */
   .nb{cursor:pointer;background:#fff;border:1.5px solid #111;aspect-ratio:3/4;padding:14px 13px;display:flex;flex-direction:column;
+    min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box;
     box-shadow:4px 4px 0 #111;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s;}
   .nb:active{transform:scale(.97);}
   .nb-title{font-weight:900;font-size:18px;line-height:1.1;letter-spacing:-.5px;color:#111;
@@ -56,7 +57,7 @@
   .nb-rule{display:flex;align-items:center;gap:6px;margin:9px 0 8px;}
   .nb-dot{width:5px;height:5px;}
   .nb-line{flex:1;height:1px;background:#111;}
-  .nb-snip{font-size:10.5px;line-height:1.45;color:#666;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+  .nb-snip{font-size:10.5px;line-height:1.45;color:#666;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all;overflow-wrap:anywhere;min-width:0;}
   .nb-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:8.5px;color:#999;padding-top:8px;}
   .lib-foot{padding:14px 22px 30px;border-top:1.5px solid #111;background:var(--paper);}
   .btn-block{cursor:pointer;height:52px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;
