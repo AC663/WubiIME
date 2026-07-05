@@ -77,6 +77,8 @@
   .blk .body{flex:1;min-width:0;}
   .blk .del{opacity:0;cursor:pointer;font-size:13px;color:#bbb;padding:4px 2px 4px 6px;transition:opacity .15s;}
   .blk:hover .del{opacity:1;}
+  .blk.on .del{opacity:1;color:#e05a4e;}          /* 触屏无hover：点击/聚焦的块挂 .on，× 跟随该块 */
+  .blk.on .hdl{opacity:.5;}
   .b-h1{margin:0;font-weight:900;font-size:33px;line-height:1.08;letter-spacing:-1px;color:#111;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;}
   .b-h2{margin:0;font-weight:700;font-size:21px;line-height:1.25;color:#111;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;}
   .b-p{margin:0;font-weight:400;font-size:17px;line-height:1.72;color:#222;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;}   /* 长数字串/URL 必断行，绝不横向溢出 */
@@ -84,8 +86,8 @@
   .b-div .sq{width:7px;height:7px;background:var(--accent);}
   .b-div .ln{flex:1;height:1.5px;background:#111;}
   .ed-addbar{position:relative;padding:14px 22px 30px;border-top:1.5px solid #111;background:var(--paper);display:flex;gap:10px;}
-  .add-main{cursor:pointer;flex:1;height:48px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;}
-  .add-exp{cursor:pointer;width:48px;height:48px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;}
+  .add-main{cursor:pointer;flex:1;min-width:0;height:48px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;}
+  .add-exp{cursor:pointer;flex:0 0 auto;height:48px;padding:0 16px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;white-space:nowrap;}
   .add-scrim{position:absolute;inset:0;z-index:35;}
   .add-sheet{position:absolute;left:22px;right:22px;bottom:84px;background:#fff;border:1.5px solid #111;box-shadow:5px 5px 0 #111;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;z-index:40;animation:up .32s cubic-bezier(.16,1,.3,1);}
   .add-opt{cursor:pointer;padding:12px;border:1.5px solid #111;display:flex;flex-direction:column;gap:2px;}
@@ -394,20 +396,21 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
     },
 
     /* ---------------- EDITOR ---------------- */
+    blockHTML(b){
+      let inner;
+      if(b.type==='h1') inner=`<h1 contenteditable="true" class="ph b-h1" data-ph="标题" data-id="${b.id}"></h1>`;
+      else if(b.type==='h2') inner=`<h2 contenteditable="true" class="ph b-h2" data-ph="小标题" data-id="${b.id}"></h2>`;
+      else if(b.type==='divider') inner=`<div class="b-div"><div class="sq"></div><div class="ln"></div></div>`;
+      else inner=`<p contenteditable="true" class="ph b-p" data-ph="正文…" data-id="${b.id}"></p>`;
+      return `<div class="blk" data-blk="${b.id}">
+        <span class="hdl" data-id="${b.id}">⠿</span>
+        <div class="body">${inner}</div>
+        <span class="del" data-id="${b.id}">✕</span>
+      </div>`;
+    },
     edHTML(){
       const nb=this.cur(), s=this.state;
-      const blocks = nb.blocks.map(b=>{
-        let inner;
-        if(b.type==='h1') inner=`<h1 contenteditable="true" class="ph b-h1" data-ph="标题" data-id="${b.id}"></h1>`;
-        else if(b.type==='h2') inner=`<h2 contenteditable="true" class="ph b-h2" data-ph="小标题" data-id="${b.id}"></h2>`;
-        else if(b.type==='divider') inner=`<div class="b-div"><div class="sq"></div><div class="ln"></div></div>`;
-        else inner=`<p contenteditable="true" class="ph b-p" data-ph="正文…" data-id="${b.id}"></p>`;
-        return `<div class="blk" data-blk="${b.id}">
-          <span class="hdl" data-id="${b.id}">⠿</span>
-          <div class="body">${inner}</div>
-          <span class="del" data-id="${b.id}">✕</span>
-        </div>`;
-      }).join('');
+      const blocks = nb.blocks.map(b=> this.blockHTML(b)).join('');
       const sheet = s.addMenuOpen ? `
         <div class="add-scrim" data-act="addtoggle"></div>
         <div class="add-sheet">
@@ -421,14 +424,13 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
           <div class="nav-back" data-act="back">← 笔记本</div>
           <div class="nav-actions">
             <div class="kb-exit" data-act="exit">⌨ 返回键盘</div>
-            <div class="nav-exp" data-act="export">导出 ↧</div>
           </div>
         </div>
         <div class="ed-scroll" id="editor-scroll">${blocks}<div style="height:30px;"></div></div>
         <div class="ed-addbar">${sheet}
           <div class="add-main" data-act="addtoggle">＋ 文本类型</div>
           <div data-act="paste" title="粘贴私有剪贴板" style="cursor:pointer;width:48px;height:48px;border:1.5px solid #111;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;">贴</div>
-          <div class="add-exp" data-act="export">↧</div>
+          <div class="add-exp" data-act="export">导出 ↧</div>
         </div>
       </div>`;
     },
@@ -451,17 +453,60 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
         el.addEventListener('click', ()=> this.onAdd(el.dataset.add));
       });
       if(this.state.view==='editor'){
-        r.querySelectorAll('#editor-scroll [contenteditable]').forEach(el=>{
-          el.addEventListener('input', e=> this.onInput(el));
-          el.addEventListener('keydown', e=> this.onKey(e, el));
-          el.addEventListener('blur', e=> this.onEdit(el));
-          el.addEventListener('keyup', ()=> this.saveCaret(el));
-          el.addEventListener('pointerup', ()=> this.saveCaret(el));
-          el.addEventListener('focus', ()=> this.saveCaret(el));
-        });
-        r.querySelectorAll('.del').forEach(el=> el.addEventListener('click', ()=> this.onDel(el.dataset.id)));
+        this.root.querySelectorAll('#editor-scroll .blk').forEach(blk=> this.wireBlockEl(blk));
         this.syncEditables();
       }
+    },
+    /* 单块接线：整页渲染与手术式插块共用。focus 同时标记激活块(× 跟随，见 #5) */
+    wireBlockEl(blk){
+      blk.querySelectorAll('[contenteditable]').forEach(el=>{
+        el.addEventListener('input', e=> this.onInput(el));
+        el.addEventListener('keydown', e=> this.onKey(e, el));
+        el.addEventListener('blur', e=> this.onEdit(el));
+        el.addEventListener('keyup', ()=> this.saveCaret(el));
+        el.addEventListener('pointerup', ()=> this.saveCaret(el));
+        el.addEventListener('focus', ()=>{ this.saveCaret(el); this.markActive(el.dataset.id); });
+      });
+      const d=blk.querySelector('.del');
+      if(d) d.addEventListener('click', ()=> this.onDel(d.dataset.id));
+    },
+    markActive(id){
+      document.querySelectorAll('#editor-scroll .blk.on').forEach(x=>{ if(x.dataset.blk!==id) x.classList.remove('on'); });
+      const w=document.querySelector('#editor-scroll [data-blk="'+id+'"]'); if(w) w.classList.add('on');
+    },
+    /* ---- 手术式块操作：只动涉事 DOM 节点，绝不整页重渲 ----
+       整页重渲会摧毁聚焦元素 → 系统输入连接断开 → 输入法重启/卡白屏(#3 根因)，
+       且滚动位置归零(#4 根因)。以下所有块级增删一律走这里。 */
+    blockDom(b){
+      const t=document.createElement('div'); t.innerHTML=this.blockHTML(b).trim();
+      const el=t.firstElementChild; this.wireBlockEl(el); return el;
+    },
+    insertBlockAfter(afterId, nb){
+      const blocks=this.cur().blocks.slice();
+      const idx=blocks.findIndex(b=>b.id===afterId); if(idx<0) return null;
+      blocks.splice(idx+1,0,nb); this.setCur(blocks);
+      const el=this.blockDom(nb);
+      const cur=document.querySelector('#editor-scroll [data-blk="'+afterId+'"]');
+      if(cur&&cur.parentNode) cur.parentNode.insertBefore(el, cur.nextSibling);
+      else{ const sc=document.getElementById('editor-scroll'); if(sc) sc.insertBefore(el, sc.lastElementChild); }
+      const ed=el.querySelector('[contenteditable]');
+      if(ed && nb.text) ed.textContent=nb.text;
+      return el;
+    },
+    removeBlockEl(id){
+      const w=document.querySelector('#editor-scroll [data-blk="'+id+'"]'); if(w) w.remove();
+    },
+    caretTo(ed, offset){
+      try{
+        ed.focus();
+        const node=ed.firstChild;
+        const r=document.createRange();
+        if(node && node.nodeType===3) r.setStart(node, Math.min(offset, node.textContent.length));
+        else { r.selectNodeContents(ed); r.collapse(offset>0?false:true); }
+        r.collapse(true);
+        const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }catch(e){ try{ this.caretEnd(ed); }catch(_){} }
+      this.saveCaret(ed);
     },
     syncEditables(){
       if(this.state.view!=='editor') return;
@@ -637,21 +682,31 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       const blocks=this.cur().blocks.slice();
       const idx=blocks.findIndex(b=>b.id===id); if(idx<=0) return;
       const prev=blocks[idx-1];
-      if(prev.type==='divider'){ blocks.splice(idx-1,1); this.setCur(blocks); this.render(); this.focusBlock(id,false); return; }
+      if(prev.type==='divider'){   // 上一块是分隔线：删线本身，当前块留在原地(手术式)
+        blocks.splice(idx-1,1); this.setCur(blocks);
+        this.removeBlockEl(prev.id);
+        return;
+      }
       const caret=(prev.text||'').length, merged=(prev.text||'')+(blocks[idx].text||'');
-      const np=Object.assign({},prev,{text:merged});
-      blocks.splice(idx-1,2,np);
-      this.setCur(blocks); this.render();
-      this.focusBlockAt(np.id, caret);
+      blocks[idx-1]=Object.assign({},prev,{text:merged});
+      blocks.splice(idx,1);
+      this.setCur(blocks);
+      this.removeBlockEl(id);
+      const ped=document.querySelector('#editor-scroll [data-blk="'+prev.id+'"] [contenteditable]');
+      if(ped){ ped.textContent=merged; this.caretTo(ped, caret); }
+      this.markActive(prev.id);
     },
     splitAtCaret(ed){
       const id=ed.dataset.id, off=this.caretOffset(ed), full=ed.innerText.replace(/\n+$/,'');
       const before=full.slice(0,off), after=full.slice(off);
       const blocks=this.cur().blocks.map(b=> b.id===id?Object.assign({},b,{text:before}):b);
-      const idx=blocks.findIndex(b=>b.id===id);
+      this.setCur(blocks);
+      if(ed.innerText!==before) ed.textContent=before;
       const nb={ id:uid(), type:'p', text:after };
-      blocks.splice(idx+1,0,nb);
-      this.setCur(blocks); this.render(); this.focusBlockAt(nb.id, 0);
+      const el=this.insertBlockAfter(id, nb); if(!el) return;
+      const ned=el.querySelector('[contenteditable]');
+      if(ned) this.caretTo(ned, 0);
+      this.markActive(nb.id);
     },
     focusBlockAt(id, offset){
       setTimeout(()=>{
@@ -668,6 +723,13 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
     /* ---------------- export: panel ---------------- */
     openExport(){ this.state.exportOpen=true; this.state.addMenuOpen=false; this.renderEx(); },
     closeExport(){ if(this.state.busy) return; this.state.exportOpen=false; this.renderEx(); },
+    /* 叠加打开密码生成器：独立窗口(AppActivity)走 AndroidPW.openApp 压栈，返回键回到记事本；
+       键盘内嵌 overlay 模式走 Android.openAppWindow(桥注入所有 iframe)。生成的密码经私有剪贴板带回。 */
+    openPwgen(){
+      try{ if(typeof AndroidPW!=='undefined' && AndroidPW.openApp && AndroidPW.openApp('pwgen')) return; }catch(e){}
+      try{ if(typeof Android!=='undefined' && Android.openAppWindow && Android.openAppWindow('pwgen')) return; }catch(e){}
+      this.flash('当前环境无法打开生成器');
+    },
     renderEx(){
       let ov=document.getElementById('export-overlay');
       if(!this.state.exportOpen){ if(ov) ov.remove(); return; }
@@ -697,7 +759,10 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
             <div data-z="docx" style="${tag(s.zip.docx)}">.docx</div><div data-z="pdf" style="${tag(s.zip.pdf)}">.pdf</div>
           </div>
           <div style="font-size:11px;color:#666;margin-bottom:6px;">设置密码（标准 ZIP 加密 · 任意解压软件可开）</div>
-          <input id="zip-pwd" value="${esc(s.zipPwd)}" type="text" placeholder="留空则不加密" style="width:100%;border:1.5px solid #111;padding:10px 12px;font-family:var(--mono);font-size:13px;background:#fff;color:#111;">
+          <div style="display:flex;gap:8px;">
+            <input id="zip-pwd" value="${esc(s.zipPwd)}" type="text" placeholder="留空则不加密" style="flex:1;min-width:0;border:1.5px solid #111;padding:10px 12px;font-family:var(--mono);font-size:13px;background:#fff;color:#111;">
+            <div data-ex="pwgen" style="cursor:pointer;flex:0 0 auto;border:1.5px solid #111;background:#111;color:#fff;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;">🔑 生成器</div>
+          </div>
         </div>` : '';
       const pv = nb.blocks.map(b=>{
         if(b.type==='h1') return `<div style="font-weight:900;font-size:26px;line-height:1.1;letter-spacing:-1px;color:#111;margin:0 0 6px;">${esc(b.text)}</div>`;
@@ -738,6 +803,7 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
         const a=el.dataset.ex;
         if(a==='close') this.closeExport();
         else if(a==='go') this.doExport();
+        else if(a==='pwgen') this.openPwgen();
       }));
       ov.querySelectorAll('[data-fmt]').forEach(el=> el.addEventListener('click', ()=>{ this.state.fmt=el.dataset.fmt; this.renderEx(); }));
       ov.querySelectorAll('[data-mode]').forEach(el=> el.addEventListener('click', ()=>{ this.state.pngMode=el.dataset.mode; this.renderEx(); }));
@@ -1003,20 +1069,38 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       const id=el.dataset.id;
       if(e.key==='Enter' && !e.shiftKey){
         e.preventDefault();
-        const text=el.innerText.replace(/\n+$/,'');
-        const blocks=this.cur().blocks.map(b=> b.id===id ? Object.assign({},b,{text}) : b);
-        const idx=blocks.findIndex(b=>b.id===id);
-        const nb={ id:uid(), type:'p', text:'' };
-        blocks.splice(idx+1,0,nb);
-        this.setCur(blocks); this.render(); this.focusBlock(nb.id,false);
+        this.splitAtCaret(el);   // 手术式在光标处断块：不重渲、焦点无缝、输入法不重启(#3)
       } else if(e.key==='Backspace' && el.innerText===''){
         const blocks=this.cur().blocks;
-        if(blocks.length<=1) return;
+        if(blocks.length<=1) { e.preventDefault(); return; }
         e.preventDefault();
         const idx=blocks.findIndex(b=>b.id===id);
-        const prev=blocks[idx-1];
-        this.setCur(blocks.filter(b=>b.id!==id)); this.render();
-        if(prev) this.focusBlock(prev.id,true);
+        // 找上方最近的可编辑块承接焦点(跳过分隔线)；没有则找下方
+        let tgt=null;
+        for(let i=idx-1;i>=0;i--){ if(blocks[i].type!=='divider'){ tgt=blocks[i]; break; } }
+        if(!tgt) for(let i=idx+1;i<blocks.length;i++){ if(blocks[i].type!=='divider'){ tgt=blocks[i]; break; } }
+        this.setCur(blocks.filter(b=>b.id!==id));
+        this.removeBlockEl(id);   // 手术式删除：不重渲不卡死(#3)
+        if(tgt){
+          const ed=document.querySelector('#editor-scroll [data-blk="'+tgt.id+'"] [contenteditable]');
+          if(ed) this.caretTo(ed, (tgt.text||'').length);
+          this.markActive(tgt.id);
+        }
+      } else if(e.key==='Tab'){
+        // #7 跨块跳转带循环：Tab 下一块 / Shift+Tab 上一块，越界回绕(跳过分隔线)
+        e.preventDefault();
+        const blocks=this.cur().blocks;
+        const idx=blocks.findIndex(b=>b.id===id); if(idx<0) return;
+        const step=e.shiftKey?-1:1, n=blocks.length;
+        for(let k=1;k<=n;k++){
+          const b=blocks[(idx+step*k%n+n)%n];
+          if(b.type!=='divider'){
+            const ed=document.querySelector('#editor-scroll [data-blk="'+b.id+'"] [contenteditable]');
+            if(ed){ this.caretTo(ed, (b.text||'').length); this.markActive(b.id);
+              try{ ed.scrollIntoView({block:'nearest'}); }catch(_){}}
+            break;
+          }
+        }
       }
     },
     onAdd(type){
@@ -1026,7 +1110,11 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       setTimeout(()=>{ const el=document.getElementById('editor-scroll'); if(el) el.scrollTop=el.scrollHeight;
         const ed=document.querySelector('#editor-scroll [data-blk="'+nb.id+'"] [contenteditable]'); if(ed) ed.focus(); }, 80);
     },
-    onDel(id){ this.setCur(this.cur().blocks.filter(b=>b.id!==id)); this.render(); },
+    onDel(id){
+      // 手术式删除：只摘掉该块节点，滚动位置原地不动(#4：此前整页重渲导致跳回文首)
+      this.setCur(this.cur().blocks.filter(b=>b.id!==id));
+      this.removeBlockEl(id);
+    },
 
     /* ---------------- drag: library cards (long-press lift / tap open) ---------------- */
     onCardDown(e, card){
@@ -1148,6 +1236,7 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       document.addEventListener('pointerdown', (e)=>{
         if(e.button!=null && e.button!==0) return;
         const t=e.target; if(!t||!t.closest) return;
+        const bw=t.closest('#editor-scroll .blk'); if(bw && bw.dataset.blk) this.markActive(bw.dataset.blk);   // 点哪块 × 跟哪块
         const hdl=t.closest('.hdl'); if(hdl){ this.onHandleDown(e,hdl); return; }
         const card=t.closest('[data-card]'); if(card){ this.onCardDown(e,card); return; }
       }, true);
