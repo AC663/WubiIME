@@ -77,17 +77,17 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   box-shadow:0 2px 5px rgba(150,60,20,0.28);
   animation:chipOn .24s cubic-bezier(.2,.7,.3,1)}
 @keyframes chipOn{0%{transform:scale(.88)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
-.cat-chip.emo{padding:0 11px;font-size:18px;min-width:44px}   /* 间距/点触面积对齐[符号]分类，加宽好按 */
+.cat-chip.emo{padding:0 12px;font-size:18px;min-width:46px;margin:0 3px}   /* 左右间距拉开+点触面积加宽 */
 .cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
 .cat-chip.emo{position:relative}
 /* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
    底部铁轨+枕木，车轮搭轨，车厢间联轴器相连；横滑时整列车在轨上滑动 */
 .cat-strip.train{gap:8px;padding:0 4px 4px;align-items:center}   /* 铁轨/枕木已撤：纯胶囊列车更清爽 */
-.cat-chip.car{position:relative;height:21px;padding:0 10px;border-radius:5px;opacity:0.92;font-size:12.5px;
+.cat-chip.car{position:relative;height:26px;padding:0 10px;border-radius:6px;opacity:0.92;font-size:12.5px;
   background:linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.38));
   border:1px solid rgba(0,0,0,0.15);box-shadow:0 1px 2px rgba(0,0,0,0.13)}
-.cat-chip.car-head{border-radius:12px 6px 5px 5px}
-.cat-chip.car-tail{border-radius:6px 12px 5px 5px}
+.cat-chip.car-head{border-radius:13px 6px 6px 6px}
+.cat-chip.car-tail{border-radius:6px 13px 6px 6px}
 /* 车轮/铁轨已撤(定案)；联轴器恢复——车厢之间以短杆相连成一列 */
 .car .coupler{position:absolute;left:-9px;top:50%;margin-top:-1.5px;width:9px;height:3px;border-radius:2px;pointer-events:none;
   background:linear-gradient(180deg,rgba(0,0,0,0.30),rgba(0,0,0,0.44));box-shadow:0 1px 0 rgba(255,255,255,0.25)}
@@ -310,8 +310,10 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .wm-add{background:linear-gradient(180deg,var(--ac,#d6822e),var(--acd,#a8420f));color:#fff;box-shadow:0 2px 7px rgba(180,90,30,0.3)}
 .pager-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgba(0,0,0,0.35);z-index:100;
   display:flex;flex-direction:column}   /* fixed=铺满整个输入法窗口视口：下缘必然盖过空格键底边 */
-.pager-box{flex:1;min-height:0;border-radius:12px 12px 0 0;padding:10px 12px;overflow-y:auto;
-  -webkit-overflow-scrolling:touch;background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+.pager-box{flex:1;min-height:0;border-radius:12px 12px 0 0;padding:10px 12px;
+  display:flex;flex-direction:column;overflow:hidden;   /* 顶栏冻结：box本身不滚 */
+  background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+.pager-grid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}   /* 仅网格区滚动，"全部候选"+×常驻 */
 .pager-title{display:flex;align-items:center;justify-content:space-between;
   font-size:13px;margin-bottom:8px;padding-bottom:6px;color:var(--ktxt,#2a1408);
   border-bottom:1px solid rgba(0,0,0,0.10)}
@@ -326,28 +328,28 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .wb-code{font-size:9px;display:block;margin-top:2px;color:rgba(120,80,40,0.7)}
 
 /* 主题 */
-.t-orange{--ac:#e86030;--acd:#c03810;--acl:#f8a070;--bg1:#f5ede5;--bg2:#ebd5c5;
+.t-orange{--ac:#f06a36;--acd:#d04a18;--acl:#ffb082;--bg1:#f5ede5;--bg2:#ebd5c5;
   --kbg1:#fef6f0;--kbg2:#f0ddd0;--ktxt:#2a1408;--ksub:rgba(200,70,20,0.7);
   --panel:rgba(240,208,182,0.985);--cbar:rgba(232,80,26,0.06)}
-.t-blue{--ac:#2878d0;--acd:#1050a8;--acl:#70b8f8;--bg1:#e8f0fa;--bg2:#d8e8f5;
+.t-blue{--ac:#3b8ee6;--acd:#1e64c2;--acl:#8cc6ff;--bg1:#e8f0fa;--bg2:#d8e8f5;
   --kbg1:#eff6ff;--kbg2:#daeaf8;--ktxt:#081828;--ksub:rgba(20,110,210,0.7);
   --panel:rgba(203,228,250,0.985);--cbar:rgba(28,120,210,0.06)}
-.t-purple{--ac:#9030e0;--acd:#6008b8;--acl:#c870ff;--bg1:#f0e4fa;--bg2:#e4d0f5;
+.t-purple{--ac:#a44ef0;--acd:#7a1ed6;--acl:#d68eff;--bg1:#f0e4fa;--bg2:#e4d0f5;
   --kbg1:#f8eeff;--kbg2:#ead8f8;--ktxt:#1a0830;--ksub:rgba(130,30,220,0.7);
   --panel:rgba(226,199,250,0.985);--cbar:rgba(130,30,220,0.06)}
-.t-red{--ac:#d02020;--acd:#a00000;--acl:#f06060;--bg1:#faeaea;--bg2:#f0d0d0;
+.t-red{--ac:#d9483a;--acd:#b52a1e;--acl:#f88a75;--bg1:#faeaea;--bg2:#f0d0d0;
   --kbg1:#fff4f4;--kbg2:#f8e0e0;--ktxt:#280808;--ksub:rgba(180,20,20,0.7);
   --panel:rgba(243,204,204,0.985);--cbar:rgba(200,20,20,0.06)}
-.t-green{--ac:#1a9040;--acd:#0a6828;--acl:#50d070;--bg1:#e8f5ec;--bg2:#d0ecda;
+.t-green{--ac:#2fae57;--acd:#178a3c;--acl:#6fe094;--bg1:#e8f5ec;--bg2:#d0ecda;
   --kbg1:#f0faf3;--kbg2:#d8f0e0;--ktxt:#081a10;--ksub:rgba(15,120,50,0.7);
   --panel:rgba(196,232,208,0.985);--cbar:rgba(20,140,60,0.06)}
-.t-pink{--ac:#d8409a;--acd:#b01878;--acl:#f880c8;--bg1:#fdeaf5;--bg2:#f8d8ee;
+.t-pink{--ac:#e858ae;--acd:#c62e8c;--acl:#ff9ed6;--bg1:#fdeaf5;--bg2:#f8d8ee;
   --kbg1:#fff0fa;--kbg2:#fcddf2;--ktxt:#280818;--ksub:rgba(200,40,140,0.7);
   --panel:rgba(248,204,232,0.985);--cbar:rgba(210,50,150,0.06)}
-.t-brown{--ac:#8b5020;--acd:#6a3810;--acl:#c08850;--bg1:#f2ece4;--bg2:#e8d8c4;
+.t-brown{--ac:#a56428;--acd:#824a14;--acl:#d49a5c;--bg1:#f2ece4;--bg2:#e8d8c4;
   --kbg1:#fdf6ee;--kbg2:#f0e4d0;--ktxt:#281408;--ksub:rgba(130,70,20,0.7);
   --panel:rgba(233,214,184,0.985);--cbar:rgba(130,70,20,0.06)}
-.t-cyan{--ac:#0898b8;--acd:#0070a0;--acl:#40d8f0;--bg1:#e4f6fa;--bg2:#c8ecf5;
+.t-cyan{--ac:#14b2d4;--acd:#0888ac;--acl:#5ce4fa;--bg1:#e4f6fa;--bg2:#c8ecf5;
   --kbg1:#edfaff;--kbg2:#d0f0f8;--ktxt:#041820;--ksub:rgba(0,140,180,0.7);
   --panel:rgba(184,229,243,0.985);--cbar:rgba(0,150,190,0.06)}
 .t-dark{--ac:#c8a020;--acd:#a07808;--acl:#f0d060;--bg1:#1e1a10;--bg2:#16120a;
@@ -481,8 +483,9 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   background:linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.08));
   border-color:rgba(0,0,0,0.1);color:#a2a2a2}
 .t-dark .trackpad{
-  background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.1));
-  border-color:rgba(255,255,255,0.08);color:#8b8b8b}
+  background:linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));
+  border-color:rgba(255,255,255,0.28);color:#a8a8a8;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12)}   /* 黑主题：亮边框+微亮底，边际清晰可见 */
 /* 剪贴隔离激活 → 触控条箭头联动主题色(默认灰色) */
 .trackpad.iso{color:var(--ac)!important}
 /* 防截屏激活：触控条戴主题色"光环"——改内沿圈际(inset)：白金夹环+主色描边+内圈柔光呼吸，
@@ -490,8 +493,8 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .trackpad.sec{border-color:transparent!important;
   animation:secRing 2.6s ease-in-out infinite}
 @keyframes secRing{
-  0%,100%{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.80),inset 0 0 0 3.5px var(--ac,#c75f33),inset 0 0 9px 2px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
-  50%{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.80),inset 0 0 0 3.5px var(--ac,#c75f33),inset 0 0 15px 4px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.80),inset 0 0 0 2px var(--ac,#c75f33),inset 0 0 6px 1px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
+  50%{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.80),inset 0 0 0 2px var(--ac,#c75f33),inset 0 0 10px 2px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
 }
 
 /* 分类切换滑入动画（纯CSS驱动，真机稳定） */
@@ -960,6 +963,37 @@ function togglePyGrid(){
   buildKb();
 }
 
+// ===== 滚动容器橡皮筋回弹：顶部继续下拉/底部继续上拉时阻尼跟手、松手弹回 =====
+//   Android WebView 的 overflow 滚动没有原生回弹(iOS 才有)——[符号][表情][剪贴板][候选池]
+//   真机滑到边缘生硬急停。此实现只在"已到边缘还继续拉"时接管(不干扰正常滚动)。
+function attachRubberBand(el){
+  if(!el || el._rubber) return; el._rubber=true;
+  let _y0=0,_pulling=false,_dir=0;
+  el.addEventListener('touchstart',e=>{ _y0=e.touches[0].clientY; _pulling=false; _dir=0;
+    el.style.transition=''; },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-_y0;
+    const atTop=el.scrollTop<=0;
+    const atBot=el.scrollTop+el.clientHeight>=el.scrollHeight-1;
+    if(!_pulling){
+      if(atTop&&dy>6){ _pulling=true; _dir=1; }
+      else if(atBot&&dy<-6){ _pulling=true; _dir=-1; }
+      else return;                                   // 正常滚动区间：完全不接管
+    }
+    const pull=(e.touches[0].clientY-_y0)*_dir;      // 沿拉出方向的位移
+    if(pull<=0){ _pulling=false; el.style.transform=''; return; }   // 拉回来了→交还滚动
+    if(e.cancelable) e.preventDefault();
+    const damp=Math.min(64, pull*0.35);              // 阻尼+上限
+    el.style.transform='translateY('+(damp*_dir)+'px)';
+  },{passive:false});
+  const spring=()=>{ if(!_pulling) return; _pulling=false;
+    el.style.transition='transform .32s cubic-bezier(.22,1.2,.36,1)';   // 回弹曲线(轻微过冲)
+    el.style.transform='translateY(0)';
+    setTimeout(()=>{ el.style.transition=''; },340);
+  };
+  el.addEventListener('touchend',spring,{passive:true});
+  el.addEventListener('touchcancel',spring,{passive:true});
+}
 // 全局连发登记表：所有键的长按取消函数都登记于此；抬指(document 级)兜底全清，
 //   即使按键元素已被重建摘除、自身 touchend 丢失，也绝不出现"幽灵连发"。
 const _kbRepeatCancels = new Set();
@@ -1624,34 +1658,17 @@ function buildCalcPad(np){
           `<line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`+
           `</svg>`+
         `</span>`+
-        `<span class="delz-r">归零</span>`;
-      // 单击删除、长按(≥500ms)归零；长按期间不再触发删除
-      let _dz=null,_long=false;
-      const startDZ=()=>{ _long=false; _dz=setTimeout(()=>{ _long=true; playClick(); calcKey('C'); },500); div.classList.add('pressed'); };
-      const endDZ=()=>{ if(_dz){clearTimeout(_dz);_dz=null;} if(!_long){ playClick(); calcKey('DEL'); } div.classList.remove('pressed'); };
-      const cancelDZ=()=>{ if(_dz){clearTimeout(_dz);_dz=null;} div.classList.remove('pressed'); };
-      div.addEventListener('touchstart',e=>{e.preventDefault();startDZ();},{passive:false});
-      div.addEventListener('touchend',e=>{e.preventDefault();endDZ();},{passive:false});
-      div.addEventListener('touchcancel',cancelDZ,{passive:true});
-      div.addEventListener('mousedown',e=>{e.preventDefault();startDZ();});
-      div.addEventListener('mouseup',endDZ);
-      div.addEventListener('mouseleave',cancelDZ);
+        `<span class="delz-r" style="font-size:13px;font-weight:600">归零</span>`;
+      // 与数字键盘双用键完全一致：按下坐标判区——单击左块=删除(可长按连删)、单击右块=归零
+      bindDualZone(div, ()=>calcKey('DEL'), ()=>calcKey('C'));
     } else if(o.putdual){
       // Issue4: 上屏键改 DELZ 同款一键双用：左半=上屏(结果)，右半=算式(略深底)。
       //   单击=上屏计算结果；长按(≥500ms)=完整上屏(算式+结果，形如 "12+8=20")。
       div.classList.add('calc-delz');
       div.innerHTML=`<span class="delz-l" style="font-size:13px;font-weight:600">上屏</span>`+
                     `<span class="delz-r" style="font-size:13px;font-weight:600">算式</span>`;
-      let _pz=null,_long=false;
-      const startPZ=()=>{ _long=false; _pz=setTimeout(()=>{ _long=true; playClick(); calcKey('PUTALL'); },500); div.classList.add('pressed'); };
-      const endPZ=()=>{ if(_pz){clearTimeout(_pz);_pz=null;} if(!_long){ playClick(); calcKey('PUT'); } div.classList.remove('pressed'); };
-      const cancelPZ=()=>{ if(_pz){clearTimeout(_pz);_pz=null;} div.classList.remove('pressed'); };
-      div.addEventListener('touchstart',e=>{e.preventDefault();startPZ();},{passive:false});
-      div.addEventListener('touchend',e=>{e.preventDefault();endPZ();},{passive:false});
-      div.addEventListener('touchcancel',cancelPZ,{passive:true});
-      div.addEventListener('mousedown',e=>{e.preventDefault();startPZ();});
-      div.addEventListener('mouseup',endPZ);
-      div.addEventListener('mouseleave',cancelPZ);
+      // 坐标判区：单击左块=上屏结果、单击右块=完整上屏(算式+结果)
+      bindDualZone(div, ()=>calcKey('PUT'), ()=>calcKey('PUTALL'));
     } else {
       div.innerHTML=`<span class="km" style="${o.t&&o.t.length>1?'font-size:13px':''}">${o.t||o.k}</span>`;
       addKeyListeners(div,()=>calcKey(o.k));
@@ -2136,6 +2153,7 @@ function buildEmoji() {
   g.style.cssText='display:flex;flex-direction:column;padding:0;height:100%;';
   g.appendChild(mkDragHandle('emj'));   // 顶部拖拽手柄(冻结置顶，不随内容滚动)——表情独立高度
   const body=document.createElement('div'); body.className='panel-scroll'; g.appendChild(body);
+  attachRubberBand(body);
   if(_emjSlideDir){ animPanelSwap(body,_emjSlideDir); _emjSlideDir=0; }
   _catSelectFn=(i)=>{ if(i!==_emjCat) playPop(); _emjSlideDir=(i===_emjCat)?0:(i>_emjCat?1:-1); _emjCat=i; buildEmoji(); };
   // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
@@ -2483,11 +2501,14 @@ function moveCurLine(n) {
   updateEditor();
 }
 function doDelete() {
+  if (renameHookDelete()) return;
   if(code.length>0){code=code.slice(0,-1);if(!code)revMode=false;updateCode();return;}
   if(deleteSelection()){updateEditor();return;}
   if(tB.length>0){tB=tB.slice(0,-1);updateEditor();}
 }
 function commit(txt) {
+  if (txt === '\n' && renameHookEnter()) return;
+  if (txt !== '\n' && renameHookCommit(txt)) return;
   deleteSelection();
   tB+=txt; updateEditor();
 }
@@ -2762,21 +2783,7 @@ function closeCandMenu(){ const m=document.getElementById('candMenu'); if(m) m.r
 //   Ctrl(或锁定层)+多字词 → 弹前置/删除菜单；其余正常上屏。
 function onCandTap(c, anchorEl){
   const ck=activeCodeKey();   // 全键盘 code / 九宫 t9code 通吃
-  if((shift||caps) && ck){
-    if(hanCount(c.w)>=2){
-      // 删除必须过确认弹窗，确认即删即刷——绝不静默直删
-      kbConfirm('确认删除此内容？「'+c.w+'」',()=>{
-        userHideWord(ck, c.w);
-        const own=(c.c||'').toLowerCase(); if(own && own!==ck) userHideWord(own,c.w);
-        wmToast('已删除  '+c.w);
-        refreshCandsAfterEdit();
-      });
-    } else {
-      wmToast('单字不可删除');
-    }
-    if(shift){ shift=false; setTimeout(buildKb,0); }
-    return;
-  }
+  // Shift+点击删词已取消(删除统一走 Ctrl+单击菜单，带确认弹窗)——Shift 态点击=正常上屏
   // Ctrl+单击：词与单字都可进菜单——单字允许前置调序，仅删除受限
   if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl)) && hanCount(c.w)>=1 && ck){
     showCandMenu(c, anchorEl);
@@ -3144,10 +3151,18 @@ function openAppOverlay(name){
     bar.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); back(); });
   })();
   ov.appendChild(bar);
-  // iframe 加载应用
+  // iframe 加载应用：优先走原生解密桥(资产已加密存储，目录里无明文 html 可被外界直接打开)，
+  //   桥不可用(纯浏览器预览)才回退明文路径。
   const fr=document.createElement('iframe');
   fr.style.cssText='flex:1;width:100%;border:0;background:#f6f3ee';
-  fr.src='apps/'+name+'.html';
+  let _loaded=false;
+  try{
+    if(typeof Android!=='undefined' && Android.loadAppHtml){
+      const html=Android.loadAppHtml(name);
+      if(html && html.length>100){ fr.srcdoc=html; _loaded=true; }
+    }
+  }catch(e){}
+  if(!_loaded) fr.src='apps/'+name+'.html';
   ov.appendChild(fr);
   document.body.appendChild(ov);    // 挂到 body：充满真实视口，而非剪贴面板
   _appOverlay=ov;
@@ -3215,6 +3230,45 @@ const CLIP_APPS=[
   {id:'iso',   label:'剪贴隔离',   type:'toggle'}   // 开=复制只进私有剪贴板；关=跨App粘贴不受影响
 ];
 function kbSecureOn(){ try{ return localStorage.getItem('kbFlagSecure')==='1'; }catch(e){ return false; } }
+// 车厢自定义名：用户长按任意车厢可改成自己喜欢的叫法(仅改显示，功能不变)
+function appNames(){ try{ return JSON.parse(localStorage.getItem('kbAppNames')||'{}'); }catch(e){ return {}; } }
+function appLabel(a){ const n=appNames(); return (n[a.id]&&String(n[a.id]).trim())||a.label; }
+function setAppName(id,name){
+  const n=appNames();
+  if(name&&name.trim()) n[id]=name.trim().slice(0,8); else delete n[id];   // 最长8字，空=恢复默认
+  try{ localStorage.setItem('kbAppNames',JSON.stringify(n)); }catch(e){}
+}
+// ---- 重命名浮层：借输入法自身上屏通道打字(commit/退格被拦截进缓冲) ----
+let _renameBuf=null, _renameId=null;
+function openRename(a){
+  closeRename();
+  _renameId=a.id; _renameBuf=appLabel(a);
+  const ov=document.createElement('div'); ov.id='renameOv';
+  ov.style.cssText='position:fixed;left:0;right:0;top:0;z-index:380;display:flex;justify-content:center;padding-top:6px;pointer-events:none';
+  const box=document.createElement('div');
+  box.style.cssText='pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;'+
+    'background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));'+
+    'box-shadow:0 6px 22px rgba(0,0,0,0.28),inset 0 1px 0 rgba(255,255,255,0.55);max-width:92vw';
+  box.innerHTML='<span style="font-size:12px;opacity:.65;white-space:nowrap">重命名</span>'+
+    '<span id="renameVal" style="font-size:15px;font-weight:700;color:var(--ktxt,#2a1408);min-width:56px;max-width:48vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></span>'+
+    '<span class="wm-caret"></span>'+
+    '<span id="renameOk" style="font-size:13px;font-weight:700;color:#fff;background:var(--ac,#d6822e);padding:5px 11px;border-radius:8px;cursor:pointer;white-space:nowrap">保存</span>'+
+    '<span id="renameCancel" style="font-size:13px;padding:5px 8px;border-radius:8px;cursor:pointer;opacity:.7;white-space:nowrap">取消</span>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  const bind=(id,fn)=>{ const b=document.getElementById(id); let _t=false;
+    b.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();_t=true;fn();},{passive:false});
+    b.addEventListener('mousedown',e=>{if(_t)return;e.preventDefault();e.stopPropagation();fn();}); };
+  bind('renameOk',()=>{ setAppName(_renameId,_renameBuf); closeRename(); buildClipStrip(); wmToast('已重命名'); });
+  bind('renameCancel',()=>{ closeRename(); });
+  renameRefresh();
+  wmToast('直接打字输入新名称，回车保存');
+}
+function renameRefresh(){ const v=document.getElementById('renameVal'); if(v) v.textContent=_renameBuf||''; }
+function closeRename(){ _renameBuf=null; _renameId=null; const o=document.getElementById('renameOv'); if(o) o.remove(); }
+// 上屏/退格/回车拦截钩子：重命名浮层激活时输入进缓冲而非宿主
+function renameHookCommit(txt){ if(_renameBuf===null) return false; _renameBuf=(_renameBuf+txt).slice(0,8); renameRefresh(); return true; }
+function renameHookDelete(){ if(_renameBuf===null) return false; _renameBuf=_renameBuf.slice(0,-1); renameRefresh(); return true; }
+function renameHookEnter(){ if(_renameBuf===null) return false; setAppName(_renameId,_renameBuf); closeRename(); buildClipStrip(); wmToast('已重命名'); return true; }
 // 车轮/铁轨已移除(定案)；联轴器保留——把各车厢连接成一列
 function _dressCar(t){
   if(!t||!t.classList.contains('car')) return;
@@ -3281,7 +3335,16 @@ function buildClipStrip(){
     if(i>0) t.setAttribute('data-coupler','1');   // 首节车头无联轴器
     if(a.type==='toggle' && a.id==='secure'){ t.id='secChip'; applySecChip(t); }
     else if(a.type==='toggle' && a.id==='iso'){ t.id='isoChip'; applyIsoChip(t); }
-    else { t.textContent=a.label; _dressCar(t); }
+    else { t.textContent=appLabel(a); _dressCar(t); }
+    // 长按任意车厢 → 重命名(500ms，移动取消)
+    (function(app){
+      let _lt=null,_lx=0,_ly=0;
+      t.addEventListener('touchstart',e=>{ const p=e.touches[0]; _lx=p.clientX; _ly=p.clientY;
+        _lt=setTimeout(()=>{ _lt=null; openRename(app); },500); },{passive:true});
+      t.addEventListener('touchmove',e=>{ const p=e.touches[0];
+        if(Math.abs(p.clientX-_lx)>12||Math.abs(p.clientY-_ly)>12){ clearTimeout(_lt); _lt=null; } },{passive:true});
+      ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{ clearTimeout(_lt); _lt=null; },{passive:true}));
+    })(a);
     tabs.appendChild(t);
   });
   _catSelectFn=(i)=>{
@@ -3301,16 +3364,26 @@ function refreshClip() {
   // (v12) 工具行已撤：三入口改为编码栏[应用]胶囊轨道(buildClipStrip)；防截屏提示改顶部悬浮气泡。
   // 滚动区：剪贴条目与页脚均在此滚动，拖杆/工具行固定不动。
   const body=document.createElement('div'); body.className='panel-scroll'; list.appendChild(body);
+  attachRubberBand(body);
   body.style.padding='0 9px 7px';
 
   if(!clips.length){const e=document.createElement('div');e.style.cssText='display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ktxt,#888);opacity:0.55;padding:16px;text-align:center;font-size:13px';e.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 9.5h6M9 13h6M9 16.5h3.5"></path></svg>剪贴历史为空<span style="font-size:11px">选中文字后按 Ctrl+C / Ctrl+X 即可存入</span>';body.appendChild(e);return;}
   clips.forEach((txt,idx)=>{
     const row=document.createElement('div');
-    row.style.cssText='position:relative;display:flex;align-items:center;padding:9px 12px;margin-top:6px;'+
-      'border-radius:12px;cursor:pointer;font-size:14px;'+
-      'background:linear-gradient(180deg,rgba(255,255,255,0.93),rgba(255,255,255,0.55));'+
-      'border:1px solid rgba(255,255,255,0.7);'+
-      'box-shadow:0 1px 3px rgba(120,70,30,0.10),inset 0 1px 0 rgba(255,255,255,0.9);'+
+    const first=(idx===0), last=(idx===clips.length-1);
+    const radius=(first&&last)?'12px':first?'12px 12px 0 0':last?'0 0 12px 12px':'0';   // 条条相连：首尾圆角、中间直角
+    const _ime=document.getElementById('ime'); const _dark=!!(_ime&&_ime.className.indexOf('t-dark')>=0);   // 主题类挂在#ime
+    row.style.cssText='position:relative;display:flex;align-items:center;padding:9px 12px;margin-top:0;'+
+      'border-radius:'+radius+';cursor:pointer;font-size:14px;'+
+      (_dark
+        ? 'background:linear-gradient(180deg,rgba(255,225,120,0.14),rgba(255,225,120,0.05));'+
+          'border:1px solid rgba(255,220,110,0.22);'+
+          (first?'':'border-top:1px solid rgba(255,220,110,0.14);margin-top:-1px;')+
+          'box-shadow:inset 0 1px 0 rgba(255,235,160,0.15);'
+        : 'background:linear-gradient(180deg,rgba(255,255,255,0.93),rgba(255,255,255,0.55));'+
+          'border:1px solid rgba(255,255,255,0.7);'+
+          (first?'':'border-top:1px solid rgba(0,0,0,0.07);margin-top:-1px;')+
+          'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9);')+
       'color:var(--ktxt,#2a1408);line-height:1.4;gap:8px;transition:transform .1s,background .12s';
     const t=document.createElement('div');
     t.style.cssText='flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;word-break:break-all';
@@ -3381,13 +3454,14 @@ function openPager() {
   if(typeof t9code!=='undefined' && t9code){ cands=t9Cands(t9code,600); }
   else { cands=queryCands(600); }
   const grid=document.getElementById('pagerGrid'); grid.innerHTML='';
+  attachRubberBand(grid);
   if(!cands || !cands.length){ return; }   // 无候选不弹空灰屏
   // 分片渲染：首批120个立即上屏(秒开)，其余每帧续120——600条一次性建DOM在真机会顿一拍
   const mkItem=c=>{
     const div=document.createElement('div'); div.className='pager-item';
     div.textContent=c.w;
     if(revMode&&c.wbCode){const s=document.createElement('span');s.className='wb-code';s.style.color='rgba(120,160,255,0.6)';s.textContent=c.wbCode;div.appendChild(s);}
-    addCandListeners(div,()=>{ const ck=activeCodeKey(); if((shift||caps)&&ck){ onCandTap(c,div); openPager(); } else if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl))&&hanCount(c.w)>=1&&ck){ showCandMenu(c,div); if(ctrl){ctrl=false;setTimeout(buildKb,0);} } else { commitCand(c); closePager(); } });
+    addCandListeners(div,()=>{ const ck=activeCodeKey(); if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl))&&hanCount(c.w)>=1&&ck){ showCandMenu(c,div); if(ctrl){ctrl=false;setTimeout(buildKb,0);} } else { commitCand(c); closePager(); } });
     return div;
   };
   let _pi=0;
@@ -3423,6 +3497,8 @@ const isAndroid = typeof Android !== 'undefined';
 // 覆盖commit函数：在Android中调用JSBridge，否则保持原有模拟器行为
 const _origCommit = commit;
 window.commit = function(txt) {
+  if (txt === '\n' && renameHookEnter()) return;     // 重命名浮层：回车=保存
+  if (txt !== '\n' && renameHookCommit(txt)) return; // 重命名浮层：上屏进名称缓冲
   if (_wmActive) { wmInput(txt); return; }   // 造词模式：上屏内容进入"词"缓冲，不发往宿主
   if (isAndroid) {
     if (_routeNote()) {
@@ -3444,6 +3520,7 @@ function commitFlag(f){ commit(f); }
 // 覆盖doDelete
 const _origDelete = doDelete;
 window.doDelete = function() {
+  if (renameHookDelete()) return;             // 重命名浮层：退格改名称缓冲
   if (_wmActive) { wmBackspace(); return; }   // 造词模式：退格作用于编码/词缓冲
   if (isAndroid) {
     // 先清编码，无编码则删字符
