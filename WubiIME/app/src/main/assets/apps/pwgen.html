@@ -555,7 +555,7 @@ const WORDS = ('able acid aged also area army away baby back ball band bank base
 
 // All legal toneless Hanyu Pinyin syllables, built from initials × finals so no
 // long literal of full words is needed. ü is written 'v' (ASCII / password-safe):
-// lü→lv, lüe→lve, nü→nv, nüe→nve. j/q/x/y + u already mean ü.
+// ü 按正确拼音输出：nü/nüe/lü/lüe(不再用 v 代写)。j/q/x/y + u 本就表示 ü。
 const PINYIN = (() => {
   const map = {
     '': 'a o e ai ei ao ou an en ang eng er yi ya ye yao you yan yin yang ying yong wu wa wo wai wei wan wen wang weng yu yue yuan yun',
@@ -582,7 +582,8 @@ const PINYIN = (() => {
     s: 'a e i ai ao ou an en ang eng ong u uo ui uan un'
   };
   const out = [];
-  for (const init in map) for (const fin of map[init].split(' ')) out.push(init + fin);
+  // ü 输出正确形态：v→ü、ve→üe(nüe/lüe/nü/lü)，不再用 ASCII 代写的错误拼音 nve/lve
+  for (const init in map) for (const fin of map[init].split(' ')) out.push(init + fin.replace(/^ve$/,'üe').replace(/^v$/,'ü'));
   return out;
 })();
 
@@ -1204,7 +1205,7 @@ function App() {
   }, popts.words)), /*#__PURE__*/React.createElement(Slider, {
     value: popts.words,
     min: 3,
-    max: 7,
+    max: 9,
     onChange: v => setPopts(o => ({
       ...o,
       words: v
