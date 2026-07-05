@@ -253,3 +253,121 @@
 知道啦	zhi dao la	92000
 晓得了	xiao de le	89000
 明白明白	ming bai ming bai	88000
+# ===== v13.2 扩充：游戏/歌词/文化高频块 =====
+王者荣耀	wang zhe rong yao	95000
+王者	wang zhe	93000
+荣耀	rong yao	93000
+上分	shang fen	90000
+开黑	kai hei	91000
+排位	pai wei	90000
+五杀	wu sha	89000
+峡谷	xia gu	89000
+吃鸡	chi ji	91000
+氪金	ke jin	89000
+肝了	gan le	88000
+上号	shang hao	89000
+下号	xia hao	87000
+掉线了	diao xian le	89000
+卡了	ka le	91000
+网不好	wang bu hao	89000
+信号不好	xin hao bu hao	89000
+流量	liu liang	92000
+充电	chong dian	92000
+没电了	mei dian le	91000
+快没电了	kuai mei dian le	89000
+关机了	guan ji le	88000
+静音了	jing yin le	88000
+勿扰	wu rao	88000
+天上人间	tian shang ren jian	90000
+海市蜃楼	hai shi shen lou	89000
+山盟海誓	shan meng hai shi	88000
+天长地久	tian chang di jiu	89000
+海枯石烂	hai ku shi lan	88000
+岁月静好	sui yue jing hao	89000
+人间烟火	ren jian yan huo	89000
+星辰大海	xing chen da hai	90000
+诗和远方	shi he yuan fang	89000
+来日方长	lai ri fang chang	89000
+不负韶华	bu fu shao hua	87000
+乘风破浪	cheng feng po lang	89000
+披荆斩棘	pi jing zhan ji	88000
+逆风翻盘	ni feng fan pan	87000
+未来可期	wei lai ke qi	89000
+万事胜意	wan shi sheng yi	86000
+平安喜乐	ping an xi le	88000
+顺遂无忧	shun sui wu you	85000
+得偿所愿	de chang suo yuan	87000
+双向奔赴	shuang xiang ben fu	88000
+念念不忘	nian nian bu wang	88000
+必有回响	bi you hui xiang	86000
+人间值得	ren jian zhi de	88000
+熠熠生辉	yi yi sheng hui	85000
+温柔了岁月	wen rou le sui yue	84000
+惊艳了时光	jing yan le shi guang	84000
+月亮代表我的心	yue liang dai biao wo de xin	86000
+甜蜜蜜	tian mi mi	88000
+童话故事	tong hua gu shi	88000
+灰姑娘	hui gu niang	88000
+白雪公主	bai xue gong zhu	88000
+小王子	xiao wang zi	88000
+玫瑰花	mei gui hua	89000
+向日葵	xiang ri kui	88000
+蒲公英	pu gong ying	87000
+萤火虫	ying huo chong	87000
+流星雨	liu xing yu	88000
+许个愿	xu ge yuan	87000
+生日快乐	sheng ri kuai le	93000
+新年快乐	xin nian kuai le	93000
+恭喜发财	gong xi fa cai	91000
+万事如意	wan shi ru yi	91000
+心想事成	xin xiang shi cheng	91000
+阖家幸福	he jia xing fu	88000
+早日康复	zao ri kang fu	89000
+一夜暴富	yi ye bao fu	88000
+暴富	bao fu	89000
+锦鲤	jin li	89000
+好运连连	hao yun lian lian	87000
+福气满满	fu qi man man	86000
+元气满满	yuan qi man man	89000
+干饭了	gan fan le	90000
+干饭人	gan fan ren	88000
+摸鱼	mo yu	90000
+内卷	nei juan	91000
+躺平	tang ping	91000
+社恐	she kong	89000
+社牛	she niu	88000
+打工人	da gong ren	90000
+搬砖	ban zhuan	89000
+划水	hua shui	88000
+带薪休假	dai xin xiu jia	86000
+调休	tiao xiu	89000
+请假	qing jia	92000
+加班费	jia ban fei	88000
+发工资	fa gong zi	90000
+涨工资	zhang gong zi	88000
+年终奖	nian zhong jiang	89000
+双十一	shuang shi yi	89000
+购物车	gou wu che	90000
+清空购物车	qing kong gou wu che	87000
+秒杀	miao sha	89000
+拼团	pin tuan	87000
+砍一刀	kan yi dao	87000
+优惠券	you hui quan	90000
+满减	man jian	88000
+包邮	bao you	90000
+七天无理由	qi tian wu li you	85000
+快递到了	kuai di dao le	90000
+取快递	qu kuai di	91000
+外卖到了	wai mai dao le	90000
+点外卖	dian wai mai	91000
+奶茶	nai cha	92000
+喝奶茶	he nai cha	89000
+火锅	huo guo	92000
+吃火锅	chi huo guo	90000
+烧烤	shao kao	91000
+撸串	lu chuan	88000
+夜宵	ye xiao	89000
+早餐	zao can	92000
+午餐	wu can	90000
+晚餐	wan can	90000
+下午茶	xia wu cha	89000
