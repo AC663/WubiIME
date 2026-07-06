@@ -77,7 +77,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   box-shadow:0 2px 5px rgba(150,60,20,0.28);
   animation:chipOn .24s cubic-bezier(.2,.7,.3,1)}
 @keyframes chipOn{0%{transform:scale(.88)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
-.cat-chip.emo{padding:0 12px;font-size:18px;min-width:46px;margin:0 3px}   /* 左右间距拉开+点触面积加宽 */
+.cat-chip.emo{padding:0 15px;font-size:19px;min-width:56px;height:30px;margin:0 5px}   /* 大触区+大间距，轨道可横滚不挤压 */
 .cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
 .cat-chip.emo{position:relative}
 /* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
@@ -206,8 +206,8 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   background:linear-gradient(180deg,rgba(30,40,80,0.6),rgba(15,25,55,0.5));
   border:1px solid rgba(100,130,220,0.18);
   box-shadow:inset 0 1px 3px rgba(0,0,0,0.4),inset 0 0 0 1px rgba(255,255,255,0.04);
-  display:flex;align-items:center;justify-content:center;
-  color:rgba(100,140,255,0.35);font-size:16px;letter-spacing:6px;cursor:pointer}
+  display:flex;align-items:center;justify-content:center;gap:26px;
+  color:rgba(100,140,255,0.45);cursor:pointer}
 
 .keyboard{border-radius:0 0 14px 14px;overflow:hidden;padding-bottom:4px}
 .kb-row{display:flex;gap:5px;padding:5px 4px}
@@ -301,15 +301,6 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .wm-val{flex:1;min-width:0;font-size:16px;font-weight:600;color:var(--ktxt,#2a1408);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;letter-spacing:1px}
 .wm-ph{color:var(--ktxt,#888);opacity:0.45;font-weight:400;font-size:13px;letter-spacing:0}
 .wm-caret{display:inline-block;width:2px;height:1.05em;background:var(--ac,#e86030);vertical-align:-0.14em;margin-left:1px;border-radius:1px;animation:wmBlink 1s steps(1,end) infinite}
-/* #14 滚动边缘回弹反馈：纯 CSS animation 类(同 animPanelSwap 的真机稳定方案) */
-@keyframes edgeKickT{0%{transform:translateY(0)}38%{transform:translateY(11px)}100%{transform:translateY(0)}}
-@keyframes edgeKickB{0%{transform:translateY(0)}38%{transform:translateY(-11px)}100%{transform:translateY(0)}}
-@keyframes edgeKickL{0%{transform:translateX(0)}38%{transform:translateX(11px)}100%{transform:translateX(0)}}
-@keyframes edgeKickR{0%{transform:translateX(0)}38%{transform:translateX(-11px)}100%{transform:translateX(0)}}
-.edge-t{animation:edgeKickT .32s cubic-bezier(.22,1.15,.34,1)}
-.edge-b{animation:edgeKickB .32s cubic-bezier(.22,1.15,.34,1)}
-.edge-l{animation:edgeKickL .32s cubic-bezier(.22,1.15,.34,1)}
-.edge-r{animation:edgeKickR .32s cubic-bezier(.22,1.15,.34,1)}
 @keyframes wmBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
 #wmCodeText{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px}
 #wmCodeText.custom{color:var(--ac,#d6822e)}
@@ -545,7 +536,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   <div class="sball" id="modeBtn" onclick="cycleMode()"><span class="sball-text" id="modeLbl">五笔</span></div>
   <div class="sball theme-ball" id="themeBtn" onclick="cycleTheme()"></div>
   <div class="sball" id="symBtn"><span class="sball-text" id="symLbl">符号</span></div>
-  <div class="trackpad" id="tp">⇠ ⇢</div>
+  <div class="trackpad" id="tp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg></div>
   <div class="sball" id="emjBtn" onclick="toggleEmoji()"><span class="sball-text">表情</span></div>
   <div class="sball" id="clipBtn" onclick="toggleClip()" title="应用"><span class="sball-text">应用</span></div>
   <div class="sball" id="numBtn" onclick="toggleNumKb()"><span class="sball-text" id="numLbl" style="font-size:15px;letter-spacing:0.5px">123</span></div>
@@ -779,7 +770,7 @@ const SYMBOL_CATS=[
 ];
 // ===== 表情：iOS 风格分类 =====
 const EMOJI_CATS=[
-  {n:'😀', name:'笑脸', list:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','👶','🧒','👦','👧','🧑','👨','👩','🧔','👱','🧓','👴','👵','👮','👷','💂','🕵','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🤱','👼','🙇','🤦','🤷','💁','🙅','🙆','🙋','👫','👬','👭','💑','💏','👪','👨‍👩‍👧','👨‍👩‍👦','👨‍👩‍👧‍👦','👨‍👩‍👦‍👦','👩‍👩‍👦','👨‍👨‍👧','👩‍👦','👩‍👧','👨‍👦','👨‍👧']},
+  {n:'😀', name:'笑脸', list:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','👶','🧒','👦','👧','🧑','👨','👩','🧔','👱','🧓','👴','👵','👮','👷','💂','🕵','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🤱','👼','🙇','🤦','🤷','💁','🙅','🙆','🙋','👫','👬','👭','💑','💏','👪']},
   {n:'👋', name:'手势', list:['👋','🤚','🖐','✋','🖖','👌','🤏','✌','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍','💅','🤳','💪','🦾','🦵','🦶','👂','👃','🧠','🫀','🫁','🦷','🦴','👀','👁','👅','👄','💋','🩸']},
   {n:'👾', name:'怪物', list:['👾','🤖','👽','🛸','👹','👺','👻','💀','☠','🎃','😈','👿','🤡','💩','🧟','🧛','🧞','🧜','🧚','🧙','🦸','🦹','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🐲','🐉','🦖','🦕']},
   {n:'🐶', name:'动物', list:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🐙','🦑','🦐','🦀','🐠','🐟','🐡','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🐐','🦌','🐕','🐩','🐈','🐓','🦃','🕊','🐇','🐁','🐀','🐿','🦔']},
@@ -866,6 +857,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let _steps=0;
     // 右移：每消费一步先查是否已到文末——到末则立即清零累积并停，不积累"越界credit"，光标硬停文末。
     //   _tpHitR 锁：一旦本次滑动探到文末，该方向后续步不再发键(兜底宿主键事件异步处理延迟、cursorAtBoundary 读到旧位的窗口)，直到反向解锁。
+    if(typeof _renameBuf!=='undefined'&&_renameBuf!==null){ tpAccum=0; return; }   // 重命名焦点铁锁：触控条不动宿主光标
     while(tpAccum>=6){
       if(_tpHitR){ tpAccum=0; break; }
       if(++_steps>2){ break; }   // 单帧限2步
@@ -977,46 +969,45 @@ function togglePyGrid(){
 // ===== 滚动容器橡皮筋回弹：顶部继续下拉/底部继续上拉时阻尼跟手、松手弹回 =====
 //   Android WebView 的 overflow 滚动没有原生回弹(iOS 才有)——[符号][表情][剪贴板][候选池]
 //   真机滑到边缘生硬急停。此实现只在"已到边缘还继续拉"时接管(不干扰正常滚动)。
-/* #14 边缘反馈内核重写：旧版 JS 逐帧 transform 在真机 WebView 被原生滚动手势压制不显示。
-   改「检测到边缘继续拉 → 触发一次纯 CSS animation 回弹」：移类→强制回流→加类，
-   与 animPanelSwap 同款真机稳定方案，监听全 passive、绝不干扰原生滚动。 */
-function edgeKick(el,dir){
-  el.classList.remove('edge-t','edge-b','edge-l','edge-r');
-  void el.offsetWidth;                        // 强制回流：同名动画可重复触发
-  el.classList.add('edge-'+dir);
-  if(!el._edgeWired){
-    el._edgeWired=true;
-    el.addEventListener('animationend',()=>el.classList.remove('edge-t','edge-b','edge-l','edge-r'),{passive:true});
-  }
-}
-function attachRubberBand(el){   // 纵向：内容区顶/底
-  if(!el || el._rubber) return; el._rubber=true;
-  let y0=0,fired=false;
-  el.addEventListener('touchstart',e=>{ y0=e.touches[0].clientY; fired=false; },{passive:true});
+/* 滚动边缘"iOS 式"流动回弹：
+   跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
+   释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
+   非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
+function _edgeSpring(el, axis){
+  const prop = axis==='x' ? 'translateX' : 'translateY';
+  let p0=0, pull=0, engaged=false, raf=0;
+  const atStart=()=> axis==='x' ? el.scrollLeft<=0 : el.scrollTop<=0;
+  const atEnd  =()=> axis==='x' ? el.scrollLeft+el.clientWidth >=el.scrollWidth -1
+                                : el.scrollTop +el.clientHeight>=el.scrollHeight-1;
+  const pos=e=> axis==='x' ? e.touches[0].clientX : e.touches[0].clientY;
+  const apply=()=>{ raf=0; el.style.transform = pull ? (prop+'('+pull+'px)') : ''; };
+  const release=()=>{
+    if(!engaged && !pull) return;
+    engaged=false; pull=0;
+    el.style.transition='transform .38s cubic-bezier(.18,1.35,.32,1)';   // 弹簧回位(过冲)
+    el.style.transform='';
+    setTimeout(()=>{ el.style.transition=''; }, 400);
+  };
+  el.addEventListener('touchstart',e=>{ p0=pos(e); engaged=false; pull=0; el.style.transition=''; },{passive:true});
   el.addEventListener('touchmove',e=>{
-    if(fired) return;
-    const dy=e.touches[0].clientY-y0;
-    const atTop=el.scrollTop<=0;
-    const atBot=el.scrollTop+el.clientHeight>=el.scrollHeight-1;
-    if(atTop&&dy>12){ fired=true; edgeKick(el,'t'); }
-    else if(atBot&&dy<-12){ fired=true; edgeKick(el,'b'); }
+    const d=pos(e)-p0;
+    if(!engaged){
+      if(atStart() && d>4) engaged=1;         // 起始缘继续外拉
+      else if(atEnd() && d<-4) engaged=-1;    // 末缘继续外拉
+      else return;                            // 正常滚动区间：完全不接管
+      p0=pos(e);                              // 以入界点为零位，跟手不跳变
+      return;
+    }
+    const raw=(pos(e)-p0)*engaged;
+    if(raw<=0){ engaged=false; pull=0; if(!raf) raf=requestAnimationFrame(apply); return; }   // 拉回→交还滚动
+    pull=Math.min(84, raw*0.34)*engaged;      // 阻尼+上限
+    if(!raf) raf=requestAnimationFrame(apply);
   },{passive:true});
-  el.addEventListener('touchend',()=>{ fired=false; },{passive:true});
+  el.addEventListener('touchend',release,{passive:true});
+  el.addEventListener('touchcancel',release,{passive:true});
 }
-function attachRubberBandX(el){   // 横向：分类条左/右边缘
-  if(!el || el._rubberX) return; el._rubberX=true;
-  let x0=0,fired=false;
-  el.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; fired=false; },{passive:true});
-  el.addEventListener('touchmove',e=>{
-    if(fired) return;
-    const dx=e.touches[0].clientX-x0;
-    const atL=el.scrollLeft<=0;
-    const atR=el.scrollLeft+el.clientWidth>=el.scrollWidth-1;
-    if(atL&&dx>12){ fired=true; edgeKick(el,'l'); }
-    else if(atR&&dx<-12){ fired=true; edgeKick(el,'r'); }
-  },{passive:true});
-  el.addEventListener('touchend',()=>{ fired=false; },{passive:true});
-}
+function attachRubberBand(el){ if(!el || el._rubber) return; el._rubber=true; _edgeSpring(el,'y'); }
+function attachRubberBandX(el){ if(!el || el._rubberX) return; el._rubberX=true; _edgeSpring(el,'x'); }
 // 全局连发登记表：所有键的长按取消函数都登记于此；抬指(document 级)兜底全清，
 //   即使按键元素已被重建摘除、自身 touchend 丢失，也绝不出现"幽灵连发"。
 const _kbRepeatCancels = new Set();
@@ -1149,6 +1140,7 @@ try{ t9NumMode=(localStorage.getItem('t9NumMode')==='1'); }catch(e){}
 //   Alt ：2/4/6/8 方向同 Ctrl，Num=Tab(下一段)；其余键灰置
 let t9Ctrl=false, t9Alt=false;
 function t9Arrow(d){
+  if(typeof _renameBuf!=='undefined'&&_renameBuf!==null) return;   // 重命名焦点铁锁
   if(typeof Android!=='undefined'&&Android.moveCursor){
     if(d==='left')Android.moveCursor(0,false);
     else if(d==='right')Android.moveCursor(1,false);
@@ -1159,6 +1151,7 @@ function t9Arrow(d){
   if(d==='left')moveCur(-1); else if(d==='right')moveCur(1); else moveCurLine(d==='up'?-1:1);
 }
 function buildPyGridKb(){
+  if(mode!=='pinyin'){ buildKb(); return; }   // 九宫仅属拼音：任何路径误入一律回落主键盘(五笔+九宫错配根治)
   const r1=document.getElementById('r1'), r2=document.getElementById('r2'), r3=document.getElementById('r3'), r4=document.getElementById('r4');
   r1.innerHTML=''; r2.innerHTML=''; r3.innerHTML=''; r4.innerHTML='';
   // 九宫格专属：清除全键盘 r2/r3 的缩进，加 t9row 标记统一布局
@@ -2186,7 +2179,7 @@ function buildEmoji() {
   _catSelectFn=(i)=>{ if(i!==_emjCat) playPop(); _emjSlideDir=(i===_emjCat)?0:(i>_emjCat?1:-1); _emjCat=i; buildEmoji(); };
   // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
   const tabs=document.getElementById('catStrip');
-  tabs.innerHTML=''; tabs.className='cat-strip spread';
+  tabs.innerHTML=''; tabs.className='cat-strip';   // 不再10类挤一屏：可横滚，间距/触区加大防误触
   EMOJI_CATS.forEach((cat,i)=>{
     const t=document.createElement('div');
     const active=(i===_emjCat);
@@ -2529,7 +2522,10 @@ function moveCurLine(n) {
   updateEditor();
 }
 function doDelete() {
-  if (renameHookDelete()) return;
+  if (_renameBuf!==null) {
+    if(code.length>0){code=code.slice(0,-1);if(!code)revMode=false;updateCode();return;}
+    renameHookDelete(); return;
+  }
   if(code.length>0){code=code.slice(0,-1);if(!code)revMode=false;updateCode();return;}
   if(deleteSelection()){updateEditor();return;}
   if(tB.length>0){tB=tB.slice(0,-1);updateEditor();}
@@ -3415,20 +3411,11 @@ function refreshClip() {
   if(!clips.length){const e=document.createElement('div');e.style.cssText='display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ktxt,#888);opacity:0.55;padding:16px;text-align:center;font-size:13px';e.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 9.5h6M9 13h6M9 16.5h3.5"></path></svg>剪贴历史为空<span style="font-size:11px">选中文字后按 Ctrl+C / Ctrl+X 即可存入</span>';body.appendChild(e);return;}
   clips.forEach((txt,idx)=>{
     const row=document.createElement('div');
-    const first=(idx===0), last=(idx===clips.length-1);
-    const radius=(first&&last)?'12px':first?'12px 12px 0 0':last?'0 0 12px 12px':'0';   // 条条相连：首尾圆角、中间直角
     const _ime=document.getElementById('ime'); const _dark=!!(_ime&&_ime.className.indexOf('t-dark')>=0);   // 主题类挂在#ime
-    row.style.cssText='position:relative;display:flex;align-items:center;padding:9px 12px;margin-top:0;'+
-      'border-radius:'+radius+';cursor:pointer;font-size:14px;'+
-      (_dark
-        ? 'background:linear-gradient(180deg,rgba(255,225,120,0.14),rgba(255,225,120,0.05));'+
-          'border:1px solid rgba(255,220,110,0.22);'+
-          (first?'':'border-top:1px solid rgba(255,220,110,0.14);margin-top:-1px;')+
-          'box-shadow:inset 0 1px 0 rgba(255,235,160,0.15);'
-        : 'background:linear-gradient(180deg,rgba(255,255,255,0.93),rgba(255,255,255,0.55));'+
-          'border:1px solid rgba(255,255,255,0.7);'+
-          (first?'':'border-top:1px solid rgba(0,0,0,0.07);margin-top:-1px;')+
-          'box-shadow:inset 0 1px 0 rgba(255,255,255,0.9);')+
+    // 去条框：无边框/无内高光/无分隔线，纯背景块 + 圆角间隔，清爽直读
+    row.style.cssText='position:relative;display:flex;align-items:center;padding:10px 12px;margin-top:6px;'+
+      'border-radius:10px;cursor:pointer;font-size:14px;'+
+      (_dark ? 'background:rgba(255,225,120,0.10);' : 'background:rgba(255,255,255,0.72);')+
       'color:var(--ktxt,#2a1408);line-height:1.4;gap:8px;transition:transform .1s,background .12s';
     const t=document.createElement('div');
     t.style.cssText='flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;word-break:break-all';
@@ -3565,7 +3552,10 @@ function commitFlag(f){ commit(f); }
 // 覆盖doDelete
 const _origDelete = doDelete;
 window.doDelete = function() {
-  if (renameHookDelete()) return;             // 重命名浮层：退格改名称缓冲
+  if (_renameBuf!==null) {                    // 重命名浮层·焦点铁锁：先删编码，编码空才删名称，宿主永不触碰
+    if (code.length>0){ code=code.slice(0,-1); if(!code)revMode=false; updateCode(); return; }
+    renameHookDelete(); return;
+  }
   if (_wmActive) { wmBackspace(); return; }   // 造词模式：退格作用于编码/词缓冲
   if (isAndroid) {
     // 先清编码，无编码则删字符
@@ -3664,6 +3654,7 @@ const _origHandleAlt = typeof handleAlt === 'function' ? handleAlt : null;
 
 if (isAndroid) {
   window.handleCtrl = function(l) {
+    if (_renameBuf!==null) return;   // 重命名焦点铁锁：宿主编辑/光标操作一律禁止
     switch(l) {
       case 'f': if(typeof openWordMaker==='function') openWordMaker(); break;   // Ctrl+F 造词
       case 'a': Android.selectAll(); break;
@@ -3690,6 +3681,7 @@ if (isAndroid) {
     if(ctrl && !ctrlLock){ ctrl = false; buildKb(); }
   };
   window.handleAlt = function(l) {
+    if (_renameBuf!==null) return;   // 重命名焦点铁锁
     // J=上 B=左 N=下 M=右(扩选); Q=Tab(段末); A=跨文本框跳转
     switch(l) {
       case 'j': Android.moveCursor(10, true); break;  // ↑：选中至上一视觉行行首
@@ -3751,7 +3743,7 @@ function onIMEBlur(){
     if(typeof t9Ctrl!=='undefined') t9Ctrl=false;
     if(typeof t9Alt!=='undefined') t9Alt=false;
     if(had){
-      if(typeof pyGrid!=='undefined' && pyGrid && typeof buildPyGridKb==='function') buildPyGridKb();
+      if(typeof pyGrid!=='undefined' && pyGrid && mode==='pinyin' && typeof buildPyGridKb==='function') buildPyGridKb();
       else if(typeof buildKb==='function') buildKb();
     }
   }catch(e){}
