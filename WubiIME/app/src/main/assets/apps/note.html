@@ -841,16 +841,32 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
 
     /* ---------------- export: file delivery ---------------- */
     async saveBlob(name, blob){
-      // 原生宿主：走 AndroidPW.saveFile 桥写入系统"下载"目录(MediaStore)——WebView 里
-      //   navigator.share 不可用、<a download> 对 blob: 静默无效(真机"显示已打包却没文件"的根因)。
-      if(window.AndroidPW && AndroidPW.saveFile){
+      /* 导出根治(分块协议)：saveBegin → ≤512KB分块saveChunk(杜绝超大字符串单次跨桥失败) → saveEnd。
+         独立窗口(AppActivity)：saveEnd 返回 "PICKER"，弹系统"保存至"对话框，用户亲选位置，
+           写入结果经 window.onSaveResult(ok,msg) 回调——真实落盘才报成功。
+         键盘内嵌(IME)：saveEnd 同步返回 "OK:路径" / "ERR:原因"，把真实结果原样告知。
+         成功/失败提示统一由本函数发出，调用方不再另发成功toast(旧版盲报"已导出✓"的根因)。 */
+      if(window.AndroidPW && AndroidPW.saveBegin){
         try{
           const b64=await new Promise((res,rej)=>{ const r=new FileReader();
             r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=()=>rej(new Error('read')); r.readAsDataURL(blob); });
-          const ok=AndroidPW.saveFile(name, b64, blob.type||'application/octet-stream');
-          if(ok){ this.flash('已保存到 下载/'+name); return true; }
-        }catch(e){}
-        this.flash('保存失败'); return false;
+          AndroidPW.saveBegin(name, blob.type||'application/octet-stream');
+          const CH=512*1024;
+          for(let i=0;i<b64.length;i+=CH){
+            if(!AndroidPW.saveChunk(b64.slice(i,i+CH))){ this.flash('保存失败：传输中断'); return false; }
+          }
+          const r=String(AndroidPW.saveEnd()||'');
+          if(r==='PICKER'){
+            return await new Promise(res=>{
+              let done=false;
+              window.onSaveResult=(ok,msg)=>{ if(done) return; done=true;
+                this.flash(ok?('已保存 '+(msg||name)):('未保存：'+(msg||'失败'))); res(!!ok); };
+              setTimeout(()=>{ if(!done){ done=true; res(false); } }, 180000);   // 3分钟兜底
+            });
+          }
+          if(r.indexOf('OK:')===0){ this.flash('已保存到 '+r.slice(3)); return true; }
+          this.flash('保存失败'+(r.indexOf('ERR:')===0?('：'+r.slice(4)):'')); return false;
+        }catch(e){ this.flash('保存失败：'+(e&&e.message||'异常')); return false; }
       }
       try{
         const file=new File([blob], name, {type:blob.type||'application/octet-stream'});
@@ -936,8 +952,8 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       if(this.state.busy) return;
       const nb=this.cur(), fmt=this.state.fmt;
       try{
-        if(fmt==='md'){ await this.saveBlob(this.fname(nb)+'.md', new Blob([this.toMd(nb)],{type:'text/markdown'})); this.flash('已导出 Markdown ✓'); return; }
-        if(fmt==='html'){ await this.saveBlob(this.fname(nb)+'.html', new Blob([this.toHtml(nb)],{type:'text/html'})); this.flash('已导出 HTML ✓'); return; }
+        if(fmt==='md'){ await this.saveBlob(this.fname(nb)+'.md', new Blob([this.toMd(nb)],{type:'text/markdown'})); return; }
+        if(fmt==='html'){ await this.saveBlob(this.fname(nb)+'.html', new Blob([this.toHtml(nb)],{type:'text/html'})); return; }
         if(fmt==='png'){ await this.doImage(nb); return; }
         if(fmt==='pdf'){ await this.doPdf(nb); return; }
         if(fmt==='docx'){ await this.doDocx(nb); return; }
@@ -950,11 +966,11 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
         const canvas=await this.rasterize(nb);
         if(this.state.pngMode==='long'){
           const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-          await this.saveBlob(this.fname(nb)+'.png', blob); this.flash('已导出长图 ✓');
+          await this.saveBlob(this.fname(nb)+'.png', blob);
         } else {
           const pages=this.sliceToPages(canvas), files=[];
           for(let i=0;i<pages.length;i++){ const blob=await new Promise(r=>pages[i].toBlob(r,'image/png')); files.push(new File([blob], this.fname(nb)+'_p'+(i+1)+'.png',{type:'image/png'})); }
-          await this.saveFiles(files); this.flash('已导出 '+pages.length+' 张分页图 ✓');
+          await this.saveFiles(files);
         }
       } finally { this.state.busy=false; this.renderEx(); }
     },
@@ -963,7 +979,7 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       try{
         const canvas=await this.rasterize(nb);
         const pages=this.sliceToPages(canvas).map(pc=>this.jpegBytes(pc));
-        await this.saveBlob(this.fname(nb)+'.pdf', this.buildPdf(pages)); this.flash('已导出 PDF ✓');
+        await this.saveBlob(this.fname(nb)+'.pdf', this.buildPdf(pages));
       } finally { this.state.busy=false; this.renderEx(); }
     },
     /* ---------------- export: zip + docx (零依赖) ---------------- */
@@ -1031,7 +1047,7 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
     },
     async doDocx(nb){
       this.state.busy=true; this.renderEx();
-      try{ await this.saveBlob(this.fname(nb)+'.docx', this.docxBlob(nb)); this.flash('已导出 Word ✓'); }
+      try{ await this.saveBlob(this.fname(nb)+'.docx', this.docxBlob(nb)); }
       finally{ this.state.busy=false; this.renderEx(); }
     },
     async doZip(nb){
@@ -1047,7 +1063,6 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
         const pwd=(this.state.zipPwd||'').trim();
         const blob=this.buildZip(entries, pwd||null);
         await this.saveBlob(base+(pwd?'_加密':'')+'.zip', blob);
-        this.flash(pwd?'已导出加密压缩包 ✓':'已导出压缩包 ✓');
       } finally { this.state.busy=false; this.renderEx(); }
     },
 
@@ -1225,7 +1240,15 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       const hdl=de.querySelector('.hdl'); if(hdl) hdl.style.cursor='';
       if(d.target!==d.fromIdx){
         const blocks=this.cur().blocks.slice(); const [m]=blocks.splice(d.fromIdx,1); blocks.splice(d.target,0,m);
-        this.setCur(blocks); this.render();
+        this.setCur(blocks);
+        // 手术式搬移DOM节点(禁整页重渲)：滚动位置/激活块原地不动，不跳回文首(bug5)
+        const parent=de.parentNode;
+        if(parent){
+          const els=[...d.scroll.querySelectorAll('[data-blk]')].filter(el=>el!==de);
+          if(d.target>=els.length) parent.insertBefore(de, els[els.length-1].nextSibling);
+          else parent.insertBefore(de, els[d.target]);
+        }
+        this.markActive(d.id);
       }
     },
 
