@@ -139,7 +139,13 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
 //   车厢改为"小小" → 内部品牌标题联动为"小小 · 笔记本"，页标题同步；聚焦时刷新即时跟随。
 window.appLabelText=function(){
   try{
-    const n=JSON.parse(localStorage.getItem('kbAppNames')||'{}');
+    // 车厢名真身在键盘 KV 持久层(kbprefs 加密文件)——localStorage 已全面禁用，直接桥读
+    let raw='{}';
+    if(typeof AndroidPW!=='undefined' && AndroidPW.loadAppData){
+      const s=AndroidPW.loadAppData('kbprefs');
+      if(s){ const kv=JSON.parse(s)||{}; raw=kv['kbAppNames']||'{}'; }
+    } else { raw=localStorage.getItem('kbAppNames')||'{}'; }   // 仅浏览器调试回退
+    const n=JSON.parse(raw);
     const custom=(n['note']&&String(n['note']).trim())||'';
     return custom?(custom+' · 笔记本'):'妙计 · 笔记本';
   }catch(e){ return '妙计 · 笔记本'; }
@@ -529,6 +535,7 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         el.addEventListener('keyup', ()=> this.saveCaret(el));
         el.addEventListener('pointerup', ()=> this.saveCaret(el));
         el.addEventListener('focus', ()=>{ this.saveCaret(el); this.markActive(el.dataset.id); });
+        el.addEventListener('click', ()=>{ this.markActive(el.dataset.id); });   // 兜底：个别机型focus旁路
       });
       const d=blk.querySelector('.del');
       if(d) d.addEventListener('click', ()=> this.onDel(d.dataset.id));
@@ -597,10 +604,30 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
     saveCaret(el){
       try{ const sel=getSelection(); if(sel&&sel.rangeCount && el.contains(sel.anchorNode)){ this._caret={ id:el.dataset.id, off:this.caretOffset(el), range:sel.getRangeAt(0).cloneRange() }; } }catch(e){}
     },
+    _noteClips:null,
+    noteClips(){
+      if(this._noteClips) return this._noteClips;
+      try{ const s=Store._get('note_clips'); this._noteClips=s?JSON.parse(s):[]; }catch(e){ this._noteClips=[]; }
+      if(!Array.isArray(this._noteClips)) this._noteClips=[];
+      return this._noteClips;
+    },
+    addNoteClip(text){
+      if(!text||!String(text).trim()) return;
+      const a=this.noteClips();
+      const i=a.indexOf(text); if(i>=0) a.splice(i,1);
+      a.unshift(text); if(a.length>50) a.length=50;
+      try{ Store._put('note_clips', JSON.stringify(a)); }catch(e){}
+    },
     readClips(){
-      try{ if(typeof AndroidPW!=='undefined' && AndroidPW.getClipboardAll){ const a=JSON.parse(AndroidPW.getClipboardAll()||'[]'); return Array.isArray(a)?a:[]; } }catch(e){}
-      if(typeof AndroidPW==='undefined') return ['示例剪贴内容 · 浏览器预览','三十六计 · 走为上']; // 仅浏览器预览占位
-      return [];
+      // 记事本自有贴(本内复制,置顶) + 输入法私有剪贴(外部复制来源)去重后附——
+      //   本内复制只存在于这里，绝不进输入法私有剪贴板(#9)。
+      const own=this.noteClips().slice();
+      let ime=[];
+      try{ if(typeof AndroidPW!=='undefined' && AndroidPW.getClipboardAll){ const a=JSON.parse(AndroidPW.getClipboardAll()||'[]'); if(Array.isArray(a)) ime=a; } }catch(e){}
+      if(typeof AndroidPW==='undefined' && !own.length) return ['示例剪贴内容 · 浏览器预览','三十六计 · 走为上']; // 仅浏览器预览占位
+      const seen=new Set(own);
+      ime.forEach(x=>{ if(x&&!seen.has(x)){ own.push(x); seen.add(x); } });
+      return own;
     },
     openPaste(){ this.state.addMenuOpen=false; this.state.clips=this.readClips(); this.state.pasteOpen=true; this.renderPaste(); },
     closePaste(){ this.state.pasteOpen=false; this.renderPaste(); },
@@ -824,7 +851,7 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
           <div style="font-size:11px;color:#666;margin-bottom:6px;">设置密码（标准 ZIP 加密 · 任意解压软件可开）</div>
           <div style="display:flex;gap:8px;">
             <input id="zip-pwd" value="${esc(s.zipPwd)}" type="text" placeholder="留空则不加密" style="flex:1;min-width:0;border:1.5px solid #111;padding:10px 12px;font-family:var(--mono);font-size:13px;background:#fff;color:#111;">
-            <div data-ex="pwgen" style="cursor:pointer;flex:0 0 auto;border:1.5px solid #111;background:#111;color:#fff;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;">🔑 生成器</div>
+            
           </div>
         </div>` : '';
       const pv = nb.blocks.map(b=>{
@@ -866,7 +893,6 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         const a=el.dataset.ex;
         if(a==='close') this.closeExport();
         else if(a==='go') this.doExport();
-        else if(a==='pwgen') this.openPwgen();
       }));
       ov.querySelectorAll('[data-fmt]').forEach(el=> el.addEventListener('click', ()=>{ this.state.fmt=el.dataset.fmt; this.renderEx(); }));
       ov.querySelectorAll('[data-mode]').forEach(el=> el.addEventListener('click', ()=>{ this.state.pngMode=el.dataset.mode; this.renderEx(); }));
@@ -1362,6 +1388,10 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         else if(d.type==='delete') this.onWubi('delete');
         else if(d.type==='enter') this.onWubi('enter');
       });
+      // #9 本内复制捕获：Chromium 原生 copy/cut(含输入法 Ctrl+C 投递触发)在此拦得到选区文本，
+      //   直接进记事本自己的"贴"(加密存储)，与输入法私有剪贴板彻底分家。
+      document.addEventListener('copy', ()=>{ try{ const s=String(window.getSelection()||''); if(s.trim()) this.addNoteClip(s); }catch(_){} });
+      document.addEventListener('cut',  ()=>{ try{ const s=String(window.getSelection()||''); if(s.trim()) this.addNoteClip(s); }catch(_){} });
       // 耐久化：应用被切后台 / 页面隐藏 / 即将销毁时，立即同步落盘
       const flushNow=()=>{ try{ this.flush(); }catch(_){} };
       document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushNow(); });
