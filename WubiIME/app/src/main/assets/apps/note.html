@@ -135,6 +135,23 @@
 
 <script>
 try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }catch(e){}
+// #16 车厢重命名联动：键盘与本应用同源(file://)共享 localStorage，直接读 kbAppNames。
+//   车厢改为"小小" → 内部品牌标题联动为"小小 · 笔记本"，页标题同步；聚焦时刷新即时跟随。
+window.appLabelText=function(){
+  try{
+    const n=JSON.parse(localStorage.getItem('kbAppNames')||'{}');
+    const custom=(n['note']&&String(n['note']).trim())||'';
+    return custom?(custom+' · 笔记本'):'妙计 · 笔记本';
+  }catch(e){ return '妙计 · 笔记本'; }
+};
+function applyAppLabel(){
+  const label=window.appLabelText();
+  const el=document.getElementById('brandTitle'); if(el) el.textContent=label;
+  document.title=label;
+}
+window.addEventListener('focus',applyAppLabel);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) applyAppLabel(); });
+document.addEventListener('DOMContentLoaded',applyAppLabel);
 "use strict";
 /* ============================================================================
    妙计 · 笔记本 — 纯自包含单文件版（零外部脚本 / 零外部字体 / 离线可用）
@@ -191,18 +208,59 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
        写入只触碰当前这一本 + 索引；读取在打开某本时才按需载入该本正文。
        从根本上避免"把全部笔记当一个大文件反复整体加解密"的性能拖累。 ===== */
     _hasPW(){ return typeof AndroidPW!=='undefined' && !!AndroidPW.saveAppData && !!AndroidPW.loadAppData; },
+    _hasChunk(){ return typeof AndroidPW!=='undefined' && !!AndroidPW.dataSaveBegin && !!AndroidPW.dataLoadBegin; },
     _safe(k){ return String(k).replace(/[^A-Za-z0-9_]/g,'_'); },
+    CH: 262144,          // 跨桥块长(字符)：与 Java 侧读缓冲对齐
+    BIG: 480000,         // 超过此长度写入走分块协议(单次大字符串跨桥=历史失败根因)
     _get(key){
       try{
+        if(this._hasChunk()){
+          // 分块流式读(新旧文件格式互通)：主文件失败自动回退 .bak
+          const rd=(useBak)=>{
+            const st=AndroidPW.dataLoadBegin(key,!!useBak);
+            if(st==='MISS') return null;
+            if(st!=='OK') return undefined;   // undefined=出错，触发bak回退
+            let out='';
+            for(;;){
+              const c=AndroidPW.dataLoadNext();
+              if(c===''){ return out; }
+              if(c.charAt(0)==='D'){ out+=c.slice(1); continue; }
+              try{ AndroidPW.dataLoadAbort(); }catch(_){}
+              return undefined;               // ERR: tag校验失败等
+            }
+          };
+          let s=rd(false);
+          if(s===undefined) s=rd(true);
+          if(s===undefined||s===null) return null;
+          return s||null;
+        }
         if(this._hasPW()){ const s=AndroidPW.loadAppData(key); return s||null; }
         return localStorage.getItem('miaoji_'+key);
       }catch(e){ return null; }
     },
     _put(key,str){
       try{
+        if(this._hasChunk() && str.length>this.BIG){
+          // 大体积：分块流式写(Java端CipherOutputStream，内存O(块)；tmp+bak+原子换名保持不变)
+          if(!AndroidPW.dataSaveBegin(key)) throw new Error('begin失败');
+          for(let i=0;i<str.length;){
+            let end=Math.min(str.length, i+this.CH);
+            // ⚠️ 切块必须避开 UTF-16 代理对边界：块尾若是高代理(emoji等4字节字符的前半)，
+            //   Java getBytes 会把孤立半符编成替换字符——回读内容被污染。边界回退1字符。
+            const cc=str.charCodeAt(end-1);
+            if(end<str.length && cc>=0xD800 && cc<=0xDBFF) end--;
+            if(!AndroidPW.dataSaveChunk(str.slice(i,end))){ try{AndroidPW.dataSaveAbort();}catch(_){}; throw new Error('chunk失败'); }
+            i=end;
+          }
+          const r=String(AndroidPW.dataSaveEnd()||'');
+          if(r!=='OK') throw new Error(r);
+          return;
+        }
         if(this._hasPW()){ AndroidPW.saveAppData(key,str); return; }
         localStorage.setItem('miaoji_'+key,str);
-      }catch(e){}
+      }catch(e){
+        try{ if(typeof App!=='undefined'&&App.flash) App.flash('保存失败：'+(e&&e.message||e)); }catch(_){}
+      }
     },
     _del(key){
       try{
@@ -214,7 +272,12 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
     loadIndex(){ try{ const s=this._get('nb_index'); const o=s?JSON.parse(s):null; return (o&&o.list)?o:null; }catch(e){ return null; } },
     saveIndex(idx){ this._put('nb_index', JSON.stringify(idx)); },
     loadBook(id){ try{ const s=this._get(this.bookKey(id)); return s?JSON.parse(s):null; }catch(e){ return null; } },
-    saveBook(book){ this._put(this.bookKey(book.id), JSON.stringify(book)); },
+    saveBook(book){
+      const s=JSON.stringify(book);
+      if(s.length>12*1048576){ try{ if(typeof App!=='undefined'&&App.flash) App.flash('本本超过12MB，为保数据可靠已停止写入——请把内容分到新本'); }catch(_){}; return; }
+      if(s.length>3*1048576){ try{ if(typeof App!=='undefined'&&App.flash) App.flash('本本已超3MB，建议分本以保持流畅'); }catch(_){} }
+      this._put(this.bookKey(book.id), s);
+    },
     delBook(id){ this._del(this.bookKey(id)); },
     /* 旧版单文件 blob(notebook / miaoji_v2)：仅迁移时读一次；迁移后保留作备份(数据安全优先，绝不删) */
     loadLegacy(){
@@ -382,7 +445,7 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
       return `<div class="lib">
         <div class="lib-head">
           <div class="row">
-            <div class="brand">妙计 · 笔记本</div>
+            <div class="brand" id="brandTitle">${(window.appLabelText?window.appLabelText():"妙计 · 笔记本")}</div>
             <div class="head-right">
               <span class="count">${s.notebooks.length} 本</span>
               <div class="kb-exit" data-act="exit">⌨ 返回键盘</div>
@@ -1120,10 +1183,32 @@ try{ if(window.AndroidPW) document.documentElement.classList.add('native'); }cat
     },
     onAdd(type){
       const nb={ id:uid(), type, text:'' };
-      this.setCur([...this.cur().blocks, nb]);
-      this.state.addMenuOpen=false; this.render();
-      setTimeout(()=>{ const el=document.getElementById('editor-scroll'); if(el) el.scrollTop=el.scrollHeight;
-        const ed=document.querySelector('#editor-scroll [data-blk="'+nb.id+'"] [contenteditable]'); if(ed) ed.focus(); }, 80);
+      // #14 新块插到"光标所在块(激活块)的下方"，无激活块才落到文末；
+      //   全程手术式(insertBlockAfter 只动涉事节点)——原实现整页 render() 违反手术式DOM铁律，
+      //   会摧毁聚焦元素+滚动归零，一并修复。
+      const blocks=this.cur().blocks;
+      let anchorId=null;
+      const onEl=document.querySelector('#editor-scroll .blk.on');
+      if(onEl && blocks.some(b=>b.id===onEl.dataset.blk)) anchorId=onEl.dataset.blk;
+      if(!anchorId){
+        const ae=document.activeElement;
+        if(ae && ae.dataset && ae.dataset.id && blocks.some(b=>b.id===ae.dataset.id)) anchorId=ae.dataset.id;
+      }
+      if(!anchorId && blocks.length) anchorId=blocks[blocks.length-1].id;
+      let el=null;
+      if(anchorId){ el=this.insertBlockAfter(anchorId, nb); }
+      if(!el){   // 空笔记本兜底：直接落数据+手术式挂到滚动区
+        this.setCur([...blocks, nb]);
+        el=this.blockDom(nb);
+        const sc=document.getElementById('editor-scroll'); if(sc) sc.appendChild(el);
+      }
+      // 收起添加菜单：只摘 sheet/scrim 节点，不整页重渲
+      this.state.addMenuOpen=false;
+      document.querySelectorAll('.add-sheet,.add-scrim').forEach(x=>x.remove());
+      setTimeout(()=>{
+        const ed=el?el.querySelector('[contenteditable]'):null;
+        if(ed){ ed.focus(); this.markActive(nb.id); try{ ed.scrollIntoView({block:'nearest'}); }catch(_){} }
+      }, 60);
     },
     onDel(id){
       // 手术式删除：只摘掉该块节点，滚动位置原地不动(#4：此前整页重渲导致跳回文首)
