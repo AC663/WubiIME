@@ -1363,7 +1363,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.c
 (function(){
   function applyAppLabel(){
     try{
-      const n=JSON.parse(localStorage.getItem('kbAppNames')||'{}');
+      let raw='{}';
+      if(typeof AndroidPW!=='undefined' && AndroidPW.loadAppData){
+        const s=AndroidPW.loadAppData('kbprefs');
+        if(s){ const kv=JSON.parse(s)||{}; raw=kv['kbAppNames']||'{}'; }
+      } else { raw=localStorage.getItem('kbAppNames')||'{}'; }
+      const n=JSON.parse(raw);
       const custom=(n['pwgen']&&String(n['pwgen']).trim())||'';
       const label=custom?(custom+' · 密码生成器'):'密码生成器';
       const el=document.getElementById('pwTitle'); if(el&&el.textContent!==label) el.textContent=label;
