@@ -45,7 +45,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green .sel{background:rgba(20,140,60,0.3)}
 .t-pink .sel{background:rgba(210,50,150,0.3)}
 .t-brown .sel{background:rgba(130,70,20,0.3)}
-.t-cyan .sel{background:rgba(0,150,190,0.3)}
+.t-cyan .sel,.t-white .sel{background:rgba(0,150,190,0.3)}
 .t-dark .sel{background:rgba(200,160,20,0.35)}
 
 .ime{width:100%;position:relative;background:linear-gradient(180deg,var(--bg1,#f5ede5),var(--bg2,#ebd5c5))}
@@ -72,14 +72,22 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   height:24px;padding:0 11px;border-radius:8px;font-size:13px;font-weight:500;line-height:1;
   white-space:nowrap;cursor:pointer;color:var(--ktxt,#5d5048);opacity:0.62;
   transition:background .12s,color .12s,opacity .12s}
-.cat-chip.on{opacity:1;color:#fff;font-weight:600;
-  background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));
-  box-shadow:0 2px 5px rgba(150,60,20,0.28);
+.cat-chip.on{opacity:1;color:inherit;font-weight:600;
+  background:rgba(0,0,0,0.07);
+  box-shadow:none;
   animation:chipOn .24s cubic-bezier(.2,.7,.3,1)}
+.t-dark .cat-chip.on{background:rgba(255,255,255,0.13)}
 @keyframes chipOn{0%{transform:scale(.88)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
-.cat-chip.emo{padding:0 15px;font-size:19px;min-width:56px;height:30px;margin:0 5px}   /* 大触区+大间距，轨道可横滚不挤压 */
+.cat-chip.emo{padding:0 11px;font-size:19px;min-width:44px;height:30px;margin:0}   /* 间距与符号分类一致(容器gap:3px)，保留大字号触区 */
 .cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
+.t-dark .cat-chip.emo.on{background:rgba(255,255,255,0.13)}
 .cat-chip.emo{position:relative}
+/* 编码栏轨道内的迷你主题球/模式项：点选直达 */
+.cat-chip.ball{height:30px;padding:0 6px;min-width:34px}
+.cat-chip .theme-ball{width:22px;height:22px;flex:0 0 auto;
+  box-shadow:0 2px 5px rgba(0,0,0,0.25),inset 0 -2px 4px rgba(0,0,0,0.22),inset 0 1px 2px rgba(255,255,255,0.4)}
+.cat-chip.ball.on{background:rgba(0,0,0,0.09)}
+.t-dark .cat-chip.ball.on{background:rgba(255,255,255,0.15)}
 /* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
    底部铁轨+枕木，车轮搭轨，车厢间联轴器相连；横滑时整列车在轨上滑动 */
 .cat-strip.train{gap:8px;padding:0 4px 4px;align-items:center}   /* 铁轨/枕木已撤：纯胶囊列车更清爽 */
@@ -201,6 +209,21 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   radial-gradient(circle at 50% 52%,#3a3a44 0%,#1a1a22 52%,#000000 100%);
   box-shadow:0 4px 9px rgba(0,0,0,0.45),0 1px 4px rgba(0,0,0,0.3),
              inset 0 -4px 8px rgba(0,0,0,0.6),inset 0 2px 3px rgba(255,255,255,0.3)}
+/* 白·磨砂玻璃球：与按钮未激活时的白瓷质感同族——通透雾面、细边、柔和内阴影 */
+.theme-ball.white{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 30%),
+  radial-gradient(circle at 50% 52%,#ffffff 0%,#eef0f3 55%,#d5d9df 100%);
+  border:1px solid rgba(140,148,160,0.35);
+  box-shadow:0 3px 8px rgba(90,100,115,0.22),0 1px 3px rgba(0,0,0,0.10),
+             inset 0 -3px 6px rgba(150,160,175,0.28),inset 0 2px 3px rgba(255,255,255,0.95)}
+.theme-ball.white::before{background:radial-gradient(ellipse,rgba(255,255,255,0.85) 0%,rgba(255,255,255,0) 70%)}
+/* 英文模式下模式键回归"未激活白瓷"质感(与其它工具按钮一致)，寓示纯直通、无引擎介入 */
+#modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f3e3d6);
+  border:1px solid rgba(150,90,40,0.15);box-shadow:0 1px 2px rgba(120,60,20,0.12)}
+#modeBtn.plain .sball-text{color:var(--acd,#9a4520);text-shadow:none}
+.t-dark #modeBtn.plain{background:linear-gradient(180deg,rgba(255,235,160,0.16),rgba(255,225,120,0.05));border-color:rgba(255,220,80,0.28)}
+.t-dark #modeBtn.plain .sball-text{color:var(--ktxt)}
+.t-white #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f0f1f4);border-color:rgba(140,148,160,0.30)}
 
 .trackpad{flex:1;height:32px;margin:0 4px;border-radius:16px;
   background:linear-gradient(180deg,rgba(30,40,80,0.6),rgba(15,25,55,0.5));
@@ -243,10 +266,10 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .kb-row.t9row .key{height:52px}                 /* 末行让出的高度均分回前3行 */
 .kb-row.t9row.t9last .key{height:44px}          /* 末行(计算器/空格/回车)=主键盘空格键同高 */
 /* 九宫功能层副字：与"全选/音效"字样同级观感(加大加粗)，图标键同理 */
-.key.t9fnsub .ks{font-size:14px;font-weight:600;margin-top:2px;opacity:.92}
+.key.t9fnsub .ks{font-size:15px;font-weight:600;margin-top:2px;opacity:.92}
 .key.t9pad{pointer-events:none;background:transparent!important;box-shadow:none!important;border:none!important}
 .t-orange .key.del-r3 svg,.t-red .key.del-r3 svg,.t-green .key.del-r3 svg,
-.t-pink .key.del-r3 svg,.t-brown .key.del-r3 svg,.t-cyan .key.del-r3 svg,
+.t-pink .key.del-r3 svg,.t-brown .key.del-r3 svg,.t-cyan .key.del-r3 svg,.t-white .key.del-r3 svg,
 .t-blue .key.del-r3 svg,.t-purple .key.del-r3 svg{color:var(--ktxt)}
 .t-dark .key.del-r3 svg{color:var(--ktxt)}
 
@@ -349,12 +372,16 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-brown{--ac:#a56428;--acd:#824a14;--acl:#d49a5c;--bg1:#f2ece4;--bg2:#e8d8c4;
   --kbg1:#fdf6ee;--kbg2:#f0e4d0;--ktxt:#281408;--ksub:rgba(130,70,20,0.7);
   --panel:rgba(233,214,184,0.985);--cbar:rgba(130,70,20,0.06)}
-.t-cyan{--ac:#14b2d4;--acd:#0888ac;--acl:#5ce4fa;--bg1:#e4f6fa;--bg2:#c8ecf5;
+.t-cyan,.t-white{--ac:#14b2d4;--acd:#0888ac;--acl:#5ce4fa;--bg1:#e4f6fa;--bg2:#c8ecf5;
   --kbg1:#edfaff;--kbg2:#d0f0f8;--ktxt:#041820;--ksub:rgba(0,140,180,0.7);
   --panel:rgba(184,229,243,0.985);--cbar:rgba(0,150,190,0.06)}
 .t-dark{--ac:#c8a020;--acd:#a07808;--acl:#f0d060;--bg1:#1e1a10;--bg2:#16120a;
   --kbg1:#2a2414;--kbg2:#221e0e;--ktxt:#f0e8c0;--ksub:rgba(210,170,40,0.8);
   --panel:rgba(13,11,4,0.985);--cbar:rgba(200,160,20,0.08)}
+/* 白·磨砂玻璃：中性石墨强调色，键帽纯白瓷、底盘冷雾灰——类 iOS 键盘的通透质感 */
+.t-white{--ac:#7d838e;--acd:#5c6470;--acl:#b4bac4;--bg1:#f4f5f7;--bg2:#e7e9ed;
+  --kbg1:#ffffff;--kbg2:#f0f1f4;--ktxt:#1d2025;--ksub:rgba(96,102,112,0.72);
+  --panel:rgba(233,235,239,0.985);--cbar:rgba(120,128,142,0.06)}
 
 .t-orange .key:not(.accent):not(.enter-key),
 .t-blue   .key:not(.accent):not(.enter-key),
@@ -363,7 +390,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .key:not(.accent):not(.enter-key),
 .t-pink   .key:not(.accent):not(.enter-key),
 .t-brown  .key:not(.accent):not(.enter-key),
-.t-cyan   .key:not(.accent):not(.enter-key),
+.t-cyan   .key:not(.accent):not(.enter-key),.t-white   .key:not(.accent):not(.enter-key),
 .t-dark   .key:not(.accent):not(.enter-key){
   background:linear-gradient(180deg,var(--kbg1),var(--kbg2));
   box-shadow:0 2px 4px rgba(0,0,0,0.15),inset 0 1px rgba(255,255,255,0.8)}
@@ -376,7 +403,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .key:not(.accent):not(.enter-key) .km,
 .t-pink   .key:not(.accent):not(.enter-key) .km,
 .t-brown  .key:not(.accent):not(.enter-key) .km,
-.t-cyan   .key:not(.accent):not(.enter-key) .km,
+.t-cyan   .key:not(.accent):not(.enter-key) .km,.t-white   .key:not(.accent):not(.enter-key) .km,
 .t-dark   .key:not(.accent):not(.enter-key) .km{color:var(--ktxt)}
 .t-orange .key:not(.accent):not(.enter-key) .ks,
 .t-blue   .key:not(.accent):not(.enter-key) .ks,
@@ -385,7 +412,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .key:not(.accent):not(.enter-key) .ks,
 .t-pink   .key:not(.accent):not(.enter-key) .ks,
 .t-brown  .key:not(.accent):not(.enter-key) .ks,
-.t-cyan   .key:not(.accent):not(.enter-key) .ks,
+.t-cyan   .key:not(.accent):not(.enter-key) .ks,.t-white   .key:not(.accent):not(.enter-key) .ks,
 .t-dark   .key:not(.accent):not(.enter-key) .ks{color:var(--ksub)}
 .t-orange .key.accent,.t-orange .key.enter-key,
 .t-blue   .key.accent,.t-blue   .key.enter-key,
@@ -394,13 +421,13 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .key.accent,.t-green  .key.enter-key,
 .t-pink   .key.accent,.t-pink   .key.enter-key,
 .t-brown  .key.accent,.t-brown  .key.enter-key,
-.t-cyan   .key.accent,.t-cyan   .key.enter-key,
+.t-cyan   .key.accent,.t-white   .key.accent,.t-cyan   .key.enter-key,.t-white   .key.enter-key,
 .t-dark   .key.accent,.t-dark   .key.enter-key{
   background:linear-gradient(180deg,var(--ac),var(--acd));
   box-shadow:0 2px 6px rgba(0,0,0,0.3)}
 .t-orange .key.func,.t-blue .key.func,.t-purple .key.func,
 .t-red .key.func,.t-green .key.func,.t-pink .key.func,
-.t-brown .key.func,.t-cyan .key.func{
+.t-brown .key.func,.t-cyan .key.func,.t-white .key.func{
   background:linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.12));
   box-shadow:0 1px 3px rgba(0,0,0,0.15)}
 .t-dark .key.func{
@@ -413,7 +440,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .num-key:not(.accent),
 .t-pink   .num-key:not(.accent),
 .t-brown  .num-key:not(.accent),
-.t-cyan   .num-key:not(.accent),
+.t-cyan   .num-key:not(.accent),.t-white   .num-key:not(.accent),
 .t-dark   .num-key:not(.accent){
   background:linear-gradient(180deg,var(--kbg1),var(--kbg2));
   box-shadow:0 2px 4px rgba(0,0,0,0.15),inset 0 1px rgba(255,255,255,0.8)}
@@ -426,20 +453,20 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .num-key:not(.accent) .km,
 .t-pink   .num-key:not(.accent) .km,
 .t-brown  .num-key:not(.accent) .km,
-.t-cyan   .num-key:not(.accent) .km,
+.t-cyan   .num-key:not(.accent) .km,.t-white   .num-key:not(.accent) .km,
 .t-dark   .num-key:not(.accent) .km{color:var(--ktxt)}
 .t-orange .num-key.accent,.t-blue .num-key.accent,.t-purple .num-key.accent,
 .t-red .num-key.accent,.t-green .num-key.accent,.t-pink .num-key.accent,
-.t-brown .num-key.accent,.t-cyan .num-key.accent,.t-dark .num-key.accent{
+.t-brown .num-key.accent,.t-cyan .num-key.accent,.t-white .num-key.accent,.t-dark .num-key.accent{
   background:linear-gradient(180deg,var(--ac),var(--acd));
   box-shadow:0 2px 6px rgba(0,0,0,0.3)}
 .t-orange .num-key.accent .km,.t-blue .num-key.accent .km,.t-purple .num-key.accent .km,
 .t-red .num-key.accent .km,.t-green .num-key.accent .km,.t-pink .num-key.accent .km,
-.t-brown .num-key.accent .km,.t-cyan .num-key.accent .km,.t-dark .num-key.accent .km{
+.t-brown .num-key.accent .km,.t-cyan .num-key.accent .km,.t-white .num-key.accent .km,.t-dark .num-key.accent .km{
   color:#fff;font-weight:600}
 .t-orange .keyboard,.t-blue .keyboard,.t-purple .keyboard,
 .t-red .keyboard,.t-green .keyboard,.t-pink .keyboard,
-.t-brown .keyboard,.t-cyan .keyboard,.t-dark .keyboard{
+.t-brown .keyboard,.t-cyan .keyboard,.t-white .keyboard,.t-dark .keyboard{
   background:linear-gradient(150deg,var(--bg1),var(--bg2))}
 .t-orange .cand-bar,.t-orange .btn-bar,
 .t-blue   .cand-bar,.t-blue   .btn-bar,
@@ -448,11 +475,11 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .cand-bar,.t-green  .btn-bar,
 .t-pink   .cand-bar,.t-pink   .btn-bar,
 .t-brown  .cand-bar,.t-brown  .btn-bar,
-.t-cyan   .cand-bar,.t-cyan   .btn-bar,
+.t-cyan   .cand-bar,.t-white   .cand-bar,.t-cyan   .btn-bar,.t-white   .btn-bar,
 .t-dark   .cand-bar,.t-dark   .btn-bar{background:linear-gradient(180deg,var(--kbg1),var(--kbg2))}
 .t-orange .code-bar,.t-blue .code-bar,.t-purple .code-bar,
 .t-red .code-bar,.t-green .code-bar,.t-pink .code-bar,
-.t-brown .code-bar,.t-cyan .code-bar,.t-dark .code-bar{
+.t-brown .code-bar,.t-cyan .code-bar,.t-white .code-bar,.t-dark .code-bar{
   background:linear-gradient(180deg,var(--cbar,rgba(0,0,0,0.04)),transparent 62%),
              linear-gradient(180deg,var(--kbg2),var(--kbg1))}
 .t-orange .code-text,.t-orange .mode-tag,
@@ -462,24 +489,24 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-green  .code-text,.t-green  .mode-tag,
 .t-pink   .code-text,.t-pink   .mode-tag,
 .t-brown  .code-text,.t-brown  .mode-tag,
-.t-cyan   .code-text,.t-cyan   .mode-tag,
+.t-cyan   .code-text,.t-white   .code-text,.t-cyan   .mode-tag,.t-white   .mode-tag,
 .t-dark   .code-text,.t-dark   .mode-tag{color:var(--ac)}
 .t-orange .mode-tag,.t-blue .mode-tag,.t-purple .mode-tag,
 .t-red .mode-tag,.t-green .mode-tag,.t-pink .mode-tag,
-.t-brown .mode-tag,.t-cyan .mode-tag{background:rgba(0,0,0,0.07)}
+.t-brown .mode-tag,.t-cyan .mode-tag,.t-white .mode-tag{background:rgba(0,0,0,0.07)}
 .t-dark .mode-tag{background:rgba(255,255,255,0.1)}
 .t-orange .panel,.t-blue .panel,.t-purple .panel,
 .t-red .panel,.t-green .panel,.t-pink .panel,
-.t-brown .panel,.t-cyan .panel,.t-dark .panel{background:var(--panel)}
+.t-brown .panel,.t-cyan .panel,.t-white .panel,.t-dark .panel{background:var(--panel)}
 .t-orange .pi,.t-blue .pi,.t-purple .pi,
 .t-red .pi,.t-green .pi,.t-pink .pi,
-.t-brown .pi,.t-cyan .pi,.t-dark .pi{color:var(--ktxt)}
+.t-brown .pi,.t-cyan .pi,.t-white .pi,.t-dark .pi{color:var(--ktxt)}
 .t-orange .pager-box,.t-blue .pager-box,.t-purple .pager-box,
 .t-red .pager-box,.t-green .pager-box,.t-pink .pager-box,
-.t-brown .pager-box,.t-cyan .pager-box,.t-dark .pager-box{background:var(--panel)}
+.t-brown .pager-box,.t-cyan .pager-box,.t-white .pager-box,.t-dark .pager-box{background:var(--panel)}
 .t-orange .trackpad,.t-blue .trackpad,.t-purple .trackpad,
 .t-red .trackpad,.t-green .trackpad,.t-pink .trackpad,
-.t-brown .trackpad,.t-cyan .trackpad{
+.t-brown .trackpad,.t-cyan .trackpad,.t-white .trackpad{
   background:linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.08));
   border-color:rgba(0,0,0,0.1);color:#a2a2a2}
 .t-dark .trackpad{
@@ -533,8 +560,8 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   <div class="cand-more" id="candMore" onclick="openPager()">›</div>
 </div>
 <div id="btnBar" class="btn-bar">
-  <div class="sball" id="modeBtn" onclick="cycleMode()"><span class="sball-text" id="modeLbl">五笔</span></div>
-  <div class="sball theme-ball" id="themeBtn" onclick="cycleTheme()"></div>
+  <div class="sball" id="modeBtn" onclick="toggleModeStrip()"><span class="sball-text" id="modeLbl">五笔</span></div>
+  <div class="sball theme-ball" id="themeBtn" onclick="toggleThemeStrip()"></div>
   <div class="sball" id="symBtn"><span class="sball-text" id="symLbl">符号</span></div>
   <div class="trackpad" id="tp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg></div>
   <div class="sball" id="emjBtn" onclick="toggleEmoji()"><span class="sball-text">表情</span></div>
@@ -566,7 +593,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 <script>
 // ===== 持久层加固：关键 localStorage 全量镜像到原生加密存储(AndroidPW.kbprefs)。
 //   系统清 WebView 缓存/清数据后开机自动回灵：造词、排序、面板高度、剪贴历史都不再丢。=====
-const PERSIST_KEYS=['kbClips','kbUserTop','kbUserHide','kbSymOrder','kbEmjOrder','kbSound','pyGrid','t9NumMode','kbFlagSecure','kbClipIso','panelH3','emjH2','kbTheme','kbMode'];
+const PERSIST_KEYS=['kbClips','kbUserTop','kbUserHide','kbSymOrder','kbEmjOrder','kbSound','pyGrid','t9NumMode','kbFlagSecure','kbClipIso','panelH3','emjH2','kbTheme','kbMode','kbAppNames','kbRingOrder'];
 (function restorePrefs(){
   try{
     if(typeof AndroidPW==='undefined'||!AndroidPW.loadAppData) return;
@@ -653,9 +680,10 @@ function syncPrivClips(refreshUI){
 // 复制/剪切动作后延时双拍拉取（覆盖系统剪贴板监听回调的异步窗口），保证"随即显示"
 function scheduleClipSync(){ setTimeout(()=>syncPrivClips(true),160); setTimeout(()=>syncPrivClips(true),650); }
 let calcMode=false, calcExpr='', calcResult=null;
+let calcPrepend=false, calcPrefixBuf='', calcSealed=false;   // 前置插入态/前缀缓冲/=已结算标志
 let calcFromGrid=false;   // 计算器是否由九宫格进入：EXIT 时据此退回九宫格而非数字键盘
-const THEMES=['t-orange','t-blue','t-purple','t-red','t-green','t-pink','t-brown','t-cyan','t-dark'];
-const TNAMES=['orange','blue','purple','red','green','pink','brown','cyan','dark'];
+const THEMES=['t-orange','t-blue','t-purple','t-red','t-green','t-pink','t-brown','t-cyan','t-dark','t-white'];
+const TNAMES=['orange','blue','purple','red','green','pink','brown','cyan','dark','white'];
 const ACCS=['#e86030','#2878d0','#9030e0','#d02020','#1a9040','#d8409a','#8b5020','#0898b8','#7090ff'];
 const ROOTS={Q:'金',W:'人',E:'月',R:'白',T:'禾',Y:'言',U:'立',I:'水',O:'火',P:'之',
   A:'工',S:'木',D:'大',F:'土',G:'王',H:'目',J:'日',K:'口',L:'田',M:'山',
@@ -693,7 +721,19 @@ const SYMBOL_CATS=[
     '∫','∬','∮','∑','∏','√','∛','∜','∂','∇','∆',
     '∈','∉','∋','⊂','⊃','⊆','⊇','∪','∩','∅','∀','∃','∴','∵',
     '°','′','″','π','‰','‱','㏑','㏒','℃','℉','Ω','µ','㎡','㎥']},
-  {n:'@', name:'网址', fixed:true, cols:4, list:[
+  {n:'★', name:'特殊', list:[
+    '★','☆','✦','✧','✪','✩','✫','✬','✭','✮','✯','❂','✱','✲','✳','✴','❇','❈','❉','❊','❋',
+    '●','○','◎','◉','◌','◍','◐','◑','◒','◓','◔','◕','⊙','⊕','⊗','⊘',
+    '■','□','▢','▣','▤','▥','▦','▧','▨','▩','◆','◇','◈','◢','◣','◤','◥',
+    '♠','♣','♥','♦','♤','♧','♡','♢','✓','✔','✗','✘','☑','☒','☐','卍','卐','※','§','¶','†','‡','•','‣','◦',
+    '✈','☎','✆','✉','♨','☀','☁','☂','☃','☄','☯','☮','☢','☣','⚠','⚡','♻','✿','❀','❁','❃','❤','♬','♪','♩','♫','♭','♮','♯']},
+  {n:'→', name:'箭头', list:[
+    '←','→','↑','↓','↔','↕','↖','↗','↘','↙','↩','↪','↰','↱','↲','↳','↴','↵',
+    '⇐','⇒','⇑','⇓','⇔','⇕','⇖','⇗','⇘','⇙','⇄','⇅','⇆','⇇','⇈','⇉','⇊','⇋','⇌',
+    '➜','➤','➔','➙','➛','➝','➞','➟','➠','➡','➢','➣','➥','➦','➧','➨','➩','➪','➫','➬','➭','➮','➯','➱','➲','➳',
+    '▶','◀','▲','▼','▷','◁','△','▽','▸','◂','▴','▾','►','◄','⤴','⤵','⤶','⤷','↺','↻','⟲','⟳','⥀','⥁',
+    '☜','☞','☝','☟','⇧','⇩','⇪','⌃','⌄','⎋','⏎','⌫','⌦','⇥','⇤']},
+  {n:'@', name:'网址', cols:4, list:[
     'https://','http://','www.','wap.',
     '.com','.cn','.net','.org',
     '.com.cn','.edu.cn','.gov.cn','.org.cn',
@@ -731,22 +771,10 @@ const SYMBOL_CATS=[
     '┼','╀','╁','╂','╃','╄','╅','╆','╇','╈','╉','╊','╋',
     '═','║','╒','╓','╔','╕','╖','╗','╘','╙','╚','╛','╜','╝','╞','╟','╠','╡','╢','╣','╤','╥','╦','╧','╨','╩','╪','╫','╬',
     '▀','▄','█','▌','▐','░','▒','▓']},
-  {n:'→', name:'箭头', list:[
-    '←','→','↑','↓','↔','↕','↖','↗','↘','↙','↩','↪','↰','↱','↲','↳','↴','↵',
-    '⇐','⇒','⇑','⇓','⇔','⇕','⇖','⇗','⇘','⇙','⇄','⇅','⇆','⇇','⇈','⇉','⇊','⇋','⇌',
-    '➜','➤','➔','➙','➛','➝','➞','➟','➠','➡','➢','➣','➥','➦','➧','➨','➩','➪','➫','➬','➭','➮','➯','➱','➲','➳',
-    '▶','◀','▲','▼','▷','◁','△','▽','▸','◂','▴','▾','►','◄','⤴','⤵','⤶','⤷','↺','↻','⟲','⟳','⥀','⥁',
-    '☜','☞','☝','☟','⇧','⇩','⇪','⌃','⌄','⎋','⏎','⌫','⌦','⇥','⇤']},
   {n:'Ñ', name:'拉丁', list:[
     'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß',
     'à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ',
     'Œ','œ','Š','š','Ž','ž','Ÿ','Ð','ð','Ł','ł','Ŋ','ŋ']},
-  {n:'★', name:'标记', list:[
-    '★','☆','✦','✧','✪','✩','✫','✬','✭','✮','✯','❂','✱','✲','✳','✴','❇','❈','❉','❊','❋',
-    '●','○','◎','◉','◌','◍','◐','◑','◒','◓','◔','◕','⊙','⊕','⊗','⊘',
-    '■','□','▢','▣','▤','▥','▦','▧','▨','▩','◆','◇','◈','◢','◣','◤','◥',
-    '♠','♣','♥','♦','♤','♧','♡','♢','✓','✔','✗','✘','☑','☒','☐','卍','卐','※','§','¶','†','‡','•','‣','◦',
-    '✈','☎','✆','✉','♨','☀','☁','☂','☃','☄','☯','☮','☢','☣','⚠','⚡','♻','✿','❀','❁','❃','❤','♬','♪','♩','♫','♭','♮','♯']},
   {n:'あ', name:'平假', fixed:true, cols:10, list:[
     'あ','い','う','え','お','か','き','く','け','こ',
     'さ','し','す','せ','そ','た','ち','つ','て','と',
@@ -766,8 +794,7 @@ const SYMBOL_CATS=[
     'ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ズ','ゼ','ゾ',
     'ダ','ヂ','ヅ','デ','ド','バ','ビ','ブ','ベ','ボ',
     'パ','ピ','プ','ペ','ポ','ァ','ィ','ゥ','ェ','ォ',
-    'ャ','ュ','ョ','ッ','ヮ','ヴ','ー','・','ヽ','ヾ']},
-];
+    'ャ','ュ','ョ','ッ','ヮ','ヴ','ー','・','ヽ','ヾ']}];
 // ===== 表情：iOS 风格分类 =====
 const EMOJI_CATS=[
   {n:'😀', name:'笑脸', list:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','👶','🧒','👦','👧','🧑','👨','👩','🧔','👱','🧓','👴','👵','👮','👷','💂','🕵','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🤱','👼','🙇','🤦','🤷','💁','🙅','🙆','🙋','👫','👬','👭','💑','💏','👪']},
@@ -1006,8 +1033,89 @@ function _edgeSpring(el, axis){
   el.addEventListener('touchend',release,{passive:true});
   el.addEventListener('touchcancel',release,{passive:true});
 }
-function attachRubberBand(el){ if(!el || el._rubber) return; el._rubber=true; _edgeSpring(el,'y'); }
-function attachRubberBandX(el){ if(!el || el._rubberX) return; el._rubberX=true; _edgeSpring(el,'x'); }
+// ===== 长按拖拽排序·边缘自动滚动：拖到滚动容器上/下边缘40px热区内，rAF自驱连续滚动 =====
+//   (touchmove 手指停住不再来事件，必须 rAF 循环；速度随贴边深度线性加速 4→16px/帧)
+let _dasRaf=0, _dasEl=null, _dasY=0;
+function dragAutoScroll(scroller, y){
+  _dasEl=scroller; _dasY=y;
+  if(_dasRaf) return;
+  const loop=()=>{
+    _dasRaf=0;
+    if(!_dasEl) return;
+    const r=_dasEl.getBoundingClientRect(), Z=40;
+    let v=0;
+    if(_dasY<r.top+Z) v=-(4+12*Math.min(1,(r.top+Z-_dasY)/Z));
+    else if(_dasY>r.bottom-Z) v=(4+12*Math.min(1,(_dasY-(r.bottom-Z))/Z));
+    if(v){ _dasEl.scrollTop+=v; _dasRaf=requestAnimationFrame(loop); }
+  };
+  _dasRaf=requestAnimationFrame(loop);
+}
+function dragAutoScrollStop(){ _dasEl=null; _dasY=0; if(_dasRaf){ cancelAnimationFrame(_dasRaf); _dasRaf=0; } }
+
+// ===== 自绘滚动进度条：细雾条贴容器右缘(纵)/底缘(横)，滚动时显形、静止600ms淡出 =====
+//   (原生滚动条被隐藏；自绘条挂在父容器上不随内容滚走，父容器自动补 position:relative)
+function attachScrollHint(el, axis){
+  if(!el || el._hint) return; el._hint=true;
+  const parent=el.parentElement; if(!parent) return;
+  const cs=getComputedStyle(parent);
+  if(cs.position==='static') parent.style.position='relative';
+  const bar=document.createElement('div');
+  const isY=(axis!=='x');
+  bar.style.cssText='position:absolute;pointer-events:none;z-index:60;border-radius:2px;'+
+    'background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));opacity:0;transition:opacity .28s;'+
+    (isY?'right:2px;width:3px;top:0;':'bottom:1px;height:3px;left:0;');
+  parent.appendChild(bar);
+  let fade=null;
+  const upd=()=>{
+    const total=isY?el.scrollHeight:el.scrollWidth, view=isY?el.clientHeight:el.clientWidth;
+    if(total<=view+2){ bar.style.opacity='0'; return; }
+    const frac=view/total, pos=(isY?el.scrollTop:el.scrollLeft)/(total-view);
+    const len=Math.max(18, view*frac);
+    const off=el.offsetTop, offX=el.offsetLeft;
+    if(isY){ bar.style.height=len+'px'; bar.style.top=(off+pos*(view-len))+'px'; }
+    else   { bar.style.width =len+'px'; bar.style.left=(offX+pos*(view-len))+'px'; }
+    bar.style.opacity='0.55';
+    if(fade) clearTimeout(fade);
+    fade=setTimeout(()=>{ bar.style.opacity='0'; }, 600);
+  };
+  el.addEventListener('scroll',upd,{passive:true});
+  el.addEventListener('touchstart',upd,{passive:true});
+}
+
+// ===== fling 碰边回弹：惯性滚动(手指已离开)冲到端点时按余速弹性过冲回位 =====
+//   _edgeSpring 只接管"手指按住继续拉"；此处补上"甩动惯性撞墙"的那一下弹性。
+function attachFlingBounce(el, axis){
+  if(!el || el._fling) return; el._fling=true;
+  const isY=(axis!=='x');
+  const prop=isY?'translateY':'translateX';
+  let lastP=0,lastT=0,v=0,touching=false,bouncing=false;
+  const posOf=()=>isY?el.scrollTop:el.scrollLeft;
+  const maxOf=()=>isY?(el.scrollHeight-el.clientHeight):(el.scrollWidth-el.clientWidth);
+  el.addEventListener('touchstart',()=>{ touching=true; },{passive:true});
+  el.addEventListener('touchend',()=>{ touching=false; },{passive:true});
+  el.addEventListener('scroll',()=>{
+    const now=performance.now(), p=posOf();
+    if(lastT){ const dt=now-lastT; if(dt>0&&dt<120) v=(p-lastP)/dt; }
+    lastP=p; lastT=now;
+    if(touching||bouncing) return;
+    const M=maxOf(); if(M<=2) return;
+    let dir=0;
+    if(p<=0 && v<-0.25) dir=1;          // 冲到起始端
+    else if(p>=M-1 && v>0.25) dir=-1;   // 冲到末端
+    if(!dir) return;
+    bouncing=true;
+    const amp=Math.min(56, Math.abs(v)*42);   // 余速→过冲幅度
+    el.style.transition='none';
+    el.style.transform=prop+'('+(dir*amp)+'px)';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
+      el.style.transition='transform .42s cubic-bezier(.18,1.4,.3,1)';   // 弹簧回位(带过冲)
+      el.style.transform='';
+      setTimeout(()=>{ el.style.transition=''; bouncing=false; v=0; }, 440);
+    });});
+  },{passive:true});
+}
+function attachRubberBand(el){ if(!el || el._rubber) return; el._rubber=true; _edgeSpring(el,'y'); attachFlingBounce(el,'y'); attachScrollHint(el,'y'); }
+function attachRubberBandX(el){ if(!el || el._rubberX) return; el._rubberX=true; _edgeSpring(el,'x'); attachFlingBounce(el,'x'); }
 // 全局连发登记表：所有键的长按取消函数都登记于此；抬指(document 级)兜底全清，
 //   即使按键元素已被重建摘除、自身 touchend 丢失，也绝不出现"幽灵连发"。
 const _kbRepeatCancels = new Set();
@@ -1125,8 +1233,8 @@ function addKeyListenersOnce(div, fn) {
 
 function buildKb() {
   if(pyGrid && mode==='pinyin'){ buildPyGridKb(); return; }
-  // 退出九宫格回全键盘：清除 t9row 残留样式，恢复正常行布局
-  ['r1','r2','r3','r4'].forEach(id=>{ const r=document.getElementById(id); if(r){ r.classList.remove('t9row'); r.classList.remove('t9last'); } });
+  // 退出九宫格回全键盘：清除 t9row/双环层残留样式，恢复正常行布局
+  ['r1','r2','r3','r4'].forEach(id=>{ const r=document.getElementById(id); if(r){ r.classList.remove('t9row'); r.classList.remove('t9last'); r.style.cssText=''; r.style.display=''; } });
   buildRow('r1',R1); buildRow('r2',R2); buildRow3(); buildRow4();
 }
 // ===== 拼音九宫格(T9) — 紧凑标准布局 =====
@@ -1139,6 +1247,12 @@ try{ t9NumMode=(localStorage.getItem('t9NumMode')==='1'); }catch(e){}
 //   Ctrl：2=↑ 4=← 6=→ 8=↓，1=全选 3=音效 7=剪切 9=复制 5=粘贴 0=撤销，Num=造词
 //   Alt ：2/4/6/8 方向同 Ctrl，Num=Tab(下一段)；其余键灰置
 let t9Ctrl=false, t9Alt=false;
+let t9Shift=false, ringUpper=false;   // 九宫 Shift 层：双环英文键盘(内环8+外环18)，中心=大小写
+// 双环字母排布(可长按拖拽两键换位，持久化)：内环=主力home排，外环=其余18键齿轮错位嵌缝
+let _ringOrder=null;
+try{ const ro=localStorage.getItem('kbRingOrder'); if(ro){ const p=JSON.parse(ro); if(p&&p.inner&&p.inner.length===8&&p.outer&&p.outer.length===18) _ringOrder=p; } }catch(e){}
+function ringOrder(){ return _ringOrder||{inner:['f','g','l','k','j','h','s','d'],outer:['t','y','u','i','o','p','m','n','b','v','c','x','z','a','q','w','e','r']}; }
+function ringSaveOrder(o){ _ringOrder=o; try{ localStorage.setItem('kbRingOrder',JSON.stringify(o)); mirrorPrefs(); }catch(e){} }
 function t9Arrow(d){
   if(typeof _renameBuf!=='undefined'&&_renameBuf!==null) return;   // 重命名焦点铁锁
   if(typeof Android!=='undefined'&&Android.moveCursor){
@@ -1152,7 +1266,9 @@ function t9Arrow(d){
 }
 function buildPyGridKb(){
   if(mode!=='pinyin'){ buildKb(); return; }   // 九宫仅属拼音：任何路径误入一律回落主键盘(五笔+九宫错配根治)
+  if(t9Shift){ buildRingKb(); return; }        // Shift 层：双环英文键盘
   const r1=document.getElementById('r1'), r2=document.getElementById('r2'), r3=document.getElementById('r3'), r4=document.getElementById('r4');
+  [r1,r2,r3,r4].forEach(r=>{ r.style.display=''; r.style.cssText=''; });   // 从双环层返回：恢复行显示与布局
   r1.innerHTML=''; r2.innerHTML=''; r3.innerHTML=''; r4.innerHTML='';
   // 九宫格专属：清除全键盘 r2/r3 的缩进，加 t9row 标记统一布局
   [r1,r2,r3,r4].forEach(r=>{ r.classList.add('t9row'); r.style.paddingLeft=''; r.style.paddingRight=''; });
@@ -1203,7 +1319,7 @@ function buildPyGridKb(){
     const d=document.createElement('div');
     d.className='key t9key func'+(on?' locked':'');
     d.style.flex='0 0 auto'; d.style.flexGrow=grow; d.style.flexBasis='0';
-    d.innerHTML=`<span class="km" style="font-size:13px;font-weight:600">${name}</span>`;   // 激活态仅靠点亮(locked)指示，不加"激活"副字
+    d.innerHTML=`<span class="km" style="font-size:15px;font-weight:600">${name}</span>`;   // 字样调大(与"全选"字样同级)；激活态仅靠点亮(locked)指示
     addKeyListenersOnce(d,fn);
     return d;
   };
@@ -1265,8 +1381,24 @@ function buildPyGridKb(){
   r1.appendChild(numKey('2','ABC'));
   r1.appendChild(numKey('3','DEF'));
   r1.appendChild(mk(`<svg width="20" height="14" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,'',' func',()=>t9del(),RW,true,false));
-  // 行2: [空] 4GHI 5JKL 6MNO  0
-  r2.appendChild(pad(LW));
+  // 行2: [Shift] 4GHI 5JKL 6MNO  0
+  //   Shift=进入双环英文键盘；Ctrl 层激活时按 Shift=切换系统下一个输入法(与主键盘 Ctrl+Shift 同款)
+  (function(){
+    const d=document.createElement('div');
+    d.className='key t9key func'+(t9Ctrl?' arrow-active':'');
+    d.style.flex='0 0 auto'; d.style.flexGrow=LW; d.style.flexBasis='0';
+    if(t9Ctrl){
+      const _icoIME=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
+      d.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:9px">输入法</span>`;
+    } else {
+      d.innerHTML=`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">英文</span>`;
+    }
+    addKeyListenersOnce(d,()=>{
+      if(t9Ctrl){ t9Ctrl=false; switchNextIME(); buildPyGridKb(); return; }
+      t9code=''; showCands([]); t9Shift=true; ringUpper=false; buildPyGridKb();
+    });
+    r2.appendChild(d);
+  })();
   r2.appendChild(numKey('4','GHI'));
   r2.appendChild(numKey('5','JKL'));
   r2.appendChild(numKey('6','MNO'));
@@ -1283,6 +1415,125 @@ function buildPyGridKb(){
   r4.appendChild(mk('计算器','',' func',()=>{ t9code=''; showCands([]); calcFromGrid=true; num=true; calcMode=true; calcReset(); switchNum(); },LW));
   r4.appendChild(mk('空格','',' ',()=>{ if(t9code){t9commitFirst();} else commit(' '); },3));
   r4.appendChild(mk('回车','',' accent',()=>{ if(t9code){t9commitFirst();t9code='';} else pressEnter(); },RW));
+}
+
+// ===== 九宫 Shift 层：双环英文键盘 =====
+//   布局：左功能列(⇧退出/符号) + 中央双环(内环8字母贴中心、外环18字母齿轮错位10°嵌缝) + 右功能列(⌫/空格/回车)。
+//   中心键=大小写切换(点按小写⇄大写)；字母点按上屏；长按500ms拖到另一字母=两键换位(持久化)。
+function buildRingKb(){
+  const r1=document.getElementById('r1'), r2=document.getElementById('r2'), r3=document.getElementById('r3'), r4=document.getElementById('r4');
+  r2.innerHTML=''; r3.innerHTML=''; r4.innerHTML='';
+  [r2,r3,r4].forEach(r=>{ r.classList.remove('t9row','t9last'); r.style.display='none'; });
+  r1.innerHTML=''; r1.classList.add('t9row'); r1.style.display='';
+  r1.style.cssText='display:flex;align-items:stretch;gap:5px;padding:4px 5px;height:216px;';
+
+  const col=(w)=>{ const c=document.createElement('div'); c.style.cssText='display:flex;flex-direction:column;gap:5px;flex:0 0 '+w+'px;'; return c; };
+  const fk=(html,cls,fn,grow,imm,noRep)=>{
+    const d=document.createElement('div');
+    d.className='key t9key'+(cls?' '+cls:'');
+    d.style.cssText='flex:'+(grow==null?1:grow)+' 1 0;min-height:0;';
+    d.innerHTML=html;
+    addKeyListeners(d,fn,imm,noRep);
+    return d;
+  };
+  // 左列：⇧(点亮,退出回九宫) / 符号
+  const left=col(58);
+  const shiftK=fk(`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">九宫</span>`,'func locked',()=>{ t9Shift=false; buildPyGridKb(); },1,false,true);
+  left.appendChild(shiftK);
+  left.appendChild(fk(`<span class="km" style="font-size:14px;font-weight:600">符号</span>`,'func',()=>{ toggleSym(); },1,false,true));
+  r1.appendChild(left);
+
+  // 中央双环容器
+  const pad=document.createElement('div');
+  pad.style.cssText='position:relative;flex:1 1 auto;min-width:0;overflow:hidden;';
+  r1.appendChild(pad);
+
+  // 右列：⌫ / 空格 / 回车
+  const right=col(58);
+  right.appendChild(fk(`<span class="km"><svg width="20" height="14" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>`,'func',()=>doDelete(),1,true));
+  right.appendChild(fk(`<span class="km" style="font-size:13px;font-weight:600">空格</span>`,'',()=>commit(' '),1,true));
+  right.appendChild(fk(`<span class="km" style="font-size:13px;font-weight:600">回车</span>`,'accent',()=>pressEnter(),1,false,true));
+  r1.appendChild(right);
+
+  // ---- 双环渲染(尺寸自适应容器：外环半径=min(w,h)/2-键半径-呼吸边) ----
+  requestAnimationFrame(()=>{
+    // 尺寸兜底：极端时序下容器未完成布局(clientWidth=0)也照常渲染，避免空白层
+    const W=pad.clientWidth||Math.max(200,(window.innerWidth||360)-140), H=pad.clientHeight||208;
+    const cx=W/2, cy=H/2;
+    const outR=Math.min(W,H)/2-17-3;         // 外环半径(外环键∅34)
+    const inR=Math.max(40, outR*0.52);       // 内环半径(内环键∅36)
+    const o=ringOrder();
+    const mkNode=(ch,ring,idx)=>{
+      const ang=(ring==='inner') ? idx*(360/8) : idx*(360/18)+10;   // 外环+10°齿轮错位嵌缝
+      const rad=(ring==='inner') ? inR : outR;
+      const sz=(ring==='inner') ? 36 : 34;
+      const a=(ang-90)*Math.PI/180;
+      const x=cx+rad*Math.cos(a), y=cy+rad*Math.sin(a);
+      const d=document.createElement('div');
+      d.className='key ring-key'+(ring==='inner'?' ring-in':' ring-out');
+      d.dataset.ch=ch; d.dataset.ring=ring; d.dataset.idx=idx;
+      d.style.cssText='position:absolute;left:'+(x-sz/2)+'px;top:'+(y-sz/2)+'px;width:'+sz+'px;height:'+sz+'px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0;padding:0;';
+      d.innerHTML='<span class="km" style="font-size:'+(ring==='inner'?17:15)+'px;line-height:1">'+(ringUpper?ch.toUpperCase():ch)+'</span>';
+      // 点按上屏 / 长按500ms拖拽换位
+      let _t=null,_drag=false,_clone=null,_sx=0,_sy=0;
+      const clean=()=>{ if(_t){clearTimeout(_t);_t=null;} if(_clone){_clone.remove();_clone=null;} _drag=false; d.style.opacity='';
+        pad.querySelectorAll('.ring-key').forEach(k=>k.style.outline=''); };
+      d.addEventListener('touchstart',e=>{
+        _sx=e.touches[0].clientX; _sy=e.touches[0].clientY;
+        _t=setTimeout(()=>{ _drag=true; try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+          const r=d.getBoundingClientRect();
+          _clone=document.createElement('div');
+          _clone.textContent=(ringUpper?ch.toUpperCase():ch);
+          _clone.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;z-index:300;pointer-events:none;opacity:.96;transform:scale(1.15);border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--ac,#e86030);color:#fff;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.28)';
+          document.body.appendChild(_clone); d.style.opacity='.25';
+        },500);
+      },{passive:true});
+      d.addEventListener('touchmove',e=>{
+        const tt=e.touches[0];
+        if(!_drag){ if(Math.abs(tt.clientX-_sx)>10||Math.abs(tt.clientY-_sy)>10){ if(_t){clearTimeout(_t);_t=null;} } return; }
+        e.preventDefault();
+        if(_clone){ _clone.style.left=(tt.clientX-_clone.offsetWidth/2)+'px'; _clone.style.top=(tt.clientY-_clone.offsetHeight/2)+'px'; }
+        pad.querySelectorAll('.ring-key').forEach(k=>k.style.outline='');
+        let el=document.elementFromPoint(tt.clientX,tt.clientY);
+        while(el&&el!==pad&&!(el.dataset&&el.dataset.ch)) el=el.parentElement;
+        if(el&&el.dataset&&el.dataset.ch&&el!==d){ el.style.outline='2px solid var(--ac,#e86030)'; el.style.outlineOffset='-2px'; }
+      },{passive:false});
+      d.addEventListener('touchend',e=>{
+        if(_drag){
+          const tt=e.changedTouches[0];
+          let el=document.elementFromPoint(tt.clientX,tt.clientY);
+          while(el&&el!==pad&&!(el.dataset&&el.dataset.ch)) el=el.parentElement;
+          if(el&&el.dataset&&el.dataset.ch&&el!==d){
+            const cur=ringOrder(), nx={inner:cur.inner.slice(),outer:cur.outer.slice()};
+            const a1=d.dataset.ring, i1=+d.dataset.idx, a2=el.dataset.ring, i2=+el.dataset.idx;
+            const v1=nx[a1==='inner'?'inner':'outer'][i1], v2=nx[a2==='inner'?'inner':'outer'][i2];
+            nx[a1==='inner'?'inner':'outer'][i1]=v2; nx[a2==='inner'?'inner':'outer'][i2]=v1;
+            ringSaveOrder(nx); clean(); buildRingKb(); return;
+          }
+          clean(); return;
+        }
+        if(_t){ clearTimeout(_t); _t=null; playClick(); commit(ringUpper?ch.toUpperCase():ch); }
+      },{passive:true});
+      d.addEventListener('touchcancel',clean,{passive:true});
+      d.addEventListener('click',()=>{ if(!('ontouchstart' in window)) commit(ringUpper?ch.toUpperCase():ch); });
+      return d;
+    };
+    // 辅助虚线环
+    [[inR,'ring-in'],[outR,'ring-out']].forEach(([r])=>{
+      const ln=document.createElement('div');
+      ln.style.cssText='position:absolute;left:'+(cx-r)+'px;top:'+(cy-r)+'px;width:'+(r*2)+'px;height:'+(r*2)+'px;border-radius:50%;border:1px dashed rgba(0,0,0,0.10);pointer-events:none;';
+      pad.appendChild(ln);
+    });
+    o.inner.forEach((ch,i)=>pad.appendChild(mkNode(ch,'inner',i)));
+    o.outer.forEach((ch,i)=>pad.appendChild(mkNode(ch,'outer',i)));
+    // 中心键：大小写切换
+    const c=document.createElement('div');
+    c.className='key ring-center'+(ringUpper?' locked':' func');
+    c.style.cssText='position:absolute;left:'+(cx-27)+'px;top:'+(cy-27)+'px;width:54px;height:54px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0;padding:0;z-index:5;';
+    c.innerHTML='<span class="km" style="font-size:15px;font-weight:700;line-height:1">'+(ringUpper?'ABC':'abc')+'</span><span class="ks" style="font-size:8px">'+(ringUpper?'大写':'小写')+'</span>';
+    addKeyListenersOnce(c,()=>{ ringUpper=!ringUpper; buildRingKb(); });
+    pad.appendChild(c);
+  });
 }
 function t9UpdateCode(cands){
   const el=document.getElementById('codeText');
@@ -1429,7 +1680,14 @@ function buildRow3() {
   const row=document.getElementById('r3'); row.innerHTML='';
   // Shift（单击=held，与 Ctrl 单击同款；双击=caps，与 Ctrl 锁定同款 locked）
   const sh=makeKey('SHIFT','shift-key'+(caps?' locked':(shift?' held':'')));
-  setKeyContent(sh,'⇧','Shift');
+  if(ctrl||ctrlLock){
+    // Ctrl 层：Shift 键面换"输入法"图标(地球) —— Ctrl+Shift = 切换至设备下一个输入法
+    sh.classList.add('arrow-active');
+    const _icoIME=`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
+    sh.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:8px">输入法</span>`;
+  } else {
+    setKeyContent(sh,'⇧','Shift');
+  }
   addKeyListenersOnce(sh,pressShift);
   row.appendChild(sh);
   // ZXCVBNM
@@ -1488,7 +1746,7 @@ function buildRow4() {
   let _ctrlTouched=false;
   const _ctrlToggle = () => {
     playClick();
-    if (shift) { cycleMode(); ctrl=false; ctrlLock=false; shift=false; alt=false; buildKb(); return; }
+    if (shift) { switchNextIME(); ctrl=false; ctrlLock=false; shift=false; alt=false; buildKb(); return; }   // Shift+Ctrl → 切换系统下一个输入法
     const now=Date.now();
     if (ctrlLock) {                       // 已锁定 → 任意点击解锁退出
       ctrlLock=false; ctrl=false; _lastCtrlTap=0; buildKb(); return;
@@ -1568,7 +1826,7 @@ function buildNumpad() {
   const RIGHT_W=76;
   // 左侧 3 列（数字 + 计算器/0/空格）
   const leftGrid=document.createElement('div');
-  leftGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,44px);gap:10px 5px;flex:1';
+  leftGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,47px);gap:6px 5px;flex:1';   // 行距收紧(10→6)，键高44→47补足总高220无跳动
   [['7','8','9'],['4','5','6'],['1','2','3'],['CALC','0','SPACE']].forEach(row=>{
     row.forEach(k=>{
       const div=document.createElement('div');
@@ -1591,11 +1849,11 @@ function buildNumpad() {
   np.appendChild(leftGrid);
   // 右列：删除·返回(双用) / [- +] / [. X] / 回车
   const rightCol=document.createElement('div');
-  rightCol.style.cssText='display:flex;flex-direction:column;gap:10px;width:'+RIGHT_W+'px';
+  rightCol.style.cssText='display:flex;flex-direction:column;gap:6px;width:'+RIGHT_W+'px';
 
   // ① 删除键（纯删除：单击删除·长按连删；返回功能已移至顶栏 [123]↔[返回] 键）
   const delRet=document.createElement('div');
-  delRet.className='num-key func'; delRet.style.height='44px';
+  delRet.className='num-key func'; delRet.style.height='47px';
   delRet.innerHTML=
     `<span class="km" style="display:flex;align-items:center;justify-content:center">`+
       `<svg width="22" height="16" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">`+
@@ -1619,21 +1877,21 @@ function buildNumpad() {
 
   // ② [- +] 一键两用（左 -，右 +；按下即出，长按该半区连续输出）
   const pm=document.createElement('div');
-  pm.className='num-key func calc-delz'; pm.style.height='44px';
+  pm.className='num-key func calc-delz'; pm.style.height='47px';
   pm.innerHTML=`<span class="delz-l" style="font-size:20px">-</span><span class="delz-r" style="font-size:20px;font-weight:400">+</span>`;
   bindDualZone(pm,()=>pressNum('-'),()=>pressNum('+'));
   rightCol.appendChild(pm);
 
   // ③ [. X] 一键两用（左半= . 右半= X：按下坐标判区，不再长按切换；长按该半区=连续输出）
   const dotX=document.createElement('div');
-  dotX.className='num-key calc-delz'; dotX.style.height='44px';
+  dotX.className='num-key calc-delz'; dotX.style.height='47px';
   dotX.innerHTML=`<span class="delz-l" style="font-size:18px">.</span><span class="delz-r" style="font-size:20px;font-weight:400">X</span>`;
   bindDualZone(dotX,()=>pressNum('.'),()=>pressNum('X'));
   rightCol.appendChild(dotX);
 
   // ④ 回车
   const en=document.createElement('div');
-  en.className='num-key accent'; en.style.cssText='height:44px';
+  en.className='num-key accent'; en.style.cssText='height:47px';
   en.innerHTML='<span class="km" style="font-size:14px;font-weight:600">回车</span>';
   addKeyListeners(en,()=>pressNum('↵'));
   rightCol.appendChild(en);
@@ -1658,7 +1916,7 @@ function buildCalcPad(np){
   // 4 5 6 +
   // 1 2 3 =
   const layout=[
-    [{k:'%',c:'func'},{k:'×',c:'func'},{k:'÷',c:'func'},{k:'DELZ',c:'func',dual:true}],
+    [{k:'PCTP',c:'func',pctdual:true},{k:'×',c:'func'},{k:'÷',c:'func'},{k:'DELZ',c:'func',dual:true}],
     [{k:'7'},{k:'8'},{k:'9'},{k:'-',c:'func'}],
     [{k:'4'},{k:'5'},{k:'6'},{k:'+',c:'func'}],
     [{k:'1'},{k:'2'},{k:'3'},{k:'PUTZ',c:'func',putdual:true}],
@@ -1680,6 +1938,14 @@ function buildCalcPad(np){
         `<span class="delz-r" style="font-size:13px;font-weight:600">归零</span>`;
       // 与数字键盘双用键完全一致：按下坐标判区——单击左块=删除(可长按连删)、单击右块=归零
       bindDualZone(div, ()=>calcKey('DEL'), ()=>calcKey('C'));
+    } else if(o.pctdual){
+      // 一键双用：左半=%，右半=前置——把当前算式整体括住，随后输入的内容插到最前
+      //   (例：结果53605267在屏 → 按[前置] → 按5000 → 按÷ → 算式变 5000÷(53605267)，可再叠加前置)
+      div.classList.add('calc-delz');
+      if(calcPrepend) div.classList.add('locked');
+      div.innerHTML=`<span class="delz-l" style="font-size:17px">%</span>`+
+                    `<span class="delz-r" style="font-size:13px;font-weight:600">前置</span>`;
+      bindDualZone(div, ()=>calcKey('%'), ()=>calcKey('PREP'));
     } else if(o.putdual){
       // Issue4: 上屏键改 DELZ 同款一键双用：左半=上屏(结果)，右半=算式(略深底)。
       //   单击=上屏计算结果；长按(≥500ms)=完整上屏(算式+结果，形如 "12+8=20")。
@@ -1711,7 +1977,7 @@ function buildCalcPad(np){
   np.appendChild(bottom);
 }
 
-function calcReset(){ calcExpr=''; calcResult=null; }
+function calcReset(){ calcExpr=''; calcResult=null; calcPrepend=false; calcPrefixBuf=''; calcSealed=false; }
 // Issue6: 计算器显示转换——百分号团显示为「(数字%」，数字排在左括号与百分号之间。
 //   calcExpr 仍按用户输入顺序存(如 100%20.22，% 紧跟左数之后)，仅显示层做转换：
 //     · 把 % 处替换为 '('，并将 % 移到其后数字串的末尾 → 100%20.22 显示 100(20.22%
@@ -1720,6 +1986,7 @@ function calcReset(){ calcExpr=''; calcResult=null; }
 //   仅影响显示，calcExpr 本身保持纯净供 calcEval。
 function calcDisplayExpr(seal){
   const s=calcExpr;
+  if(calcPrepend){ return (calcPrefixBuf||'')+'▸'+(s||'0'); }   // 前置态：前缀▸(旧式)，▸示意插入点
   if(!s) return '0';
   if(s.indexOf('%')<0) return s;
   let out=''; let i=0;
@@ -1743,7 +2010,32 @@ function calcRefresh(seal){
 }
 function calcKey(k){
   if(k==='C'){ calcReset(); calcRefresh(); return; }       // 归零（长按删除键触发）
-  if(k==='DEL'){ calcExpr=calcExpr.slice(0,-1); calcLive(); return; }
+  if(k==='PREP'){
+    // 前置插入：把当前算式整体括住，进入前缀输入态——随后按的数字进前缀缓冲，
+    //   按到运算符即完成前置(前缀+运算符+旧式)。可反复叠加(再按前置又括一层)。
+    if(!calcExpr && calcResult===null) return;
+    if(calcPrepend){ calcPrepend=false; calcPrefixBuf=''; calcLive(); buildNumpad(); return; }   // 再按=取消前置态
+    if(!calcExpr && calcResult!==null) calcExpr=String(calcResult);   // 只有结果没算式：以结果起手
+    calcExpr='('+calcExpr+')';
+    calcPrepend=true; calcPrefixBuf=''; calcSealed=false;
+    calcLive(); buildNumpad(); return;
+  }
+  if(calcPrepend){
+    // 前缀输入态：数字/. 进缓冲；运算符封口完成前置；= 无意义时先封口再算
+    if(k==='DEL'){ if(calcPrefixBuf){ calcPrefixBuf=calcPrefixBuf.slice(0,-1); calcLive(); } else { calcPrepend=false; calcLive(); buildNumpad(); } return; }
+    const ops='+-×÷';
+    if(ops.includes(k)){
+      if(calcPrefixBuf){ calcExpr=calcPrefixBuf+k+calcExpr; }
+      else if(k==='-'){ calcExpr='-'+calcExpr; }
+      calcPrepend=false; calcPrefixBuf='';
+      calcLive(); buildNumpad(); return;
+    }
+    if(k>='0'&&k<='9' || k==='.'){ calcPrefixBuf+=k; calcLive(); return; }
+    if(k==='='){ if(calcPrefixBuf){ calcExpr=calcPrefixBuf+'×'+calcExpr; } calcPrepend=false; calcPrefixBuf='';
+      const v=calcEval(calcExpr); calcResult=(v===null?'错误':v); calcSealed=true; calcRefresh(true); buildNumpad(); return; }
+    return;   // 前缀态忽略 % 等
+  }
+  if(k==='DEL'){ calcSealed=false; calcExpr=calcExpr.slice(0,-1); calcLive(); return; }
   if(k==='EXIT'){
     calcMode=false;
     if(calcFromGrid){ calcFromGrid=false; num=false; switchNum(); return; }  // 回退九宫格
@@ -1767,7 +2059,7 @@ function calcKey(k){
     else { commit(shown); }
     return;
   }
-  if(k==='='){ const v=calcEval(calcExpr); calcResult=(v===null?'错误':v); calcRefresh(true); return; }
+  if(k==='='){ const v=calcEval(calcExpr); calcResult=(v===null?'错误':v); calcSealed=true; calcRefresh(true); return; }
   if(k==='%'){
     // 百分号：紧跟数字/小数点后才追加（只允许一个 %）
     const last=calcExpr.slice(-1);
@@ -1777,10 +2069,12 @@ function calcKey(k){
   // 数字/运算符/小数点 追加
   const ops='+-×÷';
   if(ops.includes(k)){
+    if(calcSealed && calcResult!==null && calcResult!=='错误'){ calcExpr=String(calcResult)+k; calcSealed=false; calcLive(); return; }   // =后按运算符：以结果续算
     if(!calcExpr) { if(k==='-'){calcExpr='-';} } // 允许负号开头
     else if(ops.includes(calcExpr.slice(-1))) { calcExpr=calcExpr.slice(0,-1)+k; } // 替换末运算符
     else calcExpr+=k;
   } else {
+    if(calcSealed){ calcExpr=''; calcResult=null; calcSealed=false; }   // =后直接按数字：开新算式
     calcExpr+=k; // 数字或 .
   }
   calcLive();
@@ -1806,9 +2100,10 @@ function calcEval(expr){
     const c=expr[i];
     if(c>='0'&&c<='9'||c==='.'){ let j=i+1; while(j<expr.length&&(expr[j]>='0'&&expr[j]<='9'||expr[j]==='.'))j++; toks.push(expr.slice(i,j)); i=j; }
     else if(c==='%'){ toks.push('%'); i++; }
+    else if(c==='('||c===')'){ toks.push(c); i++; }
     else if('+-*/'.includes(c)){
-      // 一元负号：表达式开头或前一个是运算符
-      if(c==='-'&&(toks.length===0||'+-*/'.includes(toks[toks.length-1]))){ toks.push('u-'); i++; }
+      // 一元负号：表达式开头、前一个是运算符、或左括号之后
+      if(c==='-'&&(toks.length===0||'+-*/('.includes(toks[toks.length-1]))){ toks.push('u-'); i++; }
       else { toks.push(c); i++; }
     }
     else return null; // 非法字符
@@ -1844,18 +2139,24 @@ function calcEval(expr){
       t2.push(tk);   // 运算符 / u-
     }
   }
-  // 第二遍：shunting-yard → RPN
+  // 第二遍：shunting-yard → RPN(含括号)
   const prec={'+':1,'-':1,'*':2,'/':2,'u-':3};
   const out=[],ops=[];
   for(const t of t2){
     if(typeof t==='number'){ out.push(t); }
     else if(t==='u-'){ ops.push(t); }
+    else if(t==='('){ ops.push(t); }
+    else if(t===')'){
+      while(ops.length && ops[ops.length-1]!=='(') out.push(ops.pop());
+      if(!ops.length) return null;   // 括号不配对
+      ops.pop();
+    }
     else {
-      while(ops.length){ const o=ops[ops.length-1]; if(prec[o]>=prec[t]){ out.push(ops.pop()); } else break; }
+      while(ops.length){ const o=ops[ops.length-1]; if(o!=='('&&prec[o]>=prec[t]){ out.push(ops.pop()); } else break; }
       ops.push(t);
     }
   }
-  while(ops.length) out.push(ops.pop());
+  while(ops.length){ const o=ops.pop(); if(o==='(') return null; out.push(o); }
   // 求值
   const st=[];
   for(const t of out){
@@ -2043,6 +2344,7 @@ function buildPunct() {
     // 拖拽共享态(单指，跨格共用)
     let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
     const cleanupDrag=()=>{
+      dragAutoScrollStop();
       if(longTimer){ clearTimeout(longTimer); longTimer=null; }
       if(clone){ clone.remove(); clone=null; }
       if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
@@ -2094,6 +2396,7 @@ function buildPunct() {
         }
         e.preventDefault();
         if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        dragAutoScroll(grid, t.clientY);   // #5 拖到上/下边缘热区→自动滚动，末排也能拖去最前
         let el=document.elementFromPoint(t.clientX,t.clientY);
         while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
         Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
@@ -2245,6 +2548,7 @@ function buildEmoji() {
     const order=emjGetOrder(ci);
     let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
     const cleanupDrag=()=>{
+      dragAutoScrollStop();
       if(longTimer){ clearTimeout(longTimer); longTimer=null; }
       if(clone){ clone.remove(); clone=null; }
       if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
@@ -2290,6 +2594,7 @@ function buildEmoji() {
         }
         ev.preventDefault();
         if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        dragAutoScroll(body, t.clientY);   // #5 表情滚动容器=外层panel-scroll：拖到边缘自动滚动
         let el=document.elementFromPoint(t.clientX,t.clientY);
         while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
         Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
@@ -2408,7 +2713,15 @@ function pressKey(k) {
   }
   if(shift){shift=false;buildKb();}
 }
+function switchNextIME(){
+  try{ if(typeof Android!=='undefined' && Android.switchNextIME){ Android.switchNextIME(); return; } }catch(e){}
+  wmToast('仅装机后可切换输入法');
+}
 function pressShift() {
+  if(ctrl||ctrlLock){   // Ctrl+Shift → 切换至设备已安装的下一个输入法(五笔/拼音/英文/九宫均生效)
+    switchNextIME();
+    ctrl=false; ctrlLock=false; shift=false; buildKb(); return;
+  }
   if(alt) alt=false;   // 互斥：按 Shift 时关 Alt
   const now=Date.now();
   if(now-lastShiftT<380){caps=!caps;shift=false;}
@@ -3071,7 +3384,8 @@ function updateEditor() {
 function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
 function updateDisplay() {
   const tags={wubi:'五笔',pinyin:'拼音',english:'英文'};
-  document.getElementById('modeLbl').textContent=tags[mode];
+  document.getElementById('modeLbl').textContent=(mode==='pinyin'&&pyGrid)?'九宫':tags[mode];
+  const mb=document.getElementById('modeBtn'); if(mb) mb.classList.toggle('plain', mode==='english');
   buildKb();
 }
 // Issue2: 顶栏 [123] 键 → 切到数字键盘
@@ -3105,14 +3419,81 @@ function cycleMode() {
   if(typeof t9code!=='undefined') t9code='';
   clearCode(); updateDisplay();
 }
-function cycleTheme() {
+function setThemeIdx(i){
+  if(i<0||i>=THEMES.length) return;
   const ime=document.getElementById('ime');
   ime.classList.remove(THEMES[theme]);
-  theme=(theme+1)%THEMES.length;
+  theme=i;
   ime.classList.add(THEMES[theme]);
   try{ localStorage.setItem('kbTheme',THEMES[theme]); mirrorPrefs(); }catch(e){}   // 持久：重建/重启后仍是该主题
   const ball=document.getElementById('themeBtn');
   ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:'');
+}
+function cycleTheme(){ setThemeIdx((theme+1)%THEMES.length); }
+// ===== 主题选色轨道：点颜色球 → 全部主题色球在编码栏轨道排开，点选直达 =====
+function toggleThemeStrip(){
+  if(_activePanel==='theme'){ clearCatStrip(); updateBtnStates(); return; }
+  closeApp();
+  ['symPanel','emjPanel','clipPanel'].forEach(id=>{ const p=document.getElementById(id); if(p) p.classList.add('hidden'); });
+  _activePanel='theme'; buildThemeStrip(); updateBtnStates();
+}
+function buildThemeStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip';
+  THEMES.forEach((tn,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip ball'+(i===theme?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    const b=document.createElement('div');
+    b.className='theme-ball'+(i>0?' '+TNAMES[i]:'');
+    d.appendChild(b);
+    if(i===theme) d.setAttribute('data-active-tab','1');
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==theme) playPop(); setThemeIdx(i); buildThemeStrip(); };
+  syncCodeBar();
+  requestAnimationFrame(()=>{
+    const at=tabs.querySelector('[data-active-tab]'); if(!at) return;
+    const sL=tabs.scrollLeft, sW=tabs.clientWidth, tL=at.offsetLeft, tW=at.offsetWidth;
+    if(tL>=sL && tL+tW<=sL+sW) return;
+    smoothScrollX(tabs, Math.max(0, Math.min(tabs.scrollWidth-sW, tL-(sW-tW)/2)));
+  });
+}
+// ===== 输入法模式轨道：点模式键 → 五笔/拼音/九宫/英文 排开点选(九宫=拼音+九宫布局) =====
+const MODE_OPTS=[{n:'五笔',m:'wubi',g:false},{n:'拼音',m:'pinyin',g:false},{n:'九宫',m:'pinyin',g:true},{n:'英文',m:'english',g:false}];
+function curModeIdx(){
+  if(mode==='wubi') return 0;
+  if(mode==='pinyin') return pyGrid?2:1;
+  return 3;
+}
+function applyModeOpt(i){
+  const o=MODE_OPTS[i]; if(!o) return;
+  if(num){ num=false; switchNum(); }          // 处于数字键盘→先收起，呈现主输入区
+  if(typeof t9code!=='undefined') t9code='';
+  mode=o.m;
+  if(pyGrid!==o.g){ pyGrid=o.g; try{ localStorage.setItem('pyGrid', pyGrid?'1':'0'); }catch(e){} }
+  try{ localStorage.setItem('kbMode',mode); mirrorPrefs(); }catch(e){}
+  clearCode(); updateDisplay();
+}
+function toggleModeStrip(){
+  if(_activePanel==='mode'){ clearCatStrip(); updateBtnStates(); return; }
+  closeApp();
+  ['symPanel','emjPanel','clipPanel'].forEach(id=>{ const p=document.getElementById(id); if(p) p.classList.add('hidden'); });
+  _activePanel='mode'; buildModeStrip(); updateBtnStates();
+}
+function buildModeStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip spread';
+  const cur=curModeIdx();
+  MODE_OPTS.forEach((o,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip'+(i===cur?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    d.textContent=o.n;
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==curModeIdx()) playPop(); applyModeOpt(i); buildModeStrip(); };
+  syncCodeBar();
 }
 function toggleSym(){
   closeApp();   // 切到符号面板=离开剪贴板内的应用，关掉 overlay 释放 iframe
@@ -3273,7 +3654,7 @@ function appLabel(a){ const n=appNames(); return (n[a.id]&&String(n[a.id]).trim(
 function setAppName(id,name){
   const n=appNames();
   if(name&&name.trim()) n[id]=name.trim().slice(0,8); else delete n[id];   // 最长8字，空=恢复默认
-  try{ localStorage.setItem('kbAppNames',JSON.stringify(n)); }catch(e){}
+  try{ localStorage.setItem('kbAppNames',JSON.stringify(n)); mirrorPrefs(); }catch(e){}
 }
 // ---- 重命名浮层：借输入法自身上屏通道打字(commit/退格被拦截进缓冲) ----
 let _renameBuf=null, _renameId=null;
@@ -3738,10 +4119,11 @@ function onIMEBlur(){
   // #8 键盘被任意情形收回/切走：Ctrl/Alt(含锁定层、九宫功能层)一律立即释放，
   //   绝不挂起带到下次弹出——重新弹出永远是干净的普通层。
   try{
-    const had = ctrl || ctrlLock || alt || (typeof t9Ctrl!=='undefined'&&t9Ctrl) || (typeof t9Alt!=='undefined'&&t9Alt);
+    const had = ctrl || ctrlLock || alt || (typeof t9Ctrl!=='undefined'&&t9Ctrl) || (typeof t9Alt!=='undefined'&&t9Alt) || (typeof t9Shift!=='undefined'&&t9Shift);
     ctrl=false; ctrlLock=false; alt=false;
     if(typeof t9Ctrl!=='undefined') t9Ctrl=false;
     if(typeof t9Alt!=='undefined') t9Alt=false;
+    if(typeof t9Shift!=='undefined') t9Shift=false;   // 双环英文层同款释放：重新弹出回九宫普通层
     if(had){
       if(typeof pyGrid!=='undefined' && pyGrid && mode==='pinyin' && typeof buildPyGridKb==='function') buildPyGridKb();
       else if(typeof buildKb==='function') buildKb();
