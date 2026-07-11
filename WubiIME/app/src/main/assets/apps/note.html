@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
           else if(a==='back'){ this.state.view='library'; this.state.addMenuOpen=false; this.render(); }
           else if(a==='export') this.openExport();
           else if(a==='paste') this.openPaste();
-          else if(a==='addtoggle'){ this.state.addMenuOpen=!this.state.addMenuOpen; this.render(); }
+          else if(a==='addtoggle'){ this.toggleAddMenu(); }   // #3 手术式开合：绝不整页render(会抹掉.blk.on激活块)
         });
       });
       r.querySelectorAll('[data-add]').forEach(el=>{
@@ -541,8 +541,34 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
       if(d) d.addEventListener('click', ()=> this.onDel(d.dataset.id));
     },
     markActive(id){
+      this._lastActiveId=id;   // #3 记住最近激活块：即使 .on 被意外抹掉，onAdd 仍有锚点
       document.querySelectorAll('#editor-scroll .blk.on').forEach(x=>{ if(x.dataset.blk!==id) x.classList.remove('on'); });
       const w=document.querySelector('#editor-scroll [data-blk="'+id+'"]'); if(w) w.classList.add('on');
+    },
+    /* #3 添加菜单手术式开合：整页 render() 会摧毁 .blk.on 激活标记与聚焦元素，
+       导致 onAdd 找不到锚点、新文本块永远落到整页末尾——这里只增删 sheet/scrim 节点。 */
+    toggleAddMenu(){
+      if(this.state.addMenuOpen){
+        this.state.addMenuOpen=false;
+        document.querySelectorAll('.add-sheet,.add-scrim').forEach(x=>x.remove());
+        return;
+      }
+      const bar=document.querySelector('.ed-addbar');
+      if(!bar){ this.state.addMenuOpen=true; this.render(); return; }   // 兜底：非编辑视图才走整页
+      this.state.addMenuOpen=true;
+      const t=document.createElement('div');
+      t.innerHTML=`<div class="add-scrim" data-act="addtoggle"></div>
+        <div class="add-sheet">
+          <div class="add-opt" data-add="h1"><span style="font-weight:900;font-size:17px;">大标题</span><span class="s">一级标题</span></div>
+          <div class="add-opt" data-add="h2"><span style="font-weight:700;font-size:15px;">小标题</span><span class="s">二级标题</span></div>
+          <div class="add-opt" data-add="p"><span style="font-weight:400;font-size:15px;">正文段落</span><span class="s">正文</span></div>
+          <div class="add-opt dv" data-add="divider"><span class="sq" style="width:6px;height:6px;background:var(--accent);"></span><span class="nb-line" style="flex:1;height:1.5px;background:#111;"></span><span class="s">分隔线</span></div>
+        </div>`;
+      const scrim=t.children[0], sheet=t.children[1];
+      scrim.addEventListener('click', ()=> this.toggleAddMenu());
+      sheet.querySelectorAll('[data-add]').forEach(el=> el.addEventListener('click', ()=> this.onAdd(el.dataset.add)));
+      bar.insertBefore(sheet, bar.firstChild);
+      bar.insertBefore(scrim, bar.firstChild);
     },
     /* ---- 手术式块操作：只动涉事 DOM 节点，绝不整页重渲 ----
        整页重渲会摧毁聚焦元素 → 系统输入连接断开 → 输入法重启/卡白屏(#3 根因)，
@@ -757,10 +783,31 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         this.syncFromDom(ed); return;
       }
       if(type==='delete'){
-        if(!a || a.kind!=='ce') return;
-        const ed=a.el, sel=getSelection();
+        // #3 块首删除必并入上一块尾——三重加固：
+        //   ① 焦点丢失兜底：activeElement 拿不到时回退 .blk.on 激活块；
+        //   ② 选区丢失兜底：无选区/选区不在块内(装机上 IME 交互后偶发)先把光标复位到块尾——
+        //      旧实现此时 caretOffset 回退值=全文长>0，execCommand 无选区删不动，卡死在"删不过首字"；
+        //   ③ execCommand 失效兜底：内容未变时用 Selection.modify 手动删一字。
+        let ed=(a && a.kind==='ce') ? a.el : null;
+        if(!ed){ const fb=document.querySelector('#editor-scroll .blk.on [contenteditable]'); if(fb){ ed=fb; try{ ed.focus(); }catch(_){}} }
+        if(!ed) return;
+        let sel=getSelection();
+        if(!sel || !sel.rangeCount || !ed.contains(sel.anchorNode)){
+          this.caretTo(ed, (ed.innerText||'').replace(/\n+$/,'').length);
+          sel=getSelection();
+        }
         const collapsed = !sel || sel.isCollapsed;
-        if(!collapsed || this.caretOffset(ed)>0){ try{ document.execCommand('delete'); }catch(e){} this.syncFromDom(ed); return; }
+        if(!collapsed || this.caretOffset(ed)>0){
+          const before=ed.innerText;
+          let ok=false; try{ ok=document.execCommand('delete'); }catch(e){}
+          if((!ok || ed.innerText===before) && sel && sel.rangeCount){
+            try{
+              if(sel.isCollapsed && sel.modify) sel.modify('extend','backward','character');
+              const r=sel.getRangeAt(0); r.deleteContents();
+            }catch(e){}
+          }
+          this.syncFromDom(ed); return;
+        }
         this.mergeIntoPrev(ed.dataset.id); return;   // 光标在块首→并入上一块
       }
       if(type==='enter'){
@@ -1220,6 +1267,8 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         const ae=document.activeElement;
         if(ae && ae.dataset && ae.dataset.id && blocks.some(b=>b.id===ae.dataset.id)) anchorId=ae.dataset.id;
       }
+      if(!anchorId && this._lastActiveId && blocks.some(b=>b.id===this._lastActiveId)) anchorId=this._lastActiveId;   // #3 兜底①最近激活块
+      if(!anchorId && this._caret && this._caret.id && blocks.some(b=>b.id===this._caret.id)) anchorId=this._caret.id; // #3 兜底②最近光标块
       if(!anchorId && blocks.length) anchorId=blocks[blocks.length-1].id;
       let el=null;
       if(anchorId){ el=this.insertBlockAfter(anchorId, nb); }
@@ -1374,6 +1423,12 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         const hdl=t.closest('.hdl'); if(hdl){ this.onHandleDown(e,hdl); return; }
         const card=t.closest('[data-card]'); if(card){ this.onCardDown(e,card); return; }
       }, true);
+      // #3 长按排序失灵根治：拖拽一旦激活(卡片/块)，吞掉 touchmove——否则浏览器把手势升级为
+      //   原生滚动并立即派发 pointercancel，拖拽被掐断(卡片 grid 无 touch-action:none，装机必现)。
+      //   仅拖拽激活时接管，平时列表滚动零影响。
+      window.addEventListener('touchmove', (e)=>{
+        if((this._cdrag || this._drag) && e.cancelable) e.preventDefault();
+      }, {passive:false});
       // 五笔输入路由：上报编辑焦点状态 + 接收父键盘消息
       document.addEventListener('focusin', (e)=>{
         const t=e.target;
@@ -1389,9 +1444,15 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         else if(d.type==='enter') this.onWubi('enter');
       });
       // #9 本内复制捕获：Chromium 原生 copy/cut(含输入法 Ctrl+C 投递触发)在此拦得到选区文本，
-      //   直接进记事本自己的"贴"(加密存储)，与输入法私有剪贴板彻底分家。
-      document.addEventListener('copy', ()=>{ try{ const s=String(window.getSelection()||''); if(s.trim()) this.addNoteClip(s); }catch(_){} });
-      document.addEventListener('cut',  ()=>{ try{ const s=String(window.getSelection()||''); if(s.trim()) this.addNoteClip(s); }catch(_){} });
+      //   进记事本自己的"贴"(加密存储)；同时(#4)实时推送进输入法私有剪贴板(AndroidPW桥→Java privClip，
+      //   键盘聚焦/开剪贴面板/复制后 scheduleClipSync 拉取即见)——两边同步，跨App粘贴不再断链。
+      const capSel=()=>{ try{
+        const s=String(window.getSelection()||''); if(!s.trim()) return;
+        this.addNoteClip(s);
+        try{ if(typeof AndroidPW!=='undefined' && AndroidPW.copyToClipboard) AndroidPW.copyToClipboard(s); }catch(_){}
+      }catch(_){} };
+      document.addEventListener('copy', capSel);
+      document.addEventListener('cut',  capSel);
       // 耐久化：应用被切后台 / 页面隐藏 / 即将销毁时，立即同步落盘
       const flushNow=()=>{ try{ this.flush(); }catch(_){} };
       document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushNow(); });
