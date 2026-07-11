@@ -1370,7 +1370,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.c
       } else { raw=localStorage.getItem('kbAppNames')||'{}'; }
       const n=JSON.parse(raw);
       const custom=(n['pwgen']&&String(n['pwgen']).trim())||'';
-      const label=custom?(custom+' · 密码生成器'):'密码生成器';
+      const label=custom||'密码生成器';   // #2 重命名后应用内直接改显自定义名，整体替换"密码生成器"
       const el=document.getElementById('pwTitle'); if(el&&el.textContent!==label) el.textContent=label;
       if(document.title!==label) document.title=label;
     }catch(e){}
