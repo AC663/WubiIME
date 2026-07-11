@@ -209,28 +209,33 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   radial-gradient(circle at 50% 52%,#3a3a44 0%,#1a1a22 52%,#000000 100%);
   box-shadow:0 4px 9px rgba(0,0,0,0.45),0 1px 4px rgba(0,0,0,0.3),
              inset 0 -4px 8px rgba(0,0,0,0.6),inset 0 2px 3px rgba(255,255,255,0.3)}
-/* 白·磨砂玻璃球：与按钮未激活时的白瓷质感同族——通透雾面、细边、柔和内阴影 */
+/* 白·白玉釉瓷球：与其它颜色球完全同族的高温釉烧配方(顶部强反光/釉层下沉/底缘暗釉)，仅换白玉色料 */
 .theme-ball.white{background:
-  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 30%),
-  radial-gradient(circle at 50% 52%,#ffffff 0%,#eef0f3 55%,#d5d9df 100%);
-  border:1px solid rgba(140,148,160,0.35);
-  box-shadow:0 3px 8px rgba(90,100,115,0.22),0 1px 3px rgba(0,0,0,0.10),
-             inset 0 -3px 6px rgba(150,160,175,0.28),inset 0 2px 3px rgba(255,255,255,0.95)}
-.theme-ball.white::before{background:radial-gradient(ellipse,rgba(255,255,255,0.85) 0%,rgba(255,255,255,0) 70%)}
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#ffffff 0%,#ece8dd 52%,#c9c3b2 100%);
+  box-shadow:0 4px 9px rgba(120,110,80,0.30),0 1px 4px rgba(0,0,0,0.18),
+             inset 0 -3px 6px rgba(140,130,100,0.30),inset 0 2px 3px rgba(255,255,255,0.9)}
+.theme-ball.white::before{background:radial-gradient(ellipse,rgba(255,245,225,0.6) 0%,rgba(255,245,225,0) 70%)}
 /* 英文模式下模式键回归"未激活白瓷"质感(与其它工具按钮一致)，寓示纯直通、无引擎介入 */
 #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f3e3d6);
   border:1px solid rgba(150,90,40,0.15);box-shadow:0 1px 2px rgba(120,60,20,0.12)}
 #modeBtn.plain .sball-text{color:var(--acd,#9a4520);text-shadow:none}
 .t-dark #modeBtn.plain{background:linear-gradient(180deg,rgba(255,235,160,0.16),rgba(255,225,120,0.05));border-color:rgba(255,220,80,0.28)}
 .t-dark #modeBtn.plain .sball-text{color:var(--ktxt)}
-.t-white #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f0f1f4);border-color:rgba(140,148,160,0.30)}
-/* #1 白主题：全部工具按钮(sball)统一冷白瓷配方——plain英文键、颜色球与其它按钮完全一致 */
-.t-white .sball{background:linear-gradient(180deg,#ffffff,#f0f1f4);
-  border:1px solid rgba(140,148,160,0.30);box-shadow:0 1px 2px rgba(90,100,115,0.12)}
-.t-white .sball-text{color:#3c424c;text-shadow:none}
-.t-white .sball.theme-ball.white{background:linear-gradient(180deg,#ffffff,#f0f1f4);
-  border:1px solid rgba(140,148,160,0.30);box-shadow:0 1px 2px rgba(90,100,115,0.12)}
-.t-white .sball.theme-ball.white::before,.t-white .sball.theme-ball.white::after{display:none}
+.t-white #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f2ecdf);border-color:rgba(150,125,70,0.22)}
+/* #6 白主题工具按钮：未激活=白玉瓷(与其它主题同族暖瓷)；激活=釉面径向填充，反差质感对齐第一个[输入法]键 */
+.t-white .sball{background:linear-gradient(180deg,#ffffff,#f2ecdf);
+  border:1px solid rgba(150,125,70,0.20);box-shadow:0 1px 2px rgba(120,100,50,0.12)}
+.t-white .sball-text{color:#5d5540;text-shadow:none}
+.t-white .sball.on{background:radial-gradient(circle at 38% 30%,var(--acl,#cfc4a6),var(--ac,#93876c) 55%,var(--acd,#6f6449));
+  border-color:transparent;box-shadow:0 2px 7px rgba(110,95,60,0.38),inset 0 1px 1px rgba(255,255,255,0.3)}
+.t-white .sball.on .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+/* 白主题下的白色球按钮：保留完整釉瓷球质感(与其它主题球一致)，不再压扁 */
+.t-white .sball.theme-ball.white{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#ffffff 0%,#ece8dd 52%,#c9c3b2 100%);
+  border:none;box-shadow:0 3px 8px rgba(120,110,80,0.28),0 1px 3px rgba(0,0,0,0.14),
+             inset 0 -3px 6px rgba(140,130,100,0.28),inset 0 2px 3px rgba(255,255,255,0.9)}
 
 .trackpad{flex:1;height:32px;margin:0 4px;border-radius:16px;
   background:linear-gradient(180deg,rgba(30,40,80,0.6),rgba(15,25,55,0.5));
@@ -392,10 +397,10 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-dark{--ac:#c8a020;--acd:#a07808;--acl:#f0d060;--bg1:#1e1a10;--bg2:#16120a;
   --kbg1:#2a2414;--kbg2:#221e0e;--ktxt:#f0e8c0;--ksub:rgba(210,170,40,0.8);
   --panel:rgba(13,11,4,0.985);--cbar:rgba(200,160,20,0.08)}
-/* 白·磨砂玻璃：中性石墨强调色，键帽纯白瓷、底盘冷雾灰——类 iOS 键盘的通透质感 */
-.t-white{--ac:#7d838e;--acd:#5c6470;--acl:#b4bac4;--bg1:#f4f5f7;--bg2:#e7e9ed;
-  --kbg1:#ffffff;--kbg2:#f0f1f4;--ktxt:#1d2025;--ksub:rgba(96,102,112,0.72);
-  --panel:rgba(233,235,239,0.985);--cbar:rgba(120,128,142,0.06)}
+/* 白·白玉：暖玉强调色，键帽白玉瓷、底盘暖雾——对齐其它主题按钮未激活时的白瓷质感，非纯白 */
+.t-white{--ac:#93876c;--acd:#6f6449;--acl:#cfc4a6;--bg1:#f6f3ec;--bg2:#eae5da;
+  --kbg1:#fdfcf8;--kbg2:#f2eee4;--ktxt:#28231a;--ksub:rgba(115,105,80,0.72);
+  --panel:rgba(238,233,222,0.985);--cbar:rgba(145,130,95,0.06)}
 
 .t-orange .key:not(.accent):not(.enter-key),
 .t-blue   .key:not(.accent):not(.enter-key),
@@ -748,17 +753,17 @@ const SYMBOL_CATS=[
     '∈','∉','∋','⊂','⊃','⊆','⊇','∪','∩','∅','∀','∃','∴','∵',
     '°','′','″','π','‰','‱','㏑','㏒','℃','℉','Ω','µ','㎡','㎥']},
   {n:'★', name:'特殊', list:[
-    '★','☆','✦','✧','✪','✩','✫','✬','✭','✮','✯','❂','✱','✲','✳','✴','❇','❈','❉','❊','❋',
+    '★','☆','✦','✧','✪','✩','✫','✬','✭','✮','✯','❂','✱','✲','✳','❈','❉','❊','❋',
     '●','○','◎','◉','◌','◍','◐','◑','◒','◓','◔','◕','⊙','⊕','⊗','⊘',
     '■','□','▢','▣','▤','▥','▦','▧','▨','▩','◆','◇','◈','◢','◣','◤','◥',
-    '♠','♣','♥','♦','♤','♧','♡','♢','✓','✔','✗','✘','☑','☒','☐','卍','卐','※','§','¶','†','‡','•','‣','◦',
-    '✈','☎','✆','✉','♨','☀','☁','☂','☃','☄','☯','☮','☢','☣','⚠','⚡','♻','✿','❀','❁','❃','❤','♬','♪','♩','♫','♭','♮','♯']},
+    '♠','♣','♥','♦','♤','♧','♡','♢','✓','✔','✗','✘','☑','☒','☐','卍','卐','※','§','¶','†','‡',
+    '✆','✿','❀','❁','❃','♬','♪','♩','♫','♭','♮','♯']},
   {n:'→', name:'箭头', list:[
     '←','→','↑','↓','↔','↕','↖','↗','↘','↙','↩','↪','↰','↱','↲','↳','↴','↵',
     '⇐','⇒','⇑','⇓','⇔','⇕','⇖','⇗','⇘','⇙','⇄','⇅','⇆','⇇','⇈','⇉','⇊','⇋','⇌',
     '➜','➤','➔','➙','➛','➝','➞','➟','➠','➡','➢','➣','➥','➦','➧','➨','➩','➪','➫','➬','➭','➮','➯','➱','➲','➳',
     '▶','◀','▲','▼','▷','◁','△','▽','▸','◂','▴','▾','►','◄','⤴','⤵','⤶','⤷','↺','↻','⟲','⟳','⥀','⥁',
-    '☜','☞','☝','☟','⇧','⇩','⇪','⌃','⌄','⎋','⏎','⌫','⌦','⇥','⇤']},
+    '☜','☞','☟','⇧','⇩','⇪','⌃','⌄','⎋','⏎','⌫','⌦','⇥','⇤']},
   {n:'@', name:'网址', cols:4, list:[
     'https://','http://','www.','wap.',
     '.com','.cn','.net','.org',
@@ -829,8 +834,8 @@ const EMOJI_CATS=[
   {n:'🐶', name:'动物', list:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🐙','🦑','🦐','🦀','🐠','🐟','🐡','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🐐','🦌','🐕','🐩','🐈','🐓','🦃','🕊','🐇','🐁','🐀','🐿','🦔']},
   {n:'🍎', name:'食物', list:['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🌮','🌯','🥙','🧆','🥘','🍲','🍜','🍝','🍣','🍱','🍛','🍚','🍙','🍘','🍢','🍡','🍧','🍨','🍦','🥧','🍰','🎂','🧁','🍮','🍭','🍬','🍫','🍿','🍩','🍪','☕️','🍵','🧃','🥤','🧋','🍶','🍺','🍷','🥂','🍸','🍹']},
   {n:'⚽️', name:'活动', list:['⚽️','🏀','🏈','⚾️','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🥅','⛳️','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛷','⛸️','🥌','🎿','⛷️','🏂','🏆','🥇','🥈','🥉','🏅','🎖','🎗','🎫','🎟','🎪','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🪕','🎻','🎲','♟️','🎯','🎳','🎮','🎰','🧩']},
-  {n:'💡', name:'物品', list:['⌚️','📱','💻','⌨️','🖥','🖨','🖱','🕹','💾','💿','📷','📸','📹','🎥','📞','☎️','📟','📺','📻','🧭','⏰️','⏱️','⌛️','⏳️','📡','🔋','🔌','💡','🔦','🕯','🧯','🛢','💸','💵','💴','💶','💷','💰','💳','🧾','💎','⚖️','🔧','🔨','⚒️','🛠','⚙️','🔩','⚗️','🧪','🧫','🧬','🔬','🔭','📡','💉','🩹','💊','🚪','🛏','🛋','🚽','🚿','🛁','🧴','🧷','🧹','🧺','🧻','🧼','🔑','🗝','🔒','🔓']},
-  {n:'❤️', name:'符号', list:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','☸️','✡️','🔯','🕎','☯️','☦️','⛎️','♈️','♉️','♊️','♋️','♌️','♍️','♎️','♏️','♐️','♑️','♒️','♓️','🆔','⚛️','✴️','🌟','💫','⭐️','🌠','✨️','💯','🔥','💥','💢','💦','💨','🕳','💬','💭','🗯','♻️','✅️','❌️','❎️','➕️','➖️','➗️','✖️','💲','💱','™️','©','®']},
+  {n:'💡', name:'物品', list:['⌚️','📱','💻','⌨️','🖥','🖨','🖱','🕹','💾','💿','📷','📸','📹','🎥','📞','☎️','✉️','📧','📟','📺','📻','🧭','⏰️','⏱️','⌛️','⏳️','📡','🔋','🔌','💡','🔦','🕯','🧯','🛢','💸','💵','💴','💶','💷','💰','💳','🧾','💎','⚖️','🔧','🔨','⚒️','🛠','⚙️','🔩','⚗️','🧪','🧫','🧬','🔬','🔭','📡','💉','🩹','💊','🚪','🛏','🛋','🚽','🚿','🛁','🧴','🧷','🧹','🧺','🧻','🧼','🔑','🗝','🔒','🔓']},
+  {n:'❤️', name:'符号', list:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','☸️','✡️','🔯','🕎','☯️','☦️','⛎️','♈️','♉️','♊️','♋️','♌️','♍️','♎️','♏️','♐️','♑️','♒️','♓️','🆔','⚛️','✴️','🌟','💫','⭐️','🌠','✨️','💯','🔥','💥','💢','💦','💨','🕳','💬','💭','🗯','♻️','✅️','❌️','❎️','➕️','➖️','➗️','✖️','💲','💱','™️','©','®','⚠️','⚡','☢️','☣️','✳️','❇️','☀️','⛅','☁️','🌧️','⛈️','❄️','☃️','☂️','☔','🌈','☄️','♨️']},
   {n:'🚗', name:'出行', list:['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🛴','🚲','🛵','🏍','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩','💺','🚁','🚀','🛸','🛶','⛵️','🚤','🛥','🛳','⛴️','🚢','⚓️','🏠','🏡','🏢','🏣','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪️','🕌','🛕','🕍','⛲️','⛺️','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉']},
   {n:'🌍', name:'地球', flag:true, list:[]},   // 国家/地区在 buildEmoji 内特殊排版，见 FLAG_LEFT/RIGHT/OTHER；后续由地球编辑器导出全量并入
 ];
@@ -983,78 +988,227 @@ function playClick() {
     src.connect(ng); ng.connect(ac.destination); src.start(t);
   } catch(e) {}
 }
-// ===== #11 钢琴音效系统：让输入伴随声音享受 =====
-//   主键盘前两行19键(QWERTYUIOP+ASDFGHJKL)从左到右=低→中→高音区(C大调白键 C3→G5)，
-//   第3行 ZXCVBNM=7个百搭和弦(C·Dm·Em·F·G·Am·G7)；
-//   九宫 2~9=do re mi fa sol la si 高do(C4→C5)，1=C和弦、0=G和弦。
+// ===== #9 音效体系 v2：音效主题(默认/钢琴/水晶)进编码栏轨道；钢琴引擎全重写 =====
+//   钢琴：6分音失谐加性+双振荡合唱+带通琴槌瞬态+压限总线——明亮通透不再闷；
+//   音区整体上移(第1行=C5起亮音区、第2行=C4中音区)；和弦低根音+中声部四音配置更饱满；
+//   按住不放=音符持续鸣响(绵音)，抬指柔性释放——真实钢琴踏板质感。
+let sndTheme='click';   // 'click'默认机械 | 'piano'钢琴 | 'crystal'水晶
+try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click') sndTheme=st; }catch(e){}
+function saveSndTheme(){ try{ KV.set('kbSndTheme',sndTheme); mirrorPrefs(); }catch(e){} }
 const _midiF=(m)=>440*Math.pow(2,(m-69)/12);
-function playPiano(midi, vel){
-  if(!soundOn) return;
-  const ac=_ensureAudio(); if(!ac) return;
+// 总线：柔性压限器——多音齐鸣不破音，整体响度可以放心提上去
+let _sndBusNode=null;
+function _sndBus(){
+  const ac=_ensureAudio(); if(!ac) return null;
+  if(!_sndBusNode){
+    try{
+      const comp=ac.createDynamicsCompressor();
+      comp.threshold.value=-14; comp.knee.value=22; comp.ratio.value=5;
+      comp.attack.value=0.002; comp.release.value=0.16;
+      const g=ac.createGain(); g.gain.value=1.0;
+      g.connect(comp); comp.connect(ac.destination);
+      _sndBusNode=g;
+    }catch(e){ _sndBusNode=null; return null; }
+  }
+  return _sndBusNode;
+}
+// 钢琴单音发声核：返回 {release()} 供按住/抬指控制。sustain=true 时进入持续段直到 release。
+function _pianoVoice(midi, vel, sustain){
+  const ac=_ensureAudio(); if(!ac) return null;
+  const bus=_sndBus(); if(!bus) return null;
   try{
-    const t=ac.currentTime, f=_midiF(midi), v=(vel==null?0.16:vel);
+    const t=ac.currentTime, f=_midiF(midi), v=(vel==null?0.30:vel);
     const out=ac.createGain(); out.gain.value=1;
-    // 音高追随低通：高音更亮、低音更醇
+    // 音高追随低通：整体明显更亮(f*10, 上限12k)——旧 f*7/9k 是"闷"的直接原因之一
     const lp=ac.createBiquadFilter(); lp.type='lowpass';
-    lp.frequency.value=Math.min(9000, f*7); lp.Q.value=0.5;
-    out.connect(lp); lp.connect(ac.destination);
-    // 4谐波加性 + 轻微失谐(inharmonicity)——钢琴弦刚性带来的金属光泽
-    const H=[[1,1.0],[2.001,0.42],[3.004,0.18],[4.009,0.09]];
+    lp.frequency.setValueAtTime(Math.min(12000, Math.max(2600, f*10)), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.min(9000, Math.max(1800, f*5)), t+0.9);   // 音色随衰减变暗(真实琴弦)
+    lp.Q.value=0.4;
+    out.connect(lp); lp.connect(bus);
+    const stops=[];
+    // 6分音 + 弦刚性失谐；基音配一对±3.5cent失谐副振荡(合唱感=琴体共鸣的宽度)
+    const H=[[1,1.0],[2.002,0.50],[3.006,0.24],[4.012,0.12],[5.02,0.06],[6.03,0.035]];
+    const gains=[];
     H.forEach(([r,a],i)=>{
-      const o=ac.createOscillator(), g=ac.createGain();
-      o.type='sine'; o.frequency.value=f*r;
-      const A=v*a;
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(A, t+0.006);           // 锤击极快起音
-      g.gain.exponentialRampToValueAtTime(A*0.28, t+0.10);       // 快衰段
-      g.gain.exponentialRampToValueAtTime(0.0001, t+1.05-i*0.12);// 长尾(高次谐波先散)
-      o.connect(g); g.connect(out);
-      o.start(t); o.stop(t+1.1);
+      const mk=(det)=>{
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type='sine'; o.frequency.value=f*r; if(det) o.detune.value=det;
+        const A=v*a*(det?0.5:1);
+        g.gain.setValueAtTime(0.0001,t);
+        g.gain.exponentialRampToValueAtTime(A, t+0.005);            // 锤击极快起音
+        g.gain.exponentialRampToValueAtTime(A*0.42, t+0.09);        // 快衰段
+        if(sustain){ g.gain.exponentialRampToValueAtTime(A*0.16, t+0.9); }              // 持续段：缓慢沉降(绵音)
+        else { g.gain.exponentialRampToValueAtTime(0.0001, t+2.0-i*0.22); }             // 一次击弦：2秒长尾自然消散
+        o.connect(g); g.connect(out);
+        o.start(t); if(!sustain) o.stop(t+2.1);
+        stops.push(o); gains.push(g);
+      };
+      mk(0); if(i===0){ mk(3.5); mk(-3.5); }
     });
-    // 锤击噪声瞬态：给"叮"加上"嗒"的琴槌质感
-    const N=Math.floor(ac.sampleRate*0.010);
+    // 琴槌瞬态：带通噪声(1.2k~4k)——"嗒"的木槌接触感，不再是宽带白噪的"沙"
+    const N=Math.floor(ac.sampleRate*0.012);
     const buf=ac.createBuffer(1,N,ac.sampleRate);
     const d=buf.getChannelData(0);
-    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,3); }
+    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,2.6); }
     const src=ac.createBufferSource(); src.buffer=buf;
-    const ng=ac.createGain(); ng.gain.value=v*0.22;
-    const hp=ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=Math.max(800,f*1.5);
-    src.connect(ng); ng.connect(hp); hp.connect(out); src.start(t);
+    const ng=ac.createGain(); ng.gain.value=v*0.30;
+    const bp=ac.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=Math.min(4200, Math.max(1200, f*2.2)); bp.Q.value=0.8;
+    src.connect(ng); ng.connect(bp); bp.connect(out); src.start(t);
+    return {
+      release(){
+        try{
+          const rt=ac.currentTime;
+          gains.forEach(g=>{ g.gain.cancelScheduledValues(rt);
+            g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||0.0001), rt);
+            g.gain.exponentialRampToValueAtTime(0.0001, rt+0.45); });   // 柔性放键(制音器落弦)
+          stops.forEach(o=>{ try{ o.stop(rt+0.5); }catch(_){} });
+        }catch(e){}
+      }
+    };
+  }catch(e){ return null; }
+}
+function playPiano(midi, vel){ _pianoVoice(midi, vel, false); }
+// 水晶音色：FM 铃振——载波+3.53×调制器(指数衰减调制指数)+八度泛音闪光，空灵通透
+function playCrystal(midi, vel){
+  if(!soundOn) return;
+  const ac=_ensureAudio(); if(!ac) return; const bus=_sndBus(); if(!bus) return;
+  try{
+    const t=ac.currentTime, f=_midiF(midi+12), v=(vel==null?0.20:vel);
+    const car=ac.createOscillator(), cg=ac.createGain();
+    const mod=ac.createOscillator(), mg=ac.createGain();
+    car.type='sine'; car.frequency.value=f;
+    mod.type='sine'; mod.frequency.value=f*3.53;
+    mg.gain.setValueAtTime(f*2.4,t); mg.gain.exponentialRampToValueAtTime(f*0.05,t+0.55);
+    mod.connect(mg); mg.connect(car.frequency);
+    cg.gain.setValueAtTime(0.0001,t);
+    cg.gain.exponentialRampToValueAtTime(v,t+0.004);
+    cg.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
+    car.connect(cg); cg.connect(bus);
+    const sp=ac.createOscillator(), sg=ac.createGain();   // 八度闪光泛音
+    sp.type='sine'; sp.frequency.value=f*2.0;
+    sg.gain.setValueAtTime(0.0001,t);
+    sg.gain.exponentialRampToValueAtTime(v*0.28,t+0.004);
+    sg.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    sp.connect(sg); sg.connect(bus);
+    car.start(t); mod.start(t); sp.start(t);
+    car.stop(t+1.5); mod.stop(t+1.5); sp.stop(t+0.6);
   }catch(e){}
 }
 function playChord(midis){
   if(!soundOn) return;
-  // 轻微琶音错位(6ms/音)——真实手弹质感，比机械齐发更悦耳
-  midis.forEach((m,i)=>setTimeout(()=>playPiano(m,0.11),i*6));
+  // 14ms 柔性琶音 + 递减力度——像手指从低到高拂过琴键，饱满不轰
+  midis.forEach((m,i)=>setTimeout(()=>playPiano(m, 0.20*Math.pow(0.88,i)),i*14));
 }
-// C大调19白键：C3..G5，覆盖低/中/高三音区
-const _PIANO_ROW=[48,50,52,53,55,57,59, 60,62,64,65,67,69,71, 72,74,76,77,79];
+function playCrystalChord(midis){
+  if(!soundOn) return;
+  midis.forEach((m,i)=>setTimeout(()=>playCrystal(m, 0.13),i*22));
+}
+// #9 音区整体上移：第1行(QWERTYUIOP)=C5→E6 亮音区，第2行(ASDFGHJKL)=C4→D5 中音区——不再闷在低音区
+const _PIANO_ROW=[72,74,76,77,79,81,83,84,86,88, 60,62,64,65,67,69,71,72,74];
 const _PIANO_KEYMAP=(()=>{ const m={}; 'QWERTYUIOPASDFGHJKL'.split('').forEach((k,i)=>m[k]=_PIANO_ROW[i]); return m; })();
-// 7个百搭和弦：C Dm Em F G Am G7(万能进行随手可弹)
-const _CHORDS={Z:[48,52,55],X:[50,53,57],C:[52,55,59],V:[53,57,60],B:[55,59,62],N:[57,60,64],M:[55,59,62,65]};
-// 键位→发声：字母键在纯输入态(非修饰层)按音符/和弦发声，其余仍是机械click
+// #9 和弦重配声：低八度根音+中声部三/四音——厚而不浑(C·Dm·Em·F·G·Am·G7)
+const _CHORDS={Z:[48,60,64,67],X:[50,62,65,69],C:[52,64,67,71],V:[53,65,69,72],B:[55,67,71,74],N:[57,69,72,76],M:[55,67,71,74,77]};
+// 按住持续鸣响(绵音)登记表：key字符 → voice；安全网 3s 自动释放，绝不留永响音
+const _heldVoices={};
+function pianoDown(k, midi){
+  pianoUp(k);
+  const vc=_pianoVoice(midi, 0.30, true);
+  if(vc){ _heldVoices[k]={v:vc, t:setTimeout(()=>pianoUp(k), 3000)}; }
+}
+function pianoUp(k){
+  const h=_heldVoices[k]; if(!h) return;
+  delete _heldVoices[k];
+  clearTimeout(h.t);
+  try{ h.v.release(); }catch(e){}
+}
+function releaseAllHeld(){ Object.keys(_heldVoices).forEach(pianoUp); }
+document.addEventListener('touchend',  ()=>setTimeout(releaseAllHeld,30), {passive:true});
+document.addEventListener('touchcancel',()=>releaseAllHeld(), {passive:true});
+// 键位→发声(按下)：随音效主题分发；修饰层一律回落机械click
 function keySound(k){
   if(!soundOn) return;
   if(!ctrl && !ctrlLock && !alt){
-    if(_PIANO_KEYMAP[k]!=null){ playPiano(_PIANO_KEYMAP[k]); return; }
-    if(_CHORDS[k]){ playChord(_CHORDS[k]); return; }
+    if(sndTheme==='piano'){
+      if(_PIANO_KEYMAP[k]!=null){ pianoDown(k,_PIANO_KEYMAP[k]); return; }
+      if(_CHORDS[k]){ playChord(_CHORDS[k]); return; }
+    } else if(sndTheme==='crystal'){
+      if(_PIANO_KEYMAP[k]!=null){ playCrystal(_PIANO_KEYMAP[k]); return; }
+      if(_CHORDS[k]){ playCrystalChord(_CHORDS[k]); return; }
+    }
   }
   playClick();
 }
-// 九宫按键→音阶：'2'~'9'=C4..C5，'1'=C和弦，'0'=G和弦
+// 键位抬指：释放持续音(仅钢琴主题有持续段)
+function keySoundUp(k){ pianoUp(k); }
+// 长按连发时的每拍声：音乐主题下音符已在绵延，不再逐拍点击；默认主题保持机械连击声
+function keySoundRep(k){
+  if(!soundOn) return;
+  const musical = !ctrl && !ctrlLock && !alt && sndTheme!=='click' && (_PIANO_KEYMAP[k]!=null||_CHORDS[k]);
+  if(musical) return;
+  playClick();
+}
+// 九宫按键：'2'~'9'=do~高do(C4→C5)，'1'=C和弦，'0'=G和弦；主题分发同上
 const _T9_NOTES={'2':60,'3':62,'4':64,'5':65,'6':67,'7':69,'8':71,'9':72};
 function t9Sound(k){
   if(!soundOn) return;
-  if(_T9_NOTES[k]!=null){ playPiano(_T9_NOTES[k]); return; }
-  if(k==='1'){ playChord([60,64,67]); return; }
-  if(k==='0'){ playChord([55,59,62]); return; }
+  if(sndTheme==='piano'){
+    if(_T9_NOTES[k]!=null){ pianoDown('t9'+k,_T9_NOTES[k]); return; }
+    if(k==='1'){ playChord([48,60,64,67]); return; }
+    if(k==='0'){ playChord([55,67,71,74]); return; }
+  } else if(sndTheme==='crystal'){
+    if(_T9_NOTES[k]!=null){ playCrystal(_T9_NOTES[k]); return; }
+    if(k==='1'){ playCrystalChord([60,64,67]); return; }
+    if(k==='0'){ playCrystalChord([55,59,62]); return; }
+  }
   playClick();
 }
+function t9SoundUp(k){ pianoUp('t9'+k); }
 function toggleSound(){
   soundOn=!soundOn;
   try{ KV.set('kbSound', soundOn?'1':'0'); mirrorPrefs(); }catch(e){}
   if(soundOn) playClick();   // 开启时给一声反馈
   buildKb();                 // 重建以刷新 Ctrl 模式 L 键静音图标态
+}
+// ===== #9 音效轨道：Ctrl+音效 → 编码栏轨道排开 静音/默认/钢琴/水晶 直选 =====
+const SND_OPTS=[{n:'静音',v:null},{n:'默认',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'}];
+function curSndIdx(){
+  if(!soundOn) return 0;
+  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : 1;
+}
+function applySndOpt(i){
+  const o=SND_OPTS[i]; if(!o) return;
+  const wasMute=!soundOn;
+  if(o.v===null){ if(soundOn){ soundOn=false; try{ KV.set('kbSound','0'); mirrorPrefs(); }catch(e){} } }
+  else{
+    if(!soundOn){ soundOn=true; try{ KV.set('kbSound','1'); mirrorPrefs(); }catch(e){} }
+    sndTheme=o.v; saveSndTheme();
+    // 试听反馈：选中即闻其声
+    if(o.v==='piano') playChord([48,60,64,67]);
+    else if(o.v==='crystal') playCrystal(72);
+    else playClick();
+  }
+  if(wasMute!==(!soundOn)) setTimeout(buildKb,0);   // 静音态翻转→刷新 L 键图标
+}
+function toggleSoundStrip(){
+  if(_activePanel==='sound'){ clearCatStrip(); updateBtnStates(); return; }
+  closeApp();
+  ['symPanel','emjPanel','clipPanel'].forEach(id=>{ const p=document.getElementById(id); if(p) p.classList.add('hidden'); });
+  _activePanel='sound'; buildSoundStrip(); updateBtnStates();
+}
+function buildSoundStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip spread';
+  const cur=curSndIdx();
+  SND_OPTS.forEach((o,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip'+(i===cur?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    d.textContent=o.n;
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==curSndIdx()) playPop(); applySndOpt(i); buildSoundStrip(); };
+  syncCodeBar();
 }
 // Q弹气泡音效：短促上扬 sine 啳音(420→980Hz)，用于[符号][表情]分类胶囊被选中时的反馈
  function playPop(){
@@ -1093,6 +1247,49 @@ function togglePyGrid(){
    跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
    释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
    非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
+// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
+function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }
+function _springHome(el, isY, fromPx){
+  const prop=isY?'translateY':'translateX';
+  _springCancel(el);
+  try{
+    const w=2*Math.PI/0.42, z=0.30, wd=w*Math.sqrt(1-z*z);   // 周期0.42s·阻尼比0.30：Q弹且两拍内收敛
+    const D=0.72, N=30, frames=[];
+    for(let i=0;i<=N;i++){
+      const t=D*i/N;
+      const x=(i===N)?0:fromPx*Math.exp(-z*w*t)*Math.cos(wd*t);
+      frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
+    }
+    el.style.transform='';
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; };
+  }catch(e){
+    el.style.transition='transform .55s cubic-bezier(.22,1.9,.36,.94)';
+    el.style.transform='';
+    setTimeout(()=>{ el.style.transition=''; el.style.willChange=''; },570);
+  }
+}
+// #7 惯性撞墙弹簧：以余速为初速度的受击弹簧 x(t)=A·e^(-ζωt)·sin(ωd·t)——飞出→回弹→震荡收敛
+function _springKick(el, isY, amp, onDone){
+  const prop=isY?'translateY':'translateX';
+  _springCancel(el);
+  try{
+    const w=2*Math.PI/0.50, z=0.28, wd=w*Math.sqrt(1-z*z);
+    const D=0.85, N=34;
+    let peak=0;
+    for(let i=1;i<=N;i++){ const t=D*i/N; const x=Math.exp(-z*w*t)*Math.sin(wd*t); if(Math.abs(x)>peak) peak=Math.abs(x); }
+    const frames=[];
+    for(let i=0;i<=N;i++){
+      const t=D*i/N;
+      const x=(i===N)?0:amp*Math.exp(-z*w*t)*Math.sin(wd*t)/peak;
+      frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
+    }
+    el.style.willChange='transform';
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; if(onDone) onDone(); };
+    return true;
+  }catch(e){ if(onDone) onDone(); return false; }
+}
 function _edgeSpring(el, axis){
   const prop = axis==='x' ? 'translateX' : 'translateY';
   let p0=0, pull=0, engaged=false, raf=0;
@@ -1100,15 +1297,14 @@ function _edgeSpring(el, axis){
   const atEnd  =()=> axis==='x' ? el.scrollLeft+el.clientWidth >=el.scrollWidth -1
                                 : el.scrollTop +el.clientHeight>=el.scrollHeight-1;
   const pos=e=> axis==='x' ? e.touches[0].clientX : e.touches[0].clientY;
-  const apply=()=>{ raf=0; el.style.transform = pull ? (prop+'('+pull+'px)') : ''; };
+  const apply=()=>{ raf=0; el.style.transform = pull ? (prop+'('+pull+'px) translateZ(0)') : ''; };   // #8 translateZ强制GPU层，大网格外拉不卡顿
   const release=()=>{
     if(!engaged && !pull) return;
-    engaged=false; pull=0;
-    el.style.transition='transform .55s cubic-bezier(.22,1.9,.36,.94)';   // Q弹回位：更大过冲+柔性震荡收尾
-    el.style.transform='';
-    setTimeout(()=>{ el.style.transition=''; }, 570);
+    const cur=pull; engaged=false; pull=0;
+    if(cur) _springHome(el, axis!=='x', cur);
+    else { el.style.transform=''; el.style.willChange=''; }
   };
-  el.addEventListener('touchstart',e=>{ p0=pos(e); engaged=false; pull=0; el.style.transition=''; },{passive:true});
+  el.addEventListener('touchstart',e=>{ p0=pos(e); engaged=false; pull=0; _springCancel(el); el.style.transition=''; },{passive:true});
   el.addEventListener('touchmove',e=>{
     const d=pos(e)-p0;
     if(!engaged){
@@ -1116,6 +1312,7 @@ function _edgeSpring(el, axis){
       else if(atEnd() && d<-4) engaged=-1;    // 末缘继续外拉
       else return;                            // 正常滚动区间：完全不接管
       p0=pos(e);                              // 以入界点为零位，跟手不跳变
+      el.style.willChange='transform';        // #8 提前提升合成层：首帧不再因层创建掉帧
       return;
     }
     const raw=(pos(e)-p0)*engaged;
@@ -1180,31 +1377,26 @@ function attachScrollHint(el, axis){
 function attachFlingBounce(el, axis){
   if(!el || el._fling) return; el._fling=true;
   const isY=(axis!=='x');
-  const prop=isY?'translateY':'translateX';
-  let lastP=0,lastT=0,v=0,touching=false,bouncing=false;
+  let lastP=0,lastT=0,v=0,vPeak=0,touching=false,bouncing=false;
   const posOf=()=>isY?el.scrollTop:el.scrollLeft;
   const maxOf=()=>isY?(el.scrollHeight-el.clientHeight):(el.scrollWidth-el.clientWidth);
-  el.addEventListener('touchstart',()=>{ touching=true; },{passive:true});
+  el.addEventListener('touchstart',()=>{ touching=true; vPeak=0; },{passive:true});
   el.addEventListener('touchend',()=>{ touching=false; },{passive:true});
   el.addEventListener('scroll',()=>{
     const now=performance.now(), p=posOf();
-    if(lastT){ const dt=now-lastT; if(dt>0&&dt<120) v=(p-lastP)/dt; }
+    if(lastT){ const dt=now-lastT; if(dt>0&&dt<120){ v=(p-lastP)/dt; if(Math.abs(v)>Math.abs(vPeak)) vPeak=v; } }
     lastP=p; lastT=now;
     if(touching||bouncing) return;
     const M=maxOf(); if(M<=2) return;
     let dir=0;
-    if(p<=0 && v<-0.25) dir=1;          // 冲到起始端
-    else if(p>=M-1 && v>0.25) dir=-1;   // 冲到末端
+    // #7 末帧速度常已衰减→用近程峰值速度兜底判定，撞墙必有回弹(阈值0.25→0.12)
+    const vEff=(Math.abs(v)>0.05)?v:vPeak;
+    if(p<=0 && vEff<-0.12) dir=1;          // 冲到起始端
+    else if(p>=M-1 && vEff>0.12) dir=-1;   // 冲到末端
     if(!dir) return;
     bouncing=true;
-    const amp=Math.min(68, Math.abs(v)*48);   // 余速→过冲幅度(加大更灵动)
-    el.style.transition='none';
-    el.style.transform=prop+'('+(dir*amp)+'px)';
-    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
-      el.style.transition='transform .55s cubic-bezier(.22,1.9,.36,.94)';   // Q弹回位：柔性震荡
-      el.style.transform='';
-      setTimeout(()=>{ el.style.transition=''; bouncing=false; v=0; }, 570);
-    });});
+    const amp=Math.min(72, 8+Math.abs(vEff)*52);   // 余速→过冲幅度(带保底，轻甩也有生命感)
+    _springKick(el, isY, dir*amp, ()=>{ bouncing=false; v=0; vPeak=0; });
   },{passive:true});
 }
 function attachRubberBand(el){ if(!el || el._rubber) return; el._rubber=true; _edgeSpring(el,'y'); attachFlingBounce(el,'y'); attachScrollHint(el,'y'); }
@@ -1233,6 +1425,7 @@ function addKeyListeners(div, fn, immediate, noRepeat) {
   const cancelRepeat = () => {
     clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
     div.classList.remove('pressed');
+    try{ if(div._sndUp) div._sndUp(); }catch(e){}   // #9 抬指释放持续音(钢琴绵音收尾)
     _kbRepeatCancels.delete(cancelRepeat);
   };
   const startLong = () => {
@@ -1244,7 +1437,7 @@ function addKeyListeners(div, fn, immediate, noRepeat) {
         _longFired = true;
         _r = setInterval(() => {
           if (!div.isConnected) { cancelRepeat(); return; }
-          if (immediate || !_moved) { playClick(); fn(); }
+          if (immediate || !_moved) { (div._sndRep||playClick)(); fn(); }   // #9 音乐主题长按=音符绵延不逐拍点击
         }, 50);
       }
     }, 400);
@@ -1427,7 +1620,7 @@ function buildPyGridKb(){
   const fnMap = t9Ctrl ? {
     '1':{t:_icoSelAll,s:'全选',fn:()=>handleCtrl('a'),one:true},
     '2':{t:'↑',s:'文首',fn:()=>handleCtrl('j')},
-    '3':{t:(soundOn?_icoSndOn:_icoSndOff),s:(soundOn?'音效':'静音'),fn:()=>{toggleSound();buildPyGridKb();},one:true},
+    '3':{t:(soundOn?_icoSndOn:_icoSndOff),s:(soundOn?'音效':'静音'),fn:()=>{toggleSoundStrip();buildPyGridKb();},one:true},
     '4':{t:'←',s:'行首',fn:()=>handleCtrl('b')},
     '5':{t:_icoPaste,s:'粘贴',fn:()=>handleCtrl('v'),one:true},
     '6':{t:'→',s:'行尾',fn:()=>handleCtrl('m')},
@@ -1458,6 +1651,8 @@ function buildPyGridKb(){
     }
     const kk=mk(d0, sub, ' t9num', ()=>t9press(d0), grow==null?1:grow, true);
     kk._snd=()=>t9Sound(d0);   // #11 九宫2~9=do~高do，1/0=和弦
+    kk._sndUp=()=>t9SoundUp(d0);                                   // #9 抬指释放绵音
+    kk._sndRep=()=>{ if(sndTheme==='click') playClick(); };        // #9 音乐主题长按不逐拍点击
     return kk;
   };
   // 空占位（对齐用）
@@ -1724,6 +1919,7 @@ function buildRow(id, keys) {
     // 纯输入态：字母键按下(touchstart)即时出码，像固件键盘瞬时响应、快打不丢码；
     // 修饰层(alt/ctrl/锁定)下是方向/Tab功能键，保持 touchend 防连触误选。
     div._snd=()=>keySound(k);   // #11 前两行=钢琴音区(修饰层内 keySound 自动回落click)
+    div._sndUp=()=>keySoundUp(k); div._sndRep=()=>keySoundRep(k);   // #9 绵音释放/连发拍音
     addKeyListeners(div,()=>pressKey(k), !alt && !ctrl && !ctrlLock);
     row.appendChild(div);
   });
@@ -1767,6 +1963,7 @@ function buildRow3() {
       div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:8px">${subMap[k]}</span>`:''}`;
     }
     div._snd=()=>keySound(k);   // #11 第3行=百搭和弦
+    div._sndUp=()=>keySoundUp(k); div._sndRep=()=>keySoundRep(k);   // #9 绵音释放/连发拍音
     addKeyListeners(div,()=>pressKey(k), !alt && !ctrl && !ctrlLock);
     row.appendChild(div);
   });
@@ -2732,7 +2929,7 @@ function pressKey(k) {
     if(l==='x'){ handleCtrl('x'); return; }   // 剪切
     if(l==='c'){ handleCtrl('c'); return; }   // 复制
     if(l==='v'){ handleCtrl('v'); return; }   // 粘贴
-    if(l==='l'){ toggleSound(); buildKb(); return; }                         // 音效开关
+    if(l==='l'){ toggleSoundStrip(); return; }                               // #9 音效轨道(静音/默认/钢琴/水晶)
     if(l==='g'&&mode==='pinyin'){ togglePyGrid(); return; }                  // 九宫格
     // 其余键在锁定层无动作，忽略
     return;
@@ -2749,7 +2946,7 @@ function pressKey(k) {
       // Ctrl 功能层
       const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
       if(numMap[l]){ ctrl=false; commit(numMap[l]); setTimeout(buildKb,0); return; }   // 第一排数字
-      if(l==='l'){ ctrl=false; toggleSound(); return; }                                 // Ctrl+L：音效开关
+      if(l==='l'){ ctrl=false; toggleSoundStrip(); setTimeout(buildKb,0); return; }       // #9 Ctrl+L：音效轨道
       if(l==='f'){ ctrl=false; openWordMaker(); setTimeout(buildKb,0); return; }          // Ctrl+F：造词
       if(l==='g'&&mode==='pinyin'){ ctrl=false; togglePyGrid(); return; }               // Ctrl+G：拼音九宫格
     }
@@ -3703,7 +3900,7 @@ function showClipDetail(txt, idx){
   };
   bind(back, closeDoor);
   bind(delBtn, ()=>{ kbConfirm('确认删除此内容？',()=>{ clips.splice(idx,1); saveClips(); closeDoor(); refreshClip(); }); });
-  bind(putBtn, ()=>{ playClick(); commit(txt); closeDoor(); toggleClip(); });
+  bind(putBtn, ()=>{ playClick(); commit(txt); closeDoor(); });   // #5 上屏后回到剪贴展开列表，不折回[应用]
 }
 // ===== [应用]胶囊轨道：防截屏(车头)/独立应用(车厢)/剪贴隔离(车尾) 入驻编码栏轨道，像动车一样可横滑 =====
 const CLIP_APPS=[
@@ -3858,29 +4055,28 @@ function refreshClip() {
   clips.forEach((txt,idx)=>{
     const row=document.createElement('div');
     const _ime=document.getElementById('ime'); const _dark=!!(_ime&&_ime.className.indexOf('t-dark')>=0);   // 主题类挂在#ime
-    // #3 顶级卡片：左缘主题色细签条 + 双行clamp预览 + 底部字数微标，按压微缩反馈
+    // #5 现代锐利卡片(与笔记本-贴同款)：硬直角+1.5px实线边+硬偏移投影+等宽字微标；按压=贴地(位移吃掉投影)
     row.className='clip-card';
-    row.style.cssText='position:relative;display:flex;align-items:stretch;margin-top:7px;'+
-      'border-radius:12px;cursor:pointer;overflow:hidden;'+
-      (_dark ? 'background:rgba(255,225,120,0.09);box-shadow:inset 0 0 0 1px rgba(255,225,120,0.10);'
-             : 'background:rgba(255,255,255,0.85);box-shadow:0 1px 3px rgba(60,30,10,0.07),inset 0 0 0 1px rgba(120,60,20,0.05);')+
-      'color:var(--ktxt,#2a1408);transition:transform .12s cubic-bezier(.3,.7,.4,1.4),background .12s';
-    const bar=document.createElement('div');
-    bar.style.cssText='width:3.5px;flex:0 0 auto;background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));opacity:.8';
-    row.appendChild(bar);
+    const _bd=_dark?'rgba(255,235,190,0.72)':'#111';
+    const _sh=_dark?'rgba(255,235,190,0.26)':'#111';
+    row.style.cssText='position:relative;display:flex;align-items:stretch;margin-top:9px;margin-right:3px;'+
+      'cursor:pointer;overflow:hidden;border:1.5px solid '+_bd+';'+
+      (_dark ? 'background:rgba(34,29,18,0.94);' : 'background:#fff;')+
+      'box-shadow:3px 3px 0 '+_sh+';'+
+      'color:var(--ktxt,#2a1408);transition:transform .1s ease,box-shadow .1s ease';
     const bodyBox=document.createElement('div');
-    bodyBox.style.cssText='flex:1;min-width:0;padding:9px 12px 7px;display:flex;flex-direction:column;gap:3px';
+    bodyBox.style.cssText='flex:1;min-width:0;padding:10px 12px 8px;display:flex;flex-direction:column;gap:4px';
     const t=document.createElement('div');
-    t.style.cssText='font-size:13.5px;line-height:1.45;word-break:break-all;overflow:hidden;'+
+    t.style.cssText='font-size:13.5px;line-height:1.5;word-break:break-all;overflow:hidden;'+
       'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical';
     t.textContent=txt;
     const meta=document.createElement('div');
-    meta.style.cssText='font-size:10.5px;opacity:.45;letter-spacing:.3px';
-    meta.textContent=txt.length+' 字';
+    meta.style.cssText='font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;opacity:.5;letter-spacing:.6px';
+    meta.textContent=(idx===0?'最新 · ':'')+txt.length+' 字';
     bodyBox.appendChild(t); bodyBox.appendChild(meta);
     row.appendChild(bodyBox);
-    row.addEventListener('touchstart',()=>{ row.style.transform='scale(0.985)'; },{passive:true});
-    ['touchend','touchcancel'].forEach(ev=>row.addEventListener(ev,()=>{ row.style.transform=''; },{passive:true}));
+    row.addEventListener('touchstart',()=>{ row.style.transform='translate(2px,2px)'; row.style.boxShadow='1px 1px 0 '+_sh; },{passive:true});
+    ['touchend','touchcancel'].forEach(ev=>row.addEventListener(ev,()=>{ row.style.transform=''; row.style.boxShadow='3px 3px 0 '+_sh; },{passive:true}));
     const act=document.createElement('div');
     act.style.cssText='display:none;align-items:center;gap:6px;flex-shrink:0';
     const put=document.createElement('div');
@@ -3913,7 +4109,7 @@ function refreshClip() {
       if(!moved){ openDoor(e); }
     },{passive:false});
     act.setAttribute('data-clip-act','1');
-    const doPut=(e)=>{ e.preventDefault(); e.stopPropagation(); playClick(); commit(txt); toggleClip(); };
+    const doPut=(e)=>{ e.preventDefault(); e.stopPropagation(); playClick(); commit(txt); };   // #5 上屏后停留剪贴展开区，不折回[应用]
     put.addEventListener('mousedown',doPut);
     put.addEventListener('touchstart',doPut,{passive:false});
     const doDel=(e)=>{ e.preventDefault(); e.stopPropagation();
@@ -3924,7 +4120,7 @@ function refreshClip() {
     body.appendChild(row);
   });
   const foot=document.createElement('div');
-  foot.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-top:2px';
+  foot.style.cssText='display:flex;justify-content:center;align-items:center;padding:10px 10px;margin-top:2px';   // #5 清空历史居中
   const clr=document.createElement('div');
   let _clrArmed=false;
   // #10 专业药丸样式：默认幽灵态(细边+图标)，武装态填充警示红并轻微放大
@@ -4006,7 +4202,11 @@ const isAndroid = typeof Android !== 'undefined';
 const _origCommit = commit;
 window.commit = function(txt) {
   if (txt === '\n' && renameHookEnter()) return;     // 重命名浮层：回车=保存
-  if (txt !== '\n' && renameHookCommit(txt)) return; // 重命名浮层：上屏进名称缓冲
+  if (txt !== '\n' && renameHookCommit(txt)) {       // 重命名浮层：上屏进名称缓冲
+    // #1 编码必须同步归位：空格上屏首选进重命名缓冲后，若不清 code，编码保持粘连态，后续输入全部错位
+    code=''; revMode=false; if(typeof t9code!=='undefined') t9code='';
+    updateCode(); showCands([]); return;
+  }
   if (_wmActive) { wmInput(txt); return; }   // 造词模式：上屏内容进入"词"缓冲，不发往宿主
   if (isAndroid) {
     if (_routeNote()) {
