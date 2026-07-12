@@ -151,7 +151,7 @@ function buildPyGridKb(){
       const _icoIME=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
       d.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:9px">输入法</span>`;
     } else {
-      d.innerHTML=`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">Shift</span>`;
+      d.innerHTML=`<span class="km" style="font-size:15px;font-weight:600">Shift</span>`;   /* #1 字样大小=Ctrl */
     }
     addKeyListenersOnce(d,()=>{
       if(t9Ctrl){ t9Ctrl=false; switchNextIME(); buildPyGridKb(); return; }
@@ -238,8 +238,8 @@ function buildT9EnKb(){
   r1.appendChild(mk(`<span class="km"><svg width="22" height="16" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>`,
     ' func',()=>{ mtReset(); doDelete(); },RW,true));
   // 行2: [⇧Shift点亮=退出] [4] [5] [6] [0]
-  r2.appendChild(mk(`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">Shift</span>`,
-    ' func locked',()=>{ t9Shift=false; mtReset(); buildPyGridKb(); },LW,false,true));
+  r2.appendChild(mk(`<span class="km" style="font-size:15px;font-weight:600">Shift</span>`,
+    ' func locked',()=>{ t9Shift=false; mtReset(); buildPyGridKb(); },LW,false,true));   /* #1 字样大小=Ctrl */
   r2.appendChild(mtKeyEl('4'));
   r2.appendChild(mtKeyEl('5'));
   r2.appendChild(mtKeyEl('6'));

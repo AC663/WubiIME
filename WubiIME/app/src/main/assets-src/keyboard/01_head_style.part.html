@@ -277,7 +277,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .kb-row.t9row .key{height:52px}                 /* 末行让出的高度均分回前3行 */
 .kb-row.t9row.t9last .key{height:44px}          /* 末行(计算器/空格/回车)=主键盘空格键同高 */
 /* 九宫功能层副字：与"全选/音效"字样同级观感(加大加粗)，图标键同理 */
-.key.t9fnsub .ks{font-size:15px;font-weight:600;margin-top:2px;opacity:.92}
+.key.t9fnsub .ks{font-size:14px;font-weight:600;margin-top:2px;opacity:.92}   /* #1 Ctrl/Alt层键帽字样=造词字样(14px) */
 .key.t9pad{pointer-events:none;background:transparent!important;box-shadow:none!important;border:none!important}
 .t-orange .key.del-r3 svg,.t-red .key.del-r3 svg,.t-green .key.del-r3 svg,
 .t-pink .key.del-r3 svg,.t-brown .key.del-r3 svg,.t-cyan .key.del-r3 svg,.t-white .key.del-r3 svg,
@@ -519,6 +519,8 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 .t-orange .pi,.t-blue .pi,.t-purple .pi,
 .t-red .pi,.t-green .pi,.t-pink .pi,
 .t-brown .pi,.t-cyan .pi,.t-white .pi,.t-dark .pi{color:var(--ktxt)}
+.t-dark .pi{color:#f8eed4;background:linear-gradient(180deg,rgba(255,240,190,0.10),rgba(255,240,190,0.03));
+  box-shadow:inset 0 1px 0 rgba(255,240,190,0.13),0 1px 2px rgba(0,0,0,0.4)}   /* #5 暗主题：深格底+暖亮字，反差拉满 */
 .t-orange .pager-box,.t-blue .pager-box,.t-purple .pager-box,
 .t-red .pager-box,.t-green .pager-box,.t-pink .pager-box,
 .t-brown .pager-box,.t-cyan .pager-box,.t-white .pager-box,.t-dark .pager-box{background:var(--panel)}

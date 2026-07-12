@@ -93,28 +93,3 @@ function _ensureAudio(){
   if(!_audioCtx){ try{ _audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ _audioCtx=null; } }
   return _audioCtx;
 }
-function playClick() {
-  if(!soundOn) return;
-  const ac=_ensureAudio(); if(!ac) return;
-  try {
-    const t=ac.currentTime;
-    // 1) 低频"thock"主体：三角波 ~180Hz 快速下滑，模拟黑轴落底
-    const osc=ac.createOscillator(), g=ac.createGain();
-    osc.type='triangle';
-    osc.frequency.setValueAtTime(190,t);
-    osc.frequency.exponentialRampToValueAtTime(95,t+0.05);
-    g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.10,t+0.004);   // 极快起音
-    g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);  // 快速衰减
-    osc.connect(g); g.connect(ac.destination);
-    osc.start(t); osc.stop(t+0.07);
-    // 2) 短噪声"咔"层：模拟按键机械接触
-    const N=Math.floor(ac.sampleRate*0.012);
-    const buf=ac.createBuffer(1,N,ac.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,2.5); }
-    const src=ac.createBufferSource(); src.buffer=buf;
-    const ng=ac.createGain(); ng.gain.value=0.05;
-    src.connect(ng); ng.connect(ac.destination); src.start(t);
-  } catch(e) {}
-}

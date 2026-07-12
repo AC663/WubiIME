@@ -79,6 +79,7 @@ function showClipDetail(txt, idx){
   if(door) door.remove();
   door=document.createElement('div');
   door.id='clipDoor';
+  door._txt=txt; door._idx=idx;   // #3 换主题原位重开用
   // 覆盖范围=编码栏底边 → 键盘底：单条内容获得最大呈现面积，正文区可上下滚动
   let topPx=0;
   try{ const cb=document.querySelector('.code-bar'); if(cb) topPx=cb.offsetTop+cb.offsetHeight; }catch(e){}
@@ -131,6 +132,7 @@ const CLIP_APPS=[
   {id:'secure',label:'防截屏',    type:'toggle'},  // 开关胶囊居首(剪贴板 tab 已撤：展开区本身就是剪贴板)
   {id:'pwgen', label:'密码生成器', type:'app'},
   {id:'note',  label:'笔记本',    type:'app'},
+  {id:'browser',label:'浏览器',   type:'app'},
   {id:'iso',   label:'剪贴隔离',   type:'toggle'}   // 开=复制只进私有剪贴板；关=跨App粘贴不受影响
 ];
 function kbSecureOn(){ try{ return KV.get('kbFlagSecure')==='1'; }catch(e){ return false; } }

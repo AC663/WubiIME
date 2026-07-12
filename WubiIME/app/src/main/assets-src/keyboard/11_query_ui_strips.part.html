@@ -283,6 +283,17 @@ function setThemeIdx(i){
   try{ KV.set('kbTheme',THEMES[theme]); mirrorPrefs(); }catch(e){}   // 持久：重建/重启后仍是该主题
   const ball=document.getElementById('themeBtn');
   ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:'');
+  // #3 换主题实时联动：剪贴展开区的锐利配色是构建期内联样式——主题一换必须当场重染，
+  //   否则视觉停留旧主题(实际已变但不刷新)。详情门若开着：记住内容原位重开。
+  try{
+    const cp=document.getElementById('clipPanel');
+    if(cp && !cp.classList.contains('hidden')){
+      const door=document.getElementById('clipDoor');
+      const dtxt=door?door._txt:null, didx=door?door._idx:0;
+      refreshClip();
+      if(dtxt!=null) showClipDetail(dtxt,didx);
+    }
+  }catch(e){}
 }
 function cycleTheme(){ setThemeIdx((theme+1)%THEMES.length); }
 // ===== 主题选色轨道：点颜色球 → 全部主题色球在编码栏轨道排开，点选直达 =====
@@ -313,7 +324,7 @@ function buildThemeStrip(){
   });
 }
 // ===== 输入法模式轨道：点模式键 → 五笔/拼音/九宫/英文 排开点选(九宫=拼音+九宫布局) =====
-const MODE_OPTS=[{n:'五笔',m:'wubi',g:false},{n:'拼音',m:'pinyin',g:false},{n:'九宫',m:'pinyin',g:true},{n:'英文',m:'english',g:false}];
+const MODE_OPTS=[{n:'五笔',m:'wubi',g:false},{n:'拼音',m:'pinyin',g:false},{n:'九宫·拼',m:'pinyin',g:true},{n:'英文',m:'english',g:false}];
 function curModeIdx(){
   if(mode==='wubi') return 0;
   if(mode==='pinyin') return pyGrid?2:1;
@@ -346,12 +357,22 @@ function buildModeStrip(){
   _catSelectFn=(i)=>{ if(i!==curModeIdx()) playPop(); applyModeOpt(i); buildModeStrip(); };
   syncCodeBar();
 }
+// #6 面板入场：170ms cubic-bezier(.22,1,.36,1) 上滑淡入(纯transform/opacity零布局)，干脆不拖沓
+function _panelIn(el){
+  try{
+    if(!el||el.classList.contains('hidden')) return;
+    const g=el.firstElementChild||el;
+    if(g.animate) g.animate(
+      [{transform:'translateY(10px)',opacity:0.35},{transform:'translateY(0)',opacity:1}],
+      {duration:170,easing:'cubic-bezier(.22,1,.36,1)'});
+  }catch(e){}
+}
 function toggleSym(){
   closeApp();   // 切到符号面板=离开剪贴板内的应用，关掉 overlay 释放 iframe
   const p=document.getElementById('symPanel');
   ['emjPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   p.classList.toggle('hidden');
-  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); }   // 打开→编码栏显示符号分类
+  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); _panelIn(p); }   // 打开→编码栏显示符号分类
   else { clearCatStrip(); }                                                   // 关闭→恢复编码栏
   updateBtnStates();
 }
@@ -360,7 +381,7 @@ function toggleEmoji(){
   const p=document.getElementById('emjPanel');
   ['symPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   p.classList.toggle('hidden');
-  if(!p.classList.contains('hidden')){ _activePanel='emoji'; buildEmoji(); } // 打开→编码栏显示表情分类
+  if(!p.classList.contains('hidden')){ _activePanel='emoji'; buildEmoji(); _panelIn(p); } // 打开→编码栏显示表情分类
   else { clearCatStrip(); }
   updateBtnStates();
 }
@@ -369,7 +390,7 @@ function toggleClip(){
   ['symPanel','emjPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   if(p.classList.contains('hidden')){
     syncPrivClips(false);   // 先并入 Java 侧新捕获的复制内容，再渲染
-    refreshClip(); p.classList.remove('hidden');
+    refreshClip(); p.classList.remove('hidden'); _panelIn(p);
     _activePanel='clip'; buildClipStrip();   // 编码栏轨道: [剪贴板|密码生成器|笔记本|防截屏] 胶囊
   } else { closeApp(); p.classList.add('hidden'); clearCatStrip(); }
   updateBtnStates();
