@@ -1,0 +1,284 @@
+// ===== #9 音效体系 v2：音效主题(默认/钢琴/水晶)进编码栏轨道；钢琴引擎全重写 =====
+//   钢琴：6分音失谐加性+双振荡合唱+带通琴槌瞬态+压限总线——明亮通透不再闷；
+//   音区整体上移(第1行=C5起亮音区、第2行=C4中音区)；和弦低根音+中声部四音配置更饱满；
+//   按住不放=音符持续鸣响(绵音)，抬指柔性释放——真实钢琴踏板质感。
+let sndTheme='click';   // 'click'默认机械 | 'piano'钢琴 | 'crystal'水晶
+try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click') sndTheme=st; }catch(e){}
+function saveSndTheme(){ try{ KV.set('kbSndTheme',sndTheme); mirrorPrefs(); }catch(e){} }
+const _midiF=(m)=>440*Math.pow(2,(m-69)/12);
+// 总线：柔性压限器——多音齐鸣不破音，整体响度可以放心提上去
+let _sndBusNode=null;
+function _sndBus(){
+  const ac=_ensureAudio(); if(!ac) return null;
+  if(!_sndBusNode){
+    try{
+      const comp=ac.createDynamicsCompressor();
+      comp.threshold.value=-14; comp.knee.value=22; comp.ratio.value=5;
+      comp.attack.value=0.002; comp.release.value=0.16;
+      const g=ac.createGain(); g.gain.value=1.0;
+      g.connect(comp); comp.connect(ac.destination);
+      _sndBusNode=g;
+    }catch(e){ _sndBusNode=null; return null; }
+  }
+  return _sndBusNode;
+}
+// 音板混响：指数衰减噪声 IR(0.65s，低通染色)一次生成——干声之外 12% 湿声，给"琴箱共鸣"的空间感
+let _pianoIRConv=null, _pianoWet=null;
+function _pianoVerb(){
+  const ac=_ensureAudio(); if(!ac) return null;
+  const bus=_sndBus(); if(!bus) return null;
+  if(_pianoWet) return _pianoWet;
+  try{
+    const dur=0.65, N=Math.floor(ac.sampleRate*dur);
+    const buf=ac.createBuffer(2,N,ac.sampleRate);
+    for(let ch=0;ch<2;ch++){
+      const d=buf.getChannelData(ch); let lp=0;
+      for(let i=0;i<N;i++){
+        const w=(Math.random()*2-1)*Math.pow(1-i/N,2.2);
+        lp=lp*0.72+w*0.28;                     // 一阶低通染色：木质音板暖色
+        d[i]=lp;
+      }
+    }
+    _pianoIRConv=ac.createConvolver(); _pianoIRConv.buffer=buf;
+    _pianoWet=ac.createGain(); _pianoWet.gain.value=0.12;
+    _pianoWet.connect(_pianoIRConv); _pianoIRConv.connect(bus);
+    return _pianoWet;
+  }catch(e){ _pianoWet=null; return null; }
+}
+// 钢琴单音发声核 v3：物理不谐和分音 + 三弦失谐合唱 + 双段衰减 + 音板混响。
+//   返回 {release()} 供按住/抬指控制。sustain=true 进入持续段直到 release(绵音)。
+function _pianoVoice(midi, vel, sustain){
+  const ac=_ensureAudio(); if(!ac) return null;
+  const bus=_sndBus(); if(!bus) return null;
+  try{
+    const t=ac.currentTime, f=_midiF(midi), v=(vel==null?0.30:vel);
+    const out=ac.createGain(); out.gain.value=1;
+    // 亮度：随力度与音高走(GarageBand 式明亮不刺耳)；随衰减自然变暗
+    const lp=ac.createBiquadFilter(); lp.type='lowpass';
+    const cutHi=Math.min(13500, Math.max(3000, f*(9+6*v)));
+    lp.frequency.setValueAtTime(cutHi, t);
+    lp.frequency.exponentialRampToValueAtTime(Math.min(9500, Math.max(2000, f*4.5)), t+1.1);
+    lp.Q.value=0.35;
+    out.connect(lp); lp.connect(bus);
+    const wet=_pianoVerb(); if(wet){ try{ lp.connect(wet); }catch(_e){} }
+    const stops=[], gains=[];
+    // 物理不谐和：f_n = f·n·√(1+B·n²)。B 随音区走(高音弦更硬更"闪")
+    const B = midi<52 ? 0.00012 : midi<76 ? 0.00035 : 0.0007;
+    // 分音配方：1/n^1.7 基底 + 中频共振峰(700~1600Hz)轻抬——琴腔"歌唱感"
+    const nP = midi<52 ? 8 : midi<76 ? 7 : 5;
+    // 三弦失谐(真实钢琴中高音区一键三弦)：±1.8cent 拍频=活的、会呼吸的延音
+    const strings = midi<52 ? [0] : [0, 1.8, -1.8];
+    const T0 = midi<52 ? 3.2 : midi<76 ? 2.6 : 1.8;   // 基音余响时长(低音更长)
+    for(const det of strings){
+      for(let n=1;n<=nP;n++){
+        const fn=f*n*Math.sqrt(1+B*n*n);
+        if(fn>ac.sampleRate/2*0.9) break;
+        let a=v*Math.pow(n,-1.7)/(strings.length>1?1.55:1);
+        if(fn>700&&fn<1600) a*=1.35;                    // 共振峰
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type='sine'; o.frequency.value=fn; if(det) o.detune.value=det;
+        const dur=T0*Math.pow(n,-0.55);                  // 高分音先散(双段衰减的慢段)
+        g.gain.setValueAtTime(0.0001,t);
+        g.gain.exponentialRampToValueAtTime(a, t+0.004);             // 锤击起音
+        g.gain.exponentialRampToValueAtTime(a*0.50, t+0.055+0.02*n); // 快衰段(prompt sound)
+        if(sustain){ g.gain.exponentialRampToValueAtTime(a*0.14, t+Math.max(0.9,dur*0.6)); }   // 持续段缓降(绵音)
+        else { g.gain.exponentialRampToValueAtTime(0.0001, t+dur); }                            // 余响段(aftersound)
+        o.connect(g); g.connect(out);
+        o.start(t); if(!sustain) o.stop(t+dur+0.1);
+        stops.push(o); gains.push(g);
+      }
+    }
+    // 琴槌瞬态：带通噪声(随音高走)——木槌接触"嗒"感
+    const N=Math.floor(ac.sampleRate*0.011);
+    const buf=ac.createBuffer(1,N,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,2.6); }
+    const src=ac.createBufferSource(); src.buffer=buf;
+    const ng=ac.createGain(); ng.gain.value=v*0.26;
+    const bp=ac.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=Math.min(4600, Math.max(1100, f*2.1)); bp.Q.value=0.9;
+    src.connect(ng); ng.connect(bp); bp.connect(out); src.start(t);
+    return {
+      release(){
+        try{
+          const rt=ac.currentTime;
+          gains.forEach(g=>{ g.gain.cancelScheduledValues(rt);
+            g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||0.0001), rt);
+            g.gain.exponentialRampToValueAtTime(0.0001, rt+0.42); });   // 柔性放键(制音器落弦)
+          stops.forEach(o=>{ try{ o.stop(rt+0.5); }catch(_){} });
+        }catch(e){}
+      }
+    };
+  }catch(e){ return null; }
+}
+function playPiano(midi, vel){ _pianoVoice(midi, vel, false); }
+// 水晶音色：FM 铃振——载波+3.53×调制器(指数衰减调制指数)+八度泛音闪光，空灵通透
+function playCrystal(midi, vel){
+  if(!soundOn) return;
+  const ac=_ensureAudio(); if(!ac) return; const bus=_sndBus(); if(!bus) return;
+  try{
+    const t=ac.currentTime, f=_midiF(midi+12), v=(vel==null?0.20:vel);
+    const car=ac.createOscillator(), cg=ac.createGain();
+    const mod=ac.createOscillator(), mg=ac.createGain();
+    car.type='sine'; car.frequency.value=f;
+    mod.type='sine'; mod.frequency.value=f*3.53;
+    mg.gain.setValueAtTime(f*2.4,t); mg.gain.exponentialRampToValueAtTime(f*0.05,t+0.55);
+    mod.connect(mg); mg.connect(car.frequency);
+    cg.gain.setValueAtTime(0.0001,t);
+    cg.gain.exponentialRampToValueAtTime(v,t+0.004);
+    cg.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
+    car.connect(cg); cg.connect(bus);
+    const sp=ac.createOscillator(), sg=ac.createGain();   // 八度闪光泛音
+    sp.type='sine'; sp.frequency.value=f*2.0;
+    sg.gain.setValueAtTime(0.0001,t);
+    sg.gain.exponentialRampToValueAtTime(v*0.28,t+0.004);
+    sg.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    sp.connect(sg); sg.connect(bus);
+    car.start(t); mod.start(t); sp.start(t);
+    car.stop(t+1.5); mod.stop(t+1.5); sp.stop(t+0.6);
+  }catch(e){}
+}
+function playChord(midis){
+  if(!soundOn) return;
+  // 14ms 柔性琶音 + 递减力度——像手指从低到高拂过琴键，饱满不轰
+  midis.forEach((m,i)=>setTimeout(()=>playPiano(m, 0.20*Math.pow(0.88,i)),i*14));
+}
+function playCrystalChord(midis){
+  if(!soundOn) return;
+  midis.forEach((m,i)=>setTimeout(()=>playCrystal(m, 0.13),i*22));
+}
+// #8 音域重排·连续无重复：第2行(ASDFGHJKL)=C4→D5 中音区，第1行(QWERTYUIOP)紧接 E5→G6 亮音区——
+//   一条 C4→G6 连续白键长琴键，旧版第1行头(C5/D5)与第2行尾重复的问题根除。
+const _PIANO_ROW=[76,77,79,81,83,84,86,88,89,91, 60,62,64,65,67,69,71,72,74];
+const _PIANO_KEYMAP=(()=>{ const m={}; 'QWERTYUIOPASDFGHJKL'.split('').forEach((k,i)=>m[k]=_PIANO_ROW[i]); return m; })();
+// #9 和弦重配声：低八度根音+中声部三/四音——厚而不浑(C·Dm·Em·F·G·Am·G7)
+const _CHORDS={Z:[48,60,64,67],X:[50,62,65,69],C:[52,64,67,71],V:[53,65,69,72],B:[55,67,71,74],N:[57,69,72,76],M:[55,67,71,74,77]};
+// 按住持续鸣响(绵音)登记表：key字符 → voice；安全网 3s 自动释放，绝不留永响音
+const _heldVoices={};
+function pianoDown(k, midi){
+  pianoUp(k);
+  const vc=_pianoVoice(midi, 0.30, true);
+  if(vc){ _heldVoices[k]={v:vc, t:setTimeout(()=>pianoUp(k), 3000)}; }
+}
+function pianoUp(k){
+  const h=_heldVoices[k]; if(!h) return;
+  delete _heldVoices[k];
+  clearTimeout(h.t);
+  try{ h.v.release(); }catch(e){}
+}
+function releaseAllHeld(){ Object.keys(_heldVoices).forEach(pianoUp); }
+document.addEventListener('touchend',  ()=>setTimeout(releaseAllHeld,30), {passive:true});
+document.addEventListener('touchcancel',()=>releaseAllHeld(), {passive:true});
+// 键位→发声(按下)：随音效主题分发；修饰层一律回落机械click
+function keySound(k){
+  if(!soundOn) return;
+  if(!ctrl && !ctrlLock && !alt){
+    if(sndTheme==='piano'){
+      if(_PIANO_KEYMAP[k]!=null){ pianoDown(k,_PIANO_KEYMAP[k]); return; }
+      if(_CHORDS[k]){ playChord(_CHORDS[k]); return; }
+    } else if(sndTheme==='crystal'){
+      if(_PIANO_KEYMAP[k]!=null){ playCrystal(_PIANO_KEYMAP[k]); return; }
+      if(_CHORDS[k]){ playCrystalChord(_CHORDS[k]); return; }
+    }
+  }
+  playClick();
+}
+// 键位抬指：释放持续音(仅钢琴主题有持续段)
+function keySoundUp(k){ pianoUp(k); }
+// 长按连发时的每拍声：音乐主题下音符已在绵延，不再逐拍点击；默认主题保持机械连击声
+function keySoundRep(k){
+  if(!soundOn) return;
+  const musical = !ctrl && !ctrlLock && !alt && sndTheme!=='click' && (_PIANO_KEYMAP[k]!=null||_CHORDS[k]);
+  if(musical) return;
+  playClick();
+}
+// 九宫按键：'2'~'9'=do~高do(C4→C5)，'1'=C和弦，'0'=G和弦；主题分发同上
+const _T9_NOTES={'2':60,'3':62,'4':64,'5':65,'6':67,'7':69,'8':71,'9':72};
+function t9Sound(k){
+  if(!soundOn) return;
+  if(sndTheme==='piano'){
+    if(_T9_NOTES[k]!=null){ pianoDown('t9'+k,_T9_NOTES[k]); return; }
+    if(k==='1'){ playChord([48,60,64,67]); return; }
+    if(k==='0'){ playChord([55,67,71,74]); return; }
+  } else if(sndTheme==='crystal'){
+    if(_T9_NOTES[k]!=null){ playCrystal(_T9_NOTES[k]); return; }
+    if(k==='1'){ playCrystalChord([60,64,67]); return; }
+    if(k==='0'){ playCrystalChord([55,59,62]); return; }
+  }
+  playClick();
+}
+function t9SoundUp(k){ pianoUp('t9'+k); }
+function toggleSound(){
+  soundOn=!soundOn;
+  try{ KV.set('kbSound', soundOn?'1':'0'); mirrorPrefs(); }catch(e){}
+  if(soundOn) playClick();   // 开启时给一声反馈
+  buildKb();                 // 重建以刷新 Ctrl 模式 L 键静音图标态
+}
+// ===== #9 音效轨道：Ctrl+音效 → 编码栏轨道排开 静音/默认/钢琴/水晶 直选 =====
+const SND_OPTS=[{n:'静音',v:null},{n:'默认',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'}];
+function curSndIdx(){
+  if(!soundOn) return 0;
+  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : 1;
+}
+function applySndOpt(i){
+  const o=SND_OPTS[i]; if(!o) return;
+  const wasMute=!soundOn;
+  if(o.v===null){ if(soundOn){ soundOn=false; try{ KV.set('kbSound','0'); mirrorPrefs(); }catch(e){} } }
+  else{
+    if(!soundOn){ soundOn=true; try{ KV.set('kbSound','1'); mirrorPrefs(); }catch(e){} }
+    sndTheme=o.v; saveSndTheme();
+    // 试听反馈：选中即闻其声
+    if(o.v==='piano') playChord([48,60,64,67]);
+    else if(o.v==='crystal') playCrystal(72);
+    else playClick();
+  }
+  if(wasMute!==(!soundOn)) setTimeout(buildKb,0);   // 静音态翻转→刷新 L 键图标
+}
+function toggleSoundStrip(){
+  if(_activePanel==='sound'){ restoreCatStrip(); return; }   // #3 收回轨道→恢复原分类条
+  _activePanel='sound'; buildSoundStrip(); updateBtnStates();
+}
+function buildSoundStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip spread';
+  const cur=curSndIdx();
+  SND_OPTS.forEach((o,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip'+(i===cur?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    d.textContent=o.n;
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==curSndIdx()) playPop(); applySndOpt(i); buildSoundStrip(); };
+  syncCodeBar();
+}
+// Q弹气泡音效：短促上扬 sine 啳音(420→980Hz)，用于[符号][表情]分类胶囊被选中时的反馈
+ function playPop(){
+  if(!soundOn) return;
+  const ac=_ensureAudio(); if(!ac) return;
+  try{
+    const t=ac.currentTime;
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(420,t);
+    o.frequency.exponentialRampToValueAtTime(980,t+0.07);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.14,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.11);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t+0.12);
+  }catch(e){}
+}
+// 拼音九宫格切换（框架已就位；完整九宫格布局在下一轮接入）
+let pyGrid=false;
+try{ pyGrid=(KV.get('pyGrid')==='1'); }catch(e){}
+function togglePyGrid(){
+  // 切换前清空所有在途编码，防止 t9code/code 残留导致"有声音不上屏、需重进恢复"的卡崩
+  if(typeof t9code!=='undefined') t9code='';
+  if(typeof clearCode==='function') clearCode(); else { code=''; }
+  showCands([]);
+  pyGrid=!pyGrid;
+  try{ KV.set('pyGrid', pyGrid?'1':'0'); mirrorPrefs(); }catch(e){}
+  buildKb();
+}
+

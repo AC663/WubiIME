@@ -1,0 +1,747 @@
+// ===== 计算器模式 =====
+function buildCalcPad(np){
+  np.style.cssText='display:flex;flex-direction:column;gap:5px;padding:5px';
+  // 显示条：算式 + 结果
+  const disp=document.createElement('div');
+  disp.className='calc-disp';
+  disp.innerHTML=`<div class="calc-expr" id="calcExpr"></div>`+
+                 `<div class="calc-res" id="calcRes">${calcResult!==null?('= '+calcResult):''}</div>`;
+  np.appendChild(disp);
+  calcRenderExpr();
+  // 键区：4列 × 4行
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,44px);gap:5px;flex:1';
+  // %  | × | ÷ | 删除/归零(一键双用)
+  // 7 8 9 -
+  // 4 5 6 +
+  // 1 2 3 =
+  const layout=[
+    [{k:'%',c:'func'},{k:'×',c:'func'},{k:'÷',c:'func'},{k:'DELZ',c:'func',dual:true}],
+    [{k:'7'},{k:'8'},{k:'9'},{k:'-',c:'func'}],
+    [{k:'4'},{k:'5'},{k:'6'},{k:'+',c:'func'}],
+    [{k:'1'},{k:'2'},{k:'3'},{k:'PUTZ',c:'func',putdual:true}],
+  ];
+  layout.forEach(row=>row.forEach(o=>{
+    const div=document.createElement('div');
+    div.className='num-key'+(o.c?' '+o.c:'');
+    if(o.dual){
+      // 一键双用：左半删除图标(正常色) + 右半归零(略深色)。单击删除、长按归零。
+      div.classList.add('calc-delz');
+      div.innerHTML=
+        `<span class="delz-l">`+
+          `<svg width="18" height="13" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">`+
+          `<path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/>`+
+          `<line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`+
+          `<line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`+
+          `</svg>`+
+        `</span>`+
+        `<span class="delz-r" style="font-size:13px;font-weight:600">归零</span>`;
+      // 与数字键盘双用键完全一致：按下坐标判区——单击左块=删除(可长按连删)、单击右块=归零
+      bindDualZone(div, ()=>calcKey('DEL'), ()=>calcKey('C'));
+    } else if(o.putdual){
+      // Issue4: 上屏键改 DELZ 同款一键双用：左半=上屏(结果)，右半=算式(略深底)。
+      //   单击=上屏计算结果；长按(≥500ms)=完整上屏(算式+结果，形如 "12+8=20")。
+      div.classList.add('calc-delz');
+      div.innerHTML=`<span class="delz-l" style="font-size:13px;font-weight:600">上屏</span>`+
+                    `<span class="delz-r" style="font-size:13px;font-weight:600">算式</span>`;
+      // 坐标判区：单击左块=上屏结果、单击右块=完整上屏(算式+结果)
+      bindDualZone(div, ()=>calcKey('PUT'), ()=>calcKey('PUTALL'));
+    } else {
+      div.innerHTML=`<span class="km" style="${o.t&&o.t.length>1?'font-size:13px':''}">${o.t||o.k}</span>`;
+      addKeyListeners(div,()=>calcKey(o.k));
+    }
+    grid.appendChild(div);
+  }));
+  np.appendChild(grid);
+  // 底行（等宽4格）：退出  0  .  =
+  const bottom=document.createElement('div');
+  bottom.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:5px;height:44px';
+  [{k:'EXIT',c:'func',t:'退出'},
+   {k:'0'},
+   {k:'.'},
+   {k:'=',c:'accent'}].forEach(o=>{
+    const div=document.createElement('div');
+    div.className='num-key'+(o.c?' '+o.c:'');
+    div.innerHTML=`<span class="km" style="${o.t?'font-size:13px':''}">${o.t||o.k}</span>`;
+    addKeyListeners(div,()=>calcKey(o.k));
+    bottom.appendChild(div);
+  });
+  np.appendChild(bottom);
+}
+
+function calcReset(){ calcExpr=''; calcResult=null; calcPrepend=false; calcPrefixBuf=''; calcSealed=false; }
+// Issue6: 计算器显示转换——百分号团显示为「(数字%」，数字排在左括号与百分号之间。
+//   calcExpr 仍按用户输入顺序存(如 100%20.22，% 紧跟左数之后)，仅显示层做转换：
+//     · 把 % 处替换为 '('，并将 % 移到其后数字串的末尾 → 100%20.22 显示 100(20.22%
+//     · 该百分团之后若还有字符(运算符/继续输入介入)→ 收括 → 100(20.22%)÷
+//     · 团仍在末尾(还在输入)→ 只开括不收括 → 100(20.22%
+//   仅影响显示，calcExpr 本身保持纯净供 calcEval。
+// (插算) 常驻token：点击=把当前算式括住进入前置输入(可复加)；无有效输入时隐藏，
+//   有算式/结果后灰显示意"点我可在前面插队任意式子"。仅是UI元素，绝不进 calcExpr、上屏不带。
+function calcRenderExpr(seal){
+  const el=document.getElementById('calcExpr'); if(!el) return;
+  el.innerHTML='';
+  const hasContent=!!calcExpr || calcResult!==null;
+  if(hasContent){
+    const tk=document.createElement('span');
+    tk.id='calcPrepTk';
+    tk.textContent='(插算)';
+    tk.className='calc-prep'+(calcPrepend?' on':'');
+    tk.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); playClick(); calcKey('PREP'); },{passive:false});
+    tk.addEventListener('click',e=>{ e.stopPropagation(); if(!('ontouchstart' in window)) calcKey('PREP'); });
+    el.appendChild(tk);
+  }
+  const tx=document.createElement('span');
+  tx.textContent=calcDisplayExpr(seal);
+  el.appendChild(tx);
+}
+function calcDisplayExpr(seal){
+  const s=calcExpr;
+  if(calcPrepend){ return (calcPrefixBuf||'')+'▸'+(s||'0'); }   // 前置态：前缀▸(旧式)，▸示意插入点
+  if(!s) return '0';
+  if(s.indexOf('%')<0) return s;
+  let out=''; let i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c==='%'){
+      // % 后紧跟的数字串(可含小数点)
+      let j=i+1;
+      while(j<s.length && (s[j]>='0'&&s[j]<='9' || s[j]==='.')) j++;
+      const num=s.slice(i+1,j);          // % 后面的数字，如 "20.22"
+      // 数字夹在 ( 与 % 之间；团后还有字符、或强制收口(=/上屏)则收括
+      out += '(' + num + '%' + ((j<s.length||seal) ? ')' : '');
+      i=j;
+    } else { out+=c; i++; }
+  }
+  return out;
+}
+function calcRefresh(seal){
+  calcRenderExpr(seal);
+  const r=document.getElementById('calcRes'); if(r)r.textContent=(calcResult!==null?('= '+calcResult):'');
+}
+function calcKey(k){
+  if(k==='C'){ calcReset(); calcRefresh(); return; }       // 归零（长按删除键触发）
+  if(k==='PREP'){
+    // 前置插入：把当前算式整体括住，进入前缀输入态——随后按的数字进前缀缓冲，
+    //   按到运算符即完成前置(前缀+运算符+旧式)。可反复叠加(再按前置又括一层)。
+    if(!calcExpr && calcResult===null) return;
+    if(calcPrepend){ calcPrepend=false; calcPrefixBuf=''; calcLive(); return; }   // 再按=取消前置态
+    if(!calcExpr && calcResult!==null) calcExpr=String(calcResult);   // 只有结果没算式：以结果起手
+    calcExpr='('+calcExpr+')';
+    calcPrepend=true; calcPrefixBuf=''; calcSealed=false;
+    calcLive(); return;
+  }
+  if(calcPrepend){
+    // 前缀输入态：数字/. 进缓冲；运算符封口完成前置；= 无意义时先封口再算
+    if(k==='DEL'){ if(calcPrefixBuf){ calcPrefixBuf=calcPrefixBuf.slice(0,-1); calcLive(); } else { calcPrepend=false; calcLive(); } return; }
+    const ops='+-×÷';
+    if(ops.includes(k)){
+      if(calcPrefixBuf){ calcExpr=calcPrefixBuf+k+calcExpr; }
+      else if(k==='-'){ calcExpr='-'+calcExpr; }
+      calcPrepend=false; calcPrefixBuf='';
+      calcLive(); return;
+    }
+    if(k>='0'&&k<='9' || k==='.'){ calcPrefixBuf+=k; calcLive(); return; }
+    if(k==='='){ if(calcPrefixBuf){ calcExpr=calcPrefixBuf+'×'+calcExpr; } calcPrepend=false; calcPrefixBuf='';
+      const v=calcEval(calcExpr); calcResult=(v===null?'错误':v); calcSealed=true; calcRefresh(true); return; }
+    return;   // 前缀态忽略 % 等
+  }
+  if(k==='DEL'){ calcSealed=false; calcExpr=calcExpr.slice(0,-1); calcLive(); return; }
+  if(k==='EXIT'){
+    calcMode=false;
+    if(calcFromGrid){ calcFromGrid=false; num=false; switchNum(); return; }  // 回退九宫格
+    buildNumpad(); return;
+  }
+  if(k==='PUT'){
+    // 上屏：优先上屏结果，无结果则先算；上屏后保留算式可继续算
+    let val=calcResult;
+    if(val===null){ val=calcEval(calcExpr); }
+    if(val!==null && val!=='错误'){ commit(String(val)); }
+    return;
+  }
+  if(k==='PUTALL'){
+    // Issue6: 完整上屏——把计算器【显示内容】原样上屏(含百分号括号)，再接 "=结果"。
+    //   不得丢任何显示元素：用 calcDisplayExpr() 而非纯 calcExpr，故 85+100(20.22%)=105.32。
+    if(!calcExpr){ return; }
+    let val=calcResult;
+    if(val===null){ val=calcEval(calcExpr); }
+    const shown=calcDisplayExpr(true);
+    if(val!==null && val!=='错误'){ commit(shown+'='+String(val)); }
+    else { commit(shown); }
+    return;
+  }
+  if(k==='='){ const v=calcEval(calcExpr); calcResult=(v===null?'错误':v); calcSealed=true; calcRefresh(true); return; }
+  if(k==='%'){
+    // 百分号：紧跟数字/小数点后才追加（只允许一个 %）
+    const last=calcExpr.slice(-1);
+    if(calcExpr && (last>='0'&&last<='9' || last==='.') && !calcExpr.includes('%')) calcExpr+='%';
+    calcLive(); return;
+  }
+  // 数字/运算符/小数点 追加
+  const ops='+-×÷';
+  if(ops.includes(k)){
+    if(calcSealed && calcResult!==null && calcResult!=='错误'){ calcExpr=String(calcResult)+k; calcSealed=false; calcLive(); return; }   // =后按运算符：以结果续算
+    if(!calcExpr) { if(k==='-'){calcExpr='-';} } // 允许负号开头
+    else if(ops.includes(calcExpr.slice(-1))) { calcExpr=calcExpr.slice(0,-1)+k; } // 替换末运算符
+    else calcExpr+=k;
+  } else {
+    if(calcSealed){ calcExpr=''; calcResult=null; calcSealed=false; }   // =后直接按数字：开新算式
+    calcExpr+=k; // 数字或 .
+  }
+  calcLive();
+}
+// #11 实时预算：每次输入后自动算出中间结果显示（不需按=）
+function calcLive(){
+  const v=calcEval(calcExpr);
+  calcResult=(v===null? null : v);   // 非法表达式不显示错误，仅留空，避免输入中途闪“错误”
+  calcRefresh();
+}
+// 安全表达式求值：支持 + - × ÷ % 与优先级，无 eval。词法→%折叠→shunting-yard→求值
+// 百分号规则（财务式·依附左数·成团优先级最高）：
+//   "数%" 表示该数/100 的比例；它去乘紧邻左侧（隔一个运算符）的那个数，先结算成具体值。
+//   + - 时：N% → 左数*N/100，运算符保留    (100+10% → 100+10 = 110)
+//   × ÷ 时：左数 OP N% 整团 → 左数*N/100，运算符吸收  (12668×23.78% → 3012.45 成一团)
+//   无左邻数（开头 N%）：退化为 N/100。
+function calcEval(expr){
+  if(!expr) return null;
+  expr=expr.replace(/×/g,'*').replace(/÷/g,'/');
+  // 词法
+  const toks=[]; let i=0;
+  while(i<expr.length){
+    const c=expr[i];
+    if(c>='0'&&c<='9'||c==='.'){ let j=i+1; while(j<expr.length&&(expr[j]>='0'&&expr[j]<='9'||expr[j]==='.'))j++; toks.push(expr.slice(i,j)); i=j; }
+    else if(c==='%'){ toks.push('%'); i++; }
+    else if(c==='('||c===')'){ toks.push(c); i++; }
+    else if('+-*/'.includes(c)){
+      // 一元负号：表达式开头、前一个是运算符、或左括号之后
+      if(c==='-'&&(toks.length===0||'+-*/('.includes(toks[toks.length-1]))){ toks.push('u-'); i++; }
+      else { toks.push(c); i++; }
+    }
+    else return null; // 非法字符
+  }
+  // 第一遍：折叠 %（t2 内数字已转为 number，运算符仍为字符串）
+  const t2=[];
+  for(let k=0;k<toks.length;k++){
+    const tk=toks[k];
+    if(tk==='%'){
+      const N=t2.pop();
+      if(N===undefined||typeof N!=='number') return null;
+      // #11 "A%B" 形态：% 后面紧跟数字 → 表示「A 的 B%」= A*B/100
+      const nxt=toks[k+1];
+      if(nxt!==undefined && /^[\d.]+$/.test(nxt)){
+        if((nxt.match(/\./g)||[]).length>1) return null;
+        const B=parseFloat(nxt);
+        t2.push(N*B/100);
+        k++;               // 消费掉 B
+        continue;
+      }
+      // 否则：N% 依附左数（财务式）
+      if(t2.length>=2 && ['+','-','*','/'].includes(t2[t2.length-1]) && typeof t2[t2.length-2]==='number'){
+        const OP=t2[t2.length-1], L=t2[t2.length-2];
+        if(OP==='*'||OP==='/'){ t2.pop(); t2.pop(); t2.push(L*N/100); }   // 吸收运算符，整团
+        else { t2.push(L*N/100); }                                       // 保留运算符
+      } else {
+        t2.push(N/100);                                                  // 无左邻数
+      }
+    } else if(/^[\d.]+$/.test(tk)){
+      if((tk.match(/\./g)||[]).length>1) return null;
+      t2.push(parseFloat(tk));
+    } else {
+      t2.push(tk);   // 运算符 / u-
+    }
+  }
+  // 第二遍：shunting-yard → RPN(含括号)
+  const prec={'+':1,'-':1,'*':2,'/':2,'u-':3};
+  const out=[],ops=[];
+  for(const t of t2){
+    if(typeof t==='number'){ out.push(t); }
+    else if(t==='u-'){ ops.push(t); }
+    else if(t==='('){ ops.push(t); }
+    else if(t===')'){
+      while(ops.length && ops[ops.length-1]!=='(') out.push(ops.pop());
+      if(!ops.length) return null;   // 括号不配对
+      ops.pop();
+    }
+    else {
+      while(ops.length){ const o=ops[ops.length-1]; if(o!=='('&&prec[o]>=prec[t]){ out.push(ops.pop()); } else break; }
+      ops.push(t);
+    }
+  }
+  while(ops.length){ const o=ops.pop(); if(o==='(') return null; out.push(o); }
+  // 求值
+  const st=[];
+  for(const t of out){
+    if(typeof t==='number'){ st.push(t); }
+    else if(t==='u-'){ if(!st.length)return null; st.push(-st.pop()); }
+    else {
+      if(st.length<2)return null;
+      const b=st.pop(),a=st.pop();
+      let v; if(t==='+')v=a+b; else if(t==='-')v=a-b; else if(t==='*')v=a*b;
+      else { if(b===0)return null; v=a/b; }
+      st.push(v);
+    }
+  }
+  if(st.length!==1) return null;
+  let r=st[0];
+  if(!isFinite(r)) return null;
+  // 浮点修整：最多保留 8 位小数，去尾零
+  r=Math.round(r*1e8)/1e8;
+  return r;
+}
+
+let _symCat=0;
+// ===== 符号：每类可长按拖拽自由排序(持久化) + 短前缀在前、长缀加宽排到末行 =====
+let _symOrder={};
+try{ const so=KV.get('kbSymOrder'); if(so) _symOrder=JSON.parse(so)||{}; }catch(e){ _symOrder={}; }
+function symSaveOrder(){ try{ KV.set('kbSymOrder', JSON.stringify(_symOrder)); mirrorPrefs(); }catch(e){} }
+// 列跨度：短符号占1列(每行8个)，长前缀按字符数加宽以充分显示
+function symSpan(p){ const L=[...p].length; return L<=2?1 : L<=4?2 : L<=6?3 : 4; }
+// 默认顺序：按列跨度升序稳定排序 → 短的在前(密排8/行)，长缀自然落到末行
+function symDefaultOrder(ci){
+  const cat=SYMBOL_CATS[ci];
+  if(cat.fixed) return cat.list.slice();   // 固定排版类(假名/网址)：保持五十音图/成组排版，不按跨度重排
+  return cat.list.map((p,i)=>[p,i])
+    .sort((a,b)=>{ const d=symSpan(a[0])-symSpan(b[0]); return d!==0?d:a[1]-b[1]; })
+    .map(x=>x[0]);
+}
+// 取某类当前顺序：有自定义则用自定义(并校正失效/补齐新增)，否则用默认
+function symGetOrder(ci){
+  const def=symDefaultOrder(ci);
+  if(SYMBOL_CATS[ci].fixed) return def;    // 固定排版类不吃自定义排序
+  const saved=_symOrder[ci];
+  if(!saved || !saved.length) return def;
+  const valid=new Set(SYMBOL_CATS[ci].list), seen=new Set(), out=[];
+  saved.forEach(p=>{ if(valid.has(p)&&!seen.has(p)){ out.push(p); seen.add(p); } });
+  def.forEach(p=>{ if(!seen.has(p)){ out.push(p); seen.add(p); } });
+  return out;
+}
+// ===== 面板高度可拖拽调整（符号/表情共用，持久化）=====
+let _panelH=84;   // 默认高度≈2行内容(已按需求再压缩1/5；新存储键 panelH3 使新默认生效)
+try{ const v=parseInt(KV.get('panelH3')); if(v>=64 && v<=420) _panelH=v; }catch(e){}
+function applyPanelH(){ document.documentElement.style.setProperty('--panelH', _panelH+'px'); }
+applyPanelH();
+// 表情面板独立高度：默认正好 2 行表情(手柄14 + 顶pad3 + 30×2 + gap2 + 余量)，新存储键 emjH2
+let _emjH=80;
+try{ const v=parseInt(KV.get('emjH2')); if(v>=64 && v<=420) _emjH=v; }catch(e){}
+function applyEmjH(){ document.documentElement.style.setProperty('--emjH', _emjH+'px'); }
+applyEmjH();
+// ===== 编码栏分类条：符号/表情面板开启时，把分类标签搬到顶部编码栏左右滑动 =====
+let _activePanel=null;   // null | 'sym' | 'emoji'
+let _catSelectFn=null;   // 当前面板的「选中分类」回调(由 buildPunct/buildEmoji 设定)
+function syncCodeBar(){
+  const s=document.getElementById('catStrip'), ct=document.getElementById('codeText');
+  if(!s||!ct) return;
+  // 视野最高优先级给输入编码：全键盘 code；t9code 仅九宫布局激活时才算数(防主键盘下残值压制分类条)
+  const hasCode=(code&&code.length>0)||(typeof pyGrid!=='undefined'&&pyGrid&&typeof t9code!=='undefined'&&t9code&&t9code.length>0);
+  if(hasCode){ s.classList.add('hidden'); ct.style.display=''; }       // 正在输入编码 → 显示编码
+  else if(_activePanel){ s.classList.remove('hidden'); ct.style.display='none'; }     // 面板活动 → 显示分类条
+  else { s.classList.add('hidden'); ct.style.display=''; }
+}
+function clearCatStrip(){ const s=document.getElementById('catStrip'); if(s) s.innerHTML=''; _activePanel=null; syncCodeBar(); }
+// #3 轨道(颜色/模式/音效)关闭后恢复"当时已展开面板"的分类条：符号/表情/剪贴展开区从头到尾不动，
+//   只有轨道自身来去——用户不再因调个颜色/切个模式而被叠回、重按按钮。
+function restoreCatStrip(){
+  const vis=id=>{ const p=document.getElementById(id); return p && !p.classList.contains('hidden'); };
+  if(vis('symPanel')){ _activePanel='sym'; buildPunct(); }
+  else if(vis('emjPanel')){ _activePanel='emoji'; buildEmoji(); }
+  else if(vis('clipPanel')){ _activePanel='clip'; buildClipStrip(); }
+  else clearCatStrip();
+  updateBtnStates();
+}
+// 工具栏按钮联动激活态：按面板/数字键盘当前是否开启，给对应按钮加/去 .on(主题色反差)。
+//   单一数据源=DOM 真实状态，故"开A自动关B"也能正确同步。
+function updateBtnStates(){
+  const open=id=>{ const el=document.getElementById(id); return el && !el.classList.contains('hidden'); };
+  const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.classList.toggle('on',!!on); };
+  set('symBtn',open('symPanel'));
+  set('emjBtn',open('emjPanel'));
+  set('clipBtn',open('clipPanel'));
+  set('numBtn',typeof num!=='undefined' && num);
+}
+// 编码栏分类条手势只在 #catStrip 容器上挂一次(容器常驻，标签每次重建)：
+//   位移/横滚判定 → 区分「点击切换分类」与「左右滑动浏览」；命中标签调当前面板的回调。
+function initCatStripGestures(){
+  const tabs=document.getElementById('catStrip');
+  if(!tabs || tabs._wired) return; tabs._wired=true;
+  attachRubberBandX(tabs);   // #14 分类条滑到左右边缘回弹反馈
+  let x0=0,y0=0,sl0=0;
+  const hit=(cx,cy)=>{ let el=document.elementFromPoint(cx,cy); while(el&&el!==tabs&&!(el.dataset&&el.dataset.tabIdx!=null)) el=el.parentElement; return (el&&el.dataset&&el.dataset.tabIdx!=null)?parseInt(el.dataset.tabIdx):-1; };
+  tabs.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; sl0=tabs.scrollLeft; },{passive:true});
+  tabs.addEventListener('touchend',e=>{
+    const c=e.changedTouches[0];
+    if(Math.abs(c.clientX-x0)>=14 || Math.abs(c.clientY-y0)>=14 || Math.abs(tabs.scrollLeft-sl0)>=6) return;  // 滑动→不选
+    const idx=hit(c.clientX,c.clientY); if(idx>=0 && _catSelectFn) _catSelectFn(idx);
+  },{passive:true});
+  tabs.addEventListener('click',e=>{                                   // 鼠标/模拟器
+    if('ontouchstart' in window) return;
+    let el=e.target; while(el&&el!==tabs&&!(el.dataset&&el.dataset.tabIdx!=null)) el=el.parentElement;
+    if(el&&el.dataset&&el.dataset.tabIdx!=null && _catSelectFn) _catSelectFn(parseInt(el.dataset.tabIdx));
+  });
+}
+// 分类切换动效(装机不生效已两轮返修，根因：WAAPI/双rAF+transition 在部分真机 WebView 里
+//   与大块 innerHTML 重排同帧竞争被合成器丢弃)。现改【纯 CSS animation 类】：
+//   移类 → 强制回流重置动画 → 加类，由样式系统自驱，与 JS 帧时序完全解耦，WebView 上最稳。
+function animPanelSwap(el,dir){
+  if(!el) return;
+  el.classList.remove('panel-swap-l','panel-swap-r');
+  void el.offsetWidth;                        // 强制回流：同名动画可重复触发
+  el.classList.add(dir<0?'panel-swap-l':'panel-swap-r');
+  if(!el._swapWired){
+    el._swapWired=true;
+    el.addEventListener('animationend',()=>{ el.classList.remove('panel-swap-l','panel-swap-r'); },{passive:true});
+  }
+}
+// rAF 自驱横向平滑滚动：不依赖 scrollTo({behavior:'smooth'})(部分真机 WebView 不支持→生硬跳切)
+function smoothScrollX(el,target){
+  if(!el) return;
+  target=Math.max(0,Math.min(el.scrollWidth-el.clientWidth,target));
+  const from=el.scrollLeft, d=target-from;
+  if(Math.abs(d)<2){ el.scrollLeft=target; return; }
+  if(el._ssRaf) cancelAnimationFrame(el._ssRaf);
+  const t0=performance.now(), D=260;
+  const step=t=>{
+    const p=Math.min(1,(t-t0)/D), e=1-Math.pow(1-p,3);   // easeOutCubic
+    el.scrollLeft=from+d*e;
+    if(p<1) el._ssRaf=requestAnimationFrame(step); else el._ssRaf=0;
+  };
+  el._ssRaf=requestAnimationFrame(step);
+}
+// 选中分类标签平滑滚入可视区(夹紧不越界)
+function catChipReveal(tabs,ci){
+  const at=tabs&&tabs.children&&tabs.children[ci]; if(!at) return;
+  const sL=tabs.scrollLeft,sW=tabs.clientWidth,tL=at.offsetLeft,tW=at.offsetWidth;
+  if(tL>=sL+8 && tL+tW<=sL+sW-8) return;
+  const target=Math.max(0,Math.min(tabs.scrollWidth-sW,tL-(sW-tW)/2));
+  smoothScrollX(tabs,target);
+}
+// 在面板顶部插入一个拖拽手柄，上下拖动改变面板高度（rAF 节流，丝滑无颤）
+function mkDragHandle(kind){
+  const bar=document.createElement('div');
+  // 顶级质感抓手：居中悬浮胶囊(主题釉面渐变+柔影+内高光)，13px 宽热区；拖动时胶囊微放大反馈。
+  bar.style.cssText='position:relative;z-index:5;display:flex;align-items:center;justify-content:center;height:13px;flex:0 0 auto;cursor:ns-resize;touch-action:none;';
+  const pill=document.createElement('div');
+  pill.style.cssText='width:min(48%,190px);height:5px;border-radius:3px;background:linear-gradient(90deg,var(--acl,#eb976f),var(--ac,#c75f33) 60%,var(--acd,#a8420f));box-shadow:0 1px 3px rgba(120,50,10,0.28),inset 0 0.5px 0 rgba(255,255,255,0.55);transition:transform .16s cubic-bezier(.2,.7,.3,1)';
+  bar.appendChild(pill);
+  let startY=0,startH=0,drag=false,raf=0;
+  const isEmj=(kind==='emj');
+  const cssVar=isEmj?'--emjH':'--panelH';
+  const lsKey=isEmj?'emjH2':'panelH3';
+  const getH=()=> isEmj?_emjH:_panelH;
+  const setH=v=>{ if(isEmj)_emjH=v; else _panelH=v; };
+  let pendH=getH();
+  // rAF 节流：touchmove 只记录目标值，下一帧统一应用一次，避免每次事件都 reflow 造成抖动
+  const flush=()=>{ raf=0; setH(pendH); document.documentElement.style.setProperty(cssVar, pendH+'px'); };
+  const down=y=>{ drag=true; startY=y; startH=getH(); pill.style.transform='scaleX(1.28) scaleY(1.3)'; };
+  const move=y=>{ if(!drag)return; const dy=startY-y; let h=startH+dy; h=Math.max(64,Math.min(420,h)); pendH=h; if(!raf) raf=requestAnimationFrame(flush); };
+  const up=()=>{ if(!drag)return; drag=false; pill.style.transform=''; if(raf){cancelAnimationFrame(raf);flush();} try{KV.set(lsKey,String(getH()));mirrorPrefs();}catch(e){} };
+  bar.addEventListener('touchstart',e=>{ down(e.touches[0].clientY); },{passive:true});
+  bar.addEventListener('touchmove',e=>{ e.preventDefault(); move(e.touches[0].clientY); },{passive:false});
+  bar.addEventListener('touchend',up,{passive:true});
+  bar.addEventListener('touchcancel',up,{passive:true});
+  bar.addEventListener('mousedown',e=>{ down(e.clientY); const mm=ev=>move(ev.clientY); const mu=()=>{up();document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);}; document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu); });
+  return bar;
+}
+function buildPunct() {
+  const wrap = document.getElementById('punctG');
+  wrap.innerHTML = '';
+  wrap.style.cssText = 'display:flex;flex-direction:column;padding:0;position:relative;height:100%;';
+  wrap.appendChild(mkDragHandle());   // 顶部拖拽手柄(冻结置顶，不随内容滚动)
+  _catSelectFn=null;
+  // 分类标签搬到顶部「编码栏」(catStrip) 左右滑动；面板内只保留拖杆 + 内容网格(紧跟拖杆)。
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip';
+  // 网格容器(切换分类时只换它的内容)
+  const grid=document.createElement('div');
+  grid.id='symGrid';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:3px;padding:4px 6px;grid-auto-flow:row dense;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;';
+  attachRubberBand(grid);   // #14 符号内容区顶/底回弹反馈(此前漏挂)
+
+  // 渲染某分类符号到网格(仅替换网格内容)：8/行、单击上屏、长按拖拽排序
+  const renderGrid=(ci)=>{
+    grid.innerHTML='';
+    const cat=SYMBOL_CATS[ci];
+    grid.style.gridTemplateColumns='repeat('+(cat.cols||8)+',1fr)';   // 分类自定义列数(假名10列/网址4列)
+    const order=symGetOrder(ci);
+    // 拖拽共享态(单指，跨格共用)
+    let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
+    const cleanupDrag=()=>{
+      dragAutoScrollStop();
+      if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+      if(clone){ clone.remove(); clone=null; }
+      if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
+      dragging=false; dragSym=null;
+      Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+    };
+    const finishReorder=(targetSym,after)=>{
+      const cur=symGetOrder(ci).slice();
+      const from=cur.indexOf(dragSym);
+      if(from<0){ cleanupDrag(); return; }
+      cur.splice(from,1);
+      let to=cur.indexOf(targetSym);
+      if(to<0) cur.push(dragSym);
+      else { if(after) to+=1; cur.splice(to,0,dragSym); }
+      _symOrder[ci]=cur; symSaveOrder();
+      cleanupDrag(); renderGrid(ci);
+    };
+    order.forEach(p=>{
+      if(p===''){ const gap=document.createElement('div'); gap.style.cssText='height:28px;pointer-events:none'; grid.appendChild(gap); return; }   // 五十音图空位占位
+      const div=document.createElement('div');
+      div.className='pi';
+      const L=[...p].length;
+      const sp=cat.cols?1:symSpan(p);   // 自定义列数的分类：统一等宽，整齐美观
+      if(sp>1) div.style.gridColumn='span '+sp;
+      div.style.fontSize=(L>7?'11px':L>1?'13px':'17px');
+      div.textContent=p;
+      if(cat.fixed){ addPanelKey(div,()=>insPunct(p)); grid.appendChild(div); return; }   // 固定排版：仅点击上屏，无拖拽
+      div.dataset.sym=p;
+      let _moved=false,_touched=false,_t0=0;
+      div.addEventListener('touchstart',e=>{
+        _touched=true; _moved=false; _t0=Date.now();
+        startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+        longTimer=setTimeout(()=>{        // 长按 500ms(对标 iPhone 图标长按) → 进入拖拽排序，滑动不再误触拖动
+          dragging=true; dragSym=p; dragEl=div;
+          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+          const r=div.getBoundingClientRect();
+          clone=document.createElement('div');
+          clone.textContent=p;
+          clone.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;margin:0;z-index:300;pointer-events:none;opacity:0.96;transform:scale(1.12);box-shadow:0 6px 18px rgba(0,0,0,0.28);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--ac,#e86030);color:#fff;font-size:'+div.style.fontSize;
+          document.body.appendChild(clone);
+          div.style.opacity='0.25';
+        },500);
+      },{passive:true});
+      div.addEventListener('touchmove',e=>{
+        const t=e.touches[0];
+        if(!dragging){     // 未进入拖拽：位移即取消长按，放行面板滚动
+          if(Math.abs(t.clientX-startX)>10||Math.abs(t.clientY-startY)>10){ _moved=true; if(longTimer){ clearTimeout(longTimer); longTimer=null; } }
+          return;
+        }
+        e.preventDefault();
+        if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        dragAutoScroll(grid, t.clientY);   // #5 拖到上/下边缘热区→自动滚动，末排也能拖去最前
+        let el=document.elementFromPoint(t.clientX,t.clientY);
+        while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+        Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+        if(el&&el.dataset&&el.dataset.sym&&el!==div){ el.style.outline='2px solid var(--ac,#e86030)'; el.style.outlineOffset='-2px'; }
+      },{passive:false});
+      div.addEventListener('touchend',e=>{
+        if(dragging){
+          const t=e.changedTouches[0];
+          let el=document.elementFromPoint(t.clientX,t.clientY);
+          while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+          if(el&&el.dataset&&el.dataset.sym&&el.dataset.sym!==dragSym){
+            const r=el.getBoundingClientRect();
+            finishReorder(el.dataset.sym, t.clientX>r.left+r.width/2);
+          } else cleanupDrag();
+          return;
+        }
+        if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+        if(_touched&&!_moved&&Date.now()-_t0<500){ playClick(); insPunct(p); }   // 快速点 → 上屏(带键盘声效)
+        _touched=false;
+      },{passive:true});
+      div.addEventListener('touchcancel',()=>{ cleanupDrag(); _touched=false; },{passive:true});
+      div.addEventListener('click',()=>{ if(!('ontouchstart' in window)) insPunct(p); });  // 模拟器
+      grid.appendChild(div);
+    });
+  };
+  // 切换分类：更新高亮 + 换网格，**不动标签条 DOM、不动滚动位置**
+  const selectCat=(ci)=>{
+    const dir=(ci===_symCat)?0:(ci>_symCat?1:-1);
+    if(dir!==0) playPop();   // Q弹气泡音：分类胶囊被选中
+    _symCat=ci;
+    Array.from(tabs.children).forEach((t,i)=>{ t.classList.toggle('on', i===ci); });
+    renderGrid(ci);
+    animPanelSwap(grid,dir);
+    catChipReveal(tabs,ci);
+  };
+  _catSelectFn=selectCat;
+
+  // 标签条手势统一由 initCatStripGestures() 在 #catStrip 上挂一次处理(点击/横滑判定)。
+  SYMBOL_CATS.forEach((cat,i)=>{
+    const t=document.createElement('div');
+    const active=(i===_symCat);
+    t.className='cat-chip'+(active?' on':'');
+    t.setAttribute('data-tab-idx',i);
+    t.textContent=cat.name;
+    if(active) t.setAttribute('data-active-tab','1');
+    tabs.appendChild(t);
+  });
+  wrap.appendChild(grid);
+  renderGrid(_symCat);
+  syncCodeBar();
+  // 首次构建时把当前分类标签滚入可视区(仅不可见才滚，夹紧不越界)；之后切换不再重建、不重置滚动。
+  requestAnimationFrame(()=>{
+    const at=tabs.querySelector('[data-active-tab]');
+    if(!at) return;
+    const sL=tabs.scrollLeft, sW=tabs.clientWidth, tL=at.offsetLeft, tW=at.offsetWidth;
+    if(tL>=sL && tL+tW<=sL+sW) return;
+    const target=Math.max(0, Math.min(tabs.scrollWidth-sW, tL-(sW-tW)/2));
+    smoothScrollX(tabs,target);
+  });
+}
+
+let _emjCat=0, _emjSlideDir=0;
+// ===== 表情：每类可长按拖拽自由排序(持久化)，与符号一致 =====
+let _emjOrder={};
+try{ const eo=KV.get('kbEmjOrder'); if(eo) _emjOrder=JSON.parse(eo)||{}; }catch(e){ _emjOrder={}; }
+function emjSaveOrder(){ try{ KV.set('kbEmjOrder', JSON.stringify(_emjOrder)); mirrorPrefs(); }catch(e){} }
+function emjGetOrder(ci){
+  const def=EMOJI_CATS[ci].list;
+  const saved=_emjOrder[ci];
+  if(!saved || !saved.length) return def.slice();
+  const valid=new Set(def), seen=new Set(), out=[];
+  saved.forEach(p=>{ if(valid.has(p)&&!seen.has(p)){ out.push(p); seen.add(p); } });
+  def.forEach(p=>{ if(!seen.has(p)){ out.push(p); seen.add(p); } });
+  return out;
+}
+function buildEmoji() {
+  const g=document.getElementById('emjG'); g.innerHTML='';
+  g.style.cssText='display:flex;flex-direction:column;padding:0;height:100%;';
+  g.appendChild(mkDragHandle('emj'));   // 顶部拖拽手柄(冻结置顶，不随内容滚动)——表情独立高度
+  const body=document.createElement('div'); body.className='panel-scroll'; g.appendChild(body);
+  attachRubberBand(body);
+  if(_emjSlideDir){ animPanelSwap(body,_emjSlideDir); _emjSlideDir=0; }
+  _catSelectFn=(i)=>{ if(i!==_emjCat) playPop(); _emjSlideDir=(i===_emjCat)?0:(i>_emjCat?1:-1); _emjCat=i; buildEmoji(); };
+  // 分类图标搬到顶部「编码栏」(catStrip) 均分铺满全宽(9个，间距拉到右端)；面板内只保留拖杆 + 表情网格。
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip';   // 不再10类挤一屏：可横滚，间距/触区加大防误触
+  EMOJI_CATS.forEach((cat,i)=>{
+    const t=document.createElement('div');
+    const active=(i===_emjCat);
+    t.className='cat-chip emo'+(active?' on':'');
+    t.setAttribute('data-tab-idx',i);
+    t.textContent=cat.n;
+    if(active) t.setAttribute('data-active-tab','1');
+    tabs.appendChild(t);
+  });
+  syncCodeBar();
+  // 当前分类图标滚入可视区
+  requestAnimationFrame(()=>{
+    const at=tabs.querySelector('[data-active-tab]'); if(!at) return;
+    const sL=tabs.scrollLeft, sW=tabs.clientWidth, tL=at.offsetLeft, tW=at.offsetWidth;
+    if(tL>=sL && tL+tW<=sL+sW) return;
+    const target=Math.max(0, Math.min(tabs.scrollWidth-sW, tL-(sW-tW)/2));
+    smoothScrollX(tabs,target);
+  });
+  const cat=EMOJI_CATS[_emjCat];
+  if(cat.flag){
+    // ===== 旗帜：倒品字布局 =====
+    // 上方左右两列：左=发达民主(正常底)、右=另一类(暗底)；下方居中=其余
+    const mkFlagCell=(item,dark)=>{
+      const d=document.createElement('div');
+      d.className='pi';
+      d.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;height:46px;font-size:22px;gap:1px;padding:2px 1px;border-radius:10px;'+
+        (dark
+          ?'background:linear-gradient(180deg,rgba(40,33,48,0.92),rgba(25,20,32,0.94));box-shadow:inset 0 1px 0 rgba(255,255,255,0.09),0 1px 2px rgba(0,0,0,0.28);'
+          :'background:linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0.5));box-shadow:inset 0 1px 0 rgba(255,255,255,0.9),0 1px 2px rgba(150,110,80,0.14);');
+      d.innerHTML=`<span class="emoji-cell" style="line-height:1;font-size:21px">${item.f}</span><span style="font-size:9.5px;line-height:1.05;font-weight:600;letter-spacing:0.2px;opacity:0.85;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;${dark?'color:#efe8f6':'color:#4a3626'}">${item.n}</span>`;
+      addPanelKey(d,()=>commitFlag(item.f));
+      return d;
+    };
+    // 上半：左右两列并排
+    const top=document.createElement('div');
+    top.style.cssText='display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:5px 6px';
+    const leftCol=document.createElement('div');
+    leftCol.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-right:5px';
+    FLAG_LEFT.forEach(it=>leftCol.appendChild(mkFlagCell(it,false)));
+    const div=document.createElement('div');
+    div.style.cssText='background:linear-gradient(180deg,transparent,rgba(0,0,0,0.16),transparent);width:1px';
+    const rightCol=document.createElement('div');
+    rightCol.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:4px;padding-left:5px;align-content:start';
+    FLAG_RIGHT.forEach(it=>rightCol.appendChild(mkFlagCell(it,true)));
+    top.appendChild(leftCol); top.appendChild(div); top.appendChild(rightCol);
+    body.appendChild(top);
+    // 下半：其余居中
+    const botWrap=document.createElement('div');
+    botWrap.style.cssText='border-top:1px solid rgba(0,0,0,0.08);padding:5px 6px';
+    const bot=document.createElement('div');
+    bot.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:4px';
+    FLAG_OTHER.forEach(it=>bot.appendChild(mkFlagCell(it,false)));
+    botWrap.appendChild(bot);
+    body.appendChild(botWrap);
+    return;
+  }
+  // 普通分类表情网格：8/行，单击上屏，长按拖拽自由排序(与符号一致)
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:3px 8px 5px;';
+  const ci=_emjCat;
+  const renderEmjGrid=()=>{
+    grid.innerHTML='';
+    const order=emjGetOrder(ci);
+    let dragEl=null,dragSym=null,clone=null,longTimer=null,startX=0,startY=0,dragging=false;
+    const cleanupDrag=()=>{
+      dragAutoScrollStop();
+      if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+      if(clone){ clone.remove(); clone=null; }
+      if(dragEl){ dragEl.style.opacity=''; dragEl=null; }
+      dragging=false; dragSym=null;
+      Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+    };
+    const finishReorder=(targetSym,after)=>{
+      const cur=emjGetOrder(ci).slice();
+      const from=cur.indexOf(dragSym);
+      if(from<0){ cleanupDrag(); return; }
+      cur.splice(from,1);
+      let to=cur.indexOf(targetSym);
+      if(to<0) cur.push(dragSym);
+      else { if(after) to+=1; cur.splice(to,0,dragSym); }
+      _emjOrder[ci]=cur; emjSaveOrder();
+      cleanupDrag(); renderEmjGrid();
+    };
+    order.forEach(e=>{
+      const div=document.createElement('div');
+      div.className='emj-cell emoji-cell';
+      div.textContent=e;
+      div.dataset.sym=e;
+      let _moved=false,_touched=false,_t0=0;
+      div.addEventListener('touchstart',ev=>{
+        _touched=true; _moved=false; _t0=Date.now();
+        startX=ev.touches[0].clientX; startY=ev.touches[0].clientY;
+        longTimer=setTimeout(()=>{        // 长按 500ms(对标 iPhone 图标长按) → 进入拖拽排序，滑动不再误触拖动
+          dragging=true; dragSym=e; dragEl=div;
+          try{ if(navigator.vibrate) navigator.vibrate(12); }catch(_){}
+          const r=div.getBoundingClientRect();
+          clone=document.createElement('div');
+          clone.textContent=e;
+          clone.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;margin:0;z-index:300;pointer-events:none;opacity:0.96;transform:scale(1.15);box-shadow:0 6px 18px rgba(0,0,0,0.28);border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(214,130,46,0.18);font-size:26px';
+          document.body.appendChild(clone);
+          div.style.opacity='0.25';
+        },500);
+      },{passive:true});
+      div.addEventListener('touchmove',ev=>{
+        const t=ev.touches[0];
+        if(!dragging){     // 未进入拖拽：位移即取消长按，放行面板滚动
+          if(Math.abs(t.clientX-startX)>10||Math.abs(t.clientY-startY)>10){ _moved=true; if(longTimer){ clearTimeout(longTimer); longTimer=null; } }
+          return;
+        }
+        ev.preventDefault();
+        if(clone){ clone.style.left=(t.clientX-clone.offsetWidth/2)+'px'; clone.style.top=(t.clientY-clone.offsetHeight/2)+'px'; }
+        dragAutoScroll(body, t.clientY);   // #5 表情滚动容器=外层panel-scroll：拖到边缘自动滚动
+        let el=document.elementFromPoint(t.clientX,t.clientY);
+        while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+        Array.from(grid.children).forEach(c=>{ c.style.outline=''; });
+        if(el&&el.dataset&&el.dataset.sym&&el!==div){ el.style.outline='2px solid var(--ac,#e86030)'; el.style.outlineOffset='-2px'; }
+      },{passive:false});
+      div.addEventListener('touchend',ev=>{
+        if(dragging){
+          const t=ev.changedTouches[0];
+          let el=document.elementFromPoint(t.clientX,t.clientY);
+          while(el&&el!==grid&&!(el.dataset&&el.dataset.sym)) el=el.parentElement;
+          if(el&&el.dataset&&el.dataset.sym&&el.dataset.sym!==dragSym){
+            const r=el.getBoundingClientRect();
+            finishReorder(el.dataset.sym, t.clientX>r.left+r.width/2);
+          } else cleanupDrag();
+          return;
+        }
+        if(longTimer){ clearTimeout(longTimer); longTimer=null; }
+        if(_touched&&!_moved&&Date.now()-_t0<500){ playClick(); commit(e); }   // 快速点 → 上屏(带键盘声效)
+        _touched=false;
+      },{passive:true});
+      div.addEventListener('touchcancel',()=>{ cleanupDrag(); _touched=false; },{passive:true});
+      div.addEventListener('click',()=>{ if(!('ontouchstart' in window)) commit(e); });  // 模拟器
+      grid.appendChild(div);
+    });
+  };
+  renderEmjGrid();
+  body.appendChild(grid);
+}
+

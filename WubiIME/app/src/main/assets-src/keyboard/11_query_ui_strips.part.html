@@ -1,0 +1,381 @@
+// ====== 查询 ======
+function queryCands(maxN){
+  const raw=_queryCandsRaw(maxN);
+  if(mode==='english') return raw;
+  return applyUserDict(raw, code?code.toLowerCase():'');
+}
+function _queryCandsRaw(maxN) {
+  maxN=maxN||15; if(!code)return[];
+  const lcode=code.toLowerCase();
+  // Android模式: 走Java DictEngine查完整词库
+  if(typeof Android!=='undefined'&&Android.queryWubi) {
+    if(mode==='wubi') {
+      if(revMode&&lcode.length>1) {
+        // 反查: 用拼音查，结果附加五笔编码
+        try {
+          const py=lcode.slice(1);
+          const raw=JSON.parse(Android.queryPinyin(py));
+          return raw.map(c=>({w:c.w,f:c.f,wbCode:(lookupWubi(c.w)||deriveWubiCode(c.w)||'')}));   // 内嵌表查不到→按86规则由单字码现推
+        } catch(e){ return []; }
+      }
+      try {
+        return JSON.parse(Android.queryWubi(lcode));
+      } catch(e){ return []; }
+    } else {
+      try {
+        let base=JSON.parse(Android.queryPinyin(lcode));
+        // 连打整句：输入较长且首选未覆盖整串时，把整句切分结果置顶
+        if(lcode.length>=4){
+          try{
+            const sent=Android.querySentence(lcode);
+            if(sent && (!base.length || base[0].w!==sent)){
+              // 去重后置顶
+              base=base.filter(c=>c.w!==sent);
+              base.unshift({w:sent,f:99999});
+            }
+          }catch(e){}
+        }
+        // 整词声母简拼：wm→我们（仅当全拼无精确命中时补充，避免污染正常拼音）
+        if(lcode.length>=2 && lcode.length<=5){
+          try{
+            const brief=JSON.parse(Android.queryBrief(lcode));
+            if(brief&&brief.length){
+              const seen=new Set(base.map(c=>c.w));
+              brief.forEach(c=>{ if(!seen.has(c.w)){ base.push(c); } });
+            }
+          }catch(e){}
+        }
+        return base;
+      } catch(e){ return []; }
+    }
+  }
+  // 浏览器fallback: 用内嵌JS词典
+  if(mode==='wubi') {
+    if(revMode&&lcode.length>1) {
+      const py=lcode.slice(1);
+      const res=qDict(PINYIN,py,maxN);
+      return res.map(c=>({...c,wbCode:lookupWubi(c.w)}));
+    }
+    return qDict(WUBI,lcode,maxN);
+  }
+  const full=qDict(PINYIN,lcode,maxN);
+  if(full.length<maxN&&lcode.length<=4) {
+    const seen=new Set(full.map(c=>c.w));
+    for(const k of Object.keys(PINYIN)) {
+      if(full.length>=maxN)break;
+      if(k.length>=2&&isBrief(k,lcode)) {
+        for(const c of PINYIN[k]) if(!seen.has(c.w)){seen.add(c.w);full.push(c);}
+      }
+    }
+  }
+  return full.slice(0,maxN);
+}
+function isBrief(code,input) {
+  // 把code拆成声母序列，看首字母是否匹配input
+  const parts=code.match(/[bpmfdtnlgkhjqxzcsryw]h?|[aeiouü]/g)||[];
+  if(parts.length<2)return false;
+  return parts.map(p=>p[0]).join('').startsWith(input);
+}
+function qDict(dict,prefix,maxN) {
+  // 精确匹配优先，不参与排序；前缀匹配补充并按词频排
+  const exact=(dict[prefix]||[]).slice(); // 保持原序（已按词频降序）
+  const seen=new Set(exact.map(c=>c.w));
+  const prefRes=[];
+  for(const k of Object.keys(dict)) {
+    if(prefRes.length>=maxN*4)break;
+    if(k!==prefix&&k.startsWith(prefix))
+      for(const c of dict[k])if(!seen.has(c.w)){seen.add(c.w);prefRes.push(c);}
+  }
+  prefRes.sort((a,b)=>b.f-a.f);
+  return [...exact,...prefRes].slice(0,maxN);
+}
+function lookupWubi(word) {
+  for(const[k,v]of Object.entries(WUBI))if(v.some(c=>c.w===word))return k;
+  return '';
+}
+
+// ====== UI ======
+let _candT=null;
+function updateCode() {
+  let disp=code;
+  if(revMode&&code.length>0) disp='反查:'+code.slice(1);
+  document.getElementById('codeText').textContent=disp;
+  if(_candT){ clearTimeout(_candT); _candT=null; }
+  const render=()=>{
+    try{
+      const cands=queryCands();
+      if(cands.length>0)showCand(cands);else showBtns();
+    }catch(err){
+      // 自愈：任何查询/渲染异常都不许拖垮后续输入显示——复位到干净态，下一次按键从零恢复
+      try{ code=''; revMode=false; if(typeof t9code!=='undefined')t9code='';
+        document.getElementById('codeText').textContent='';
+        document.getElementById('candBar').classList.add('hidden');
+        document.getElementById('btnBar').classList.remove('hidden');
+      }catch(e2){}
+    }
+  };
+  // 长拼音串三路查询(词组/整句/简拼)较重：≥7码时 50ms 合并连击，只查最后一次，低端机不卡
+  if(mode==='pinyin' && !revMode && code.length>=7){ _candT=setTimeout(()=>{ _candT=null; render(); },50); }
+  else render();
+  syncCodeBar();   // 编码栏在「分类条 / 编码文字」间切换
+}
+function showCand(cands) {
+  document.getElementById('candBar').classList.remove('hidden');
+  document.getElementById('btnBar').classList.add('hidden');
+  const list=document.getElementById('candList');
+  list.innerHTML='';
+  cands.slice(0,60).forEach(c=>{
+    const div=document.createElement('div');
+    div.className='cand-item';
+    div.textContent=c.w;
+    if(revMode&&c.wbCode){const s=document.createElement('span');s.className='cand-sub';s.textContent=c.wbCode;div.appendChild(s);}
+    addCandListeners(div,()=>onCandTap(c,div));
+    list.appendChild(div);
+  });
+  document.getElementById('candMore').style.display=cands.length>=6?'flex':'none';
+}
+// 候选项/可横滑列表项专用绑定：不 preventDefault → 不阻断容器原生横向滚动；
+// 按位移判定点击(位移<10px=点击；否则是滑动，交给原生滚动，不触发上屏)。
+// 关键修复：候选栏(candBar)与顶栏按钮栏(btnBar)占同一位置，互斥显示。点候选字上屏后
+// candBar 立即隐藏、btnBar 显形，而触摸抬指后浏览器会在原坐标补发一个合成 click，
+// 这个 click 落到刚显形的 btnBar 按钮上(最左候选≈模式键、第2候选≈颜色球)，造成"误触双击"。
+// touchend 是 passive 无法 preventDefault 阻止合成 click，故改为：上屏瞬间记录时间戳，
+// 由 btnBar 捕获阶段在短窗口内吞掉这次穿透 click。见 installGhostClickGuard。
+function addCandListeners(div, fn){
+  let _x=0,_y=0,_moved=false,_t0=0;
+  div.addEventListener('touchstart',e=>{ _x=e.touches[0].clientX; _y=e.touches[0].clientY; _moved=false; _t0=Date.now(); },{passive:true});
+  div.addEventListener('touchmove',e=>{
+    // 阈值降到 6px 并一旦判定为移动就永久锁定本次触摸为"滑动"，
+    // 杜绝主键盘横滑候选条时末帧抬指误触上屏(用户反复反馈的"滑动总上屏")。
+    if(Math.abs(e.touches[0].clientX-_x)>6 || Math.abs(e.touches[0].clientY-_y)>6) _moved=true;
+  },{passive:true});
+  div.addEventListener('touchend',e=>{
+    // 仅"无位移 且 触摸时长够短(<400ms，排除长按后微动)"才算点击上屏。
+    // 根治并发误触：preventDefault 掉本次触摸的合成鼠标事件(mousedown/mouseup/click)，
+    // 候选上屏后 candBar 隐藏、btnBar 显形，合成事件不会再穿透到顶栏按钮(符号/模式键)。
+    if(!_moved && (Date.now()-_t0)<400){ if(e.cancelable) e.preventDefault(); _candCommitTs=Date.now(); playClick(); fn(); }
+  },{passive:false});
+  div.addEventListener('touchcancel',()=>{ _moved=true; },{passive:true});
+  div.addEventListener('mousedown',e=>{ e.preventDefault(); playClick(); fn(); });
+}
+// 按钮栏气泡音：所有 .sball 按钮(模式/主题/符号/表情/应用/123)按下即响与分类胶囊同款气泡音。
+//   触屏走 touchstart(真实触摸必有)，桌面无触屏才走 mousedown——幽灵合成事件不会响。
+(function(){
+  const bar=document.getElementById('btnBar'); if(!bar) return;
+  const hitBall=t=>{ let el=t; while(el&&el!==bar){ if(el.classList&&el.classList.contains('sball')) return true; el=el.parentElement; } return false; };
+  bar.addEventListener('touchstart',e=>{ if(hitBall(e.target)) { try{playPop();}catch(_){}} },{passive:true,capture:true});
+  bar.addEventListener('mousedown',e=>{ if(!('ontouchstart' in window) && hitBall(e.target)) { try{playPop();}catch(_){}} },true);
+})();
+// 防穿透：candBar 上屏后的时间戳；btnBar 捕获阶段拦截短窗口内的合成 click。
+let _candCommitTs=0;
+function installGhostClickGuard(){
+  const bar=document.getElementById('btnBar');
+  if(!bar) return;
+  // 穿透 ghost click 的真正特征：候选区上屏后由触点坐标合成的 click，落点处的按钮【没有】收到过真实 touchstart。
+  //   用户【主动】点 btnBar 按钮一定先有 touchstart 命中该按钮。故只吞"无 touchstart 命中"的合成 click，
+  //   绝不误吞用户主动点[符号]/[表情]/[剪贴板]/[123]（旧逻辑无差别按 700ms 窗口拦截，导致上屏后这些键点不开/要点两次）。
+  let _btnTouched=false;
+  bar.addEventListener('touchstart',()=>{ _btnTouched=true; setTimeout(()=>{_btnTouched=false;},700); },{passive:true,capture:true});
+  // 同时拦 click/mousedown/mouseup：[符号]等按钮由 mousedown 触发，只拦 click 会漏——
+  //   这正是"点候选1并发[模式键]、点候选2并发[符号]"回弹的根因。真实用户触摸必有 touchstart 在前，不受影响。
+  ['click','mousedown','mouseup'].forEach(tp=>{
+    bar.addEventListener(tp,e=>{
+      if(!_btnTouched && Date.now()-_candCommitTs < 700){
+        e.stopPropagation(); e.preventDefault();   // 仅吞穿透幽灵事件
+        if(tp==='click') _candCommitTs=0;
+      }
+    }, true);  // 捕获阶段，先于按钮自身 handler 执行
+  });
+}
+function showBtns() {
+  // 正在输入编码时绝不退回按钮栏(Ctrl 调序需要候选栏落点)：
+  //   全键盘认 code；t9code 仅在九宫布局(pyGrid)激活时才算数——主键盘下的 t9code 残值一律无视，
+  //   否则上屏后候选栏会被卡在屏上(真机已复现)。
+  const t9Active=(typeof pyGrid!=='undefined'&&pyGrid&&typeof t9code!=='undefined'&&t9code&&t9code.length>0);
+  if((code&&code.length>0) || t9Active){
+    document.getElementById('candBar').classList.remove('hidden');
+    document.getElementById('btnBar').classList.add('hidden');
+    return;
+  }
+  document.getElementById('candBar').classList.add('hidden');
+  document.getElementById('btnBar').classList.remove('hidden');
+}
+// 兼容别名：Android 端 commit/pressEnter 调用 showCands([]) 清空候选
+function showCands(cands){
+  if(!cands||cands.length===0){showBtns();return;}
+  showCand(cands);
+}
+function updateEditor() {
+  const tBEl=document.getElementById('tB');
+  const tAEl=document.getElementById('tA');
+  // 浏览器fallback预览编辑器(tA/tB)在 Android 真机不存在；缺失则直接返回，杜绝空指针崩溃。
+  if(!tBEl || !tAEl) return;
+  const full=getFullText();
+  const pos=getCursorPos();
+  if(!full){
+    tBEl.textContent='';
+    tAEl.innerHTML='<span class="ph">在这里输入...</span>';
+    return;
+  }
+  const r=getSelRange();
+  if(!r){
+    tBEl.textContent=tB;
+    tAEl.textContent=tA;
+  } else {
+    const before=full.slice(0,r.start);
+    const sel=full.slice(r.start,r.end);
+    const after=full.slice(r.end);
+    if(pos<=selAnchor){
+      // 光标在选区前(活动端=start)
+      tBEl.textContent=before;
+      tAEl.innerHTML=`<span class="sel">${escH(sel)}</span>${escH(after)}`;
+    } else {
+      // 光标在选区后(活动端=end)
+      tBEl.innerHTML=`${escH(before)}<span class="sel">${escH(sel)}</span>`;
+      tAEl.textContent=after;
+    }
+  }
+}
+function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function updateDisplay() {
+  const tags={wubi:'五笔',pinyin:'拼音',english:'英文'};
+  document.getElementById('modeLbl').textContent=(mode==='pinyin'&&pyGrid)?'九宫':tags[mode];
+  const mb=document.getElementById('modeBtn'); if(mb) mb.classList.toggle('plain', mode==='english');
+  buildKb();
+}
+// Issue2: 顶栏 [123] 键 → 切到数字键盘
+function switchToNum(){
+  if(num) return;
+  num=true; switchNum();
+}
+// Issue4: 顶栏 [123] 键与"返回"共用同一键——主键盘点它进数字键盘，数字键盘点它返回主键盘。
+//   原数字键盘删除键的"右半返回"已取消(删除键改纯删除·长按连删)，返回功能统一由此键承担。
+function toggleNumKb(){
+  num=!num; switchNum();
+}
+function switchNum() {
+  clearCode();
+  closeApp();   // 切键盘=离开应用，关 overlay
+  // 切数字键盘不再切掉符号/表情/剪贴面板：面板内容原样保留，与数字键盘共存
+  // 回到主键盘时退出计算器模式并重建数字键盘，下次进入是干净的数字键盘
+  if(num){ buildNumpad(); } else if(calcMode){ calcMode=false; buildNumpad(); }
+  document.getElementById('mainKb').classList.toggle('hidden',num);
+  document.getElementById('numKb').classList.toggle('hidden',!num);
+  // [123] 键标签恒为"123"，开启时靠按钮激活态(主题色反差)指示，再按一下恢复——不再变"返回"文字。
+  const nl=document.getElementById('numLbl'); if(nl) nl.textContent='123';
+  updateBtnStates();
+}
+// 工具栏右上角按钮：主键盘=收起(双线下滑SVG:横线+下箭头)，数字键盘=删除键(单击删除·长按连删)
+function cycleMode() {
+  if(num){ num=false; switchNum(); }   // 切输入法时若处于数字键盘→重置收起，优先呈现主键盘输入区
+  const ms=['wubi','pinyin','english'];
+  mode=ms[(ms.indexOf(mode)+1)%ms.length];
+  try{ KV.set('kbMode',mode); mirrorPrefs(); }catch(e){}   // 持久：下次唤起以最后一次模式呈现
+  if(typeof t9code!=='undefined') t9code='';
+  clearCode(); updateDisplay();
+}
+function setThemeIdx(i){
+  if(i<0||i>=THEMES.length) return;
+  const ime=document.getElementById('ime');
+  ime.classList.remove(THEMES[theme]);
+  theme=i;
+  ime.classList.add(THEMES[theme]);
+  try{ KV.set('kbTheme',THEMES[theme]); mirrorPrefs(); }catch(e){}   // 持久：重建/重启后仍是该主题
+  const ball=document.getElementById('themeBtn');
+  ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:'');
+}
+function cycleTheme(){ setThemeIdx((theme+1)%THEMES.length); }
+// ===== 主题选色轨道：点颜色球 → 全部主题色球在编码栏轨道排开，点选直达 =====
+function toggleThemeStrip(){
+  if(_activePanel==='theme'){ restoreCatStrip(); return; }   // #3 收回轨道→恢复原分类条，面板不动
+  _activePanel='theme'; buildThemeStrip(); updateBtnStates();
+}
+function buildThemeStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip';
+  THEMES.forEach((tn,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip ball'+(i===theme?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    const b=document.createElement('div');
+    b.className='theme-ball'+(i>0?' '+TNAMES[i]:'');
+    d.appendChild(b);
+    if(i===theme) d.setAttribute('data-active-tab','1');
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==theme) playPop(); setThemeIdx(i); restoreCatStrip(); };   // #3 颜色球无展开区：选完即收，延续原展开状态
+  syncCodeBar();
+  requestAnimationFrame(()=>{
+    const at=tabs.querySelector('[data-active-tab]'); if(!at) return;
+    const sL=tabs.scrollLeft, sW=tabs.clientWidth, tL=at.offsetLeft, tW=at.offsetWidth;
+    if(tL>=sL && tL+tW<=sL+sW) return;
+    smoothScrollX(tabs, Math.max(0, Math.min(tabs.scrollWidth-sW, tL-(sW-tW)/2)));
+  });
+}
+// ===== 输入法模式轨道：点模式键 → 五笔/拼音/九宫/英文 排开点选(九宫=拼音+九宫布局) =====
+const MODE_OPTS=[{n:'五笔',m:'wubi',g:false},{n:'拼音',m:'pinyin',g:false},{n:'九宫',m:'pinyin',g:true},{n:'英文',m:'english',g:false}];
+function curModeIdx(){
+  if(mode==='wubi') return 0;
+  if(mode==='pinyin') return pyGrid?2:1;
+  return 3;
+}
+function applyModeOpt(i){
+  const o=MODE_OPTS[i]; if(!o) return;
+  if(num){ num=false; switchNum(); }          // 处于数字键盘→先收起，呈现主输入区(符号/表情面板保持不动)
+  if(typeof t9code!=='undefined') t9code='';
+  mode=o.m;
+  if(pyGrid!==o.g){ pyGrid=o.g; try{ KV.set('pyGrid', pyGrid?'1':'0'); }catch(e){} }
+  try{ KV.set('kbMode',mode); mirrorPrefs(); }catch(e){}
+  clearCode(); updateDisplay();
+}
+function toggleModeStrip(){
+  if(_activePanel==='mode'){ restoreCatStrip(); return; }   // #3 收回轨道→恢复原分类条
+  _activePanel='mode'; buildModeStrip(); updateBtnStates();
+}
+function buildModeStrip(){
+  const tabs=document.getElementById('catStrip');
+  tabs.innerHTML=''; tabs.className='cat-strip spread';
+  const cur=curModeIdx();
+  MODE_OPTS.forEach((o,i)=>{
+    const d=document.createElement('div');
+    d.className='cat-chip'+(i===cur?' on':'');
+    d.setAttribute('data-tab-idx',i);
+    d.textContent=o.n;
+    tabs.appendChild(d);
+  });
+  _catSelectFn=(i)=>{ if(i!==curModeIdx()) playPop(); applyModeOpt(i); buildModeStrip(); };
+  syncCodeBar();
+}
+function toggleSym(){
+  closeApp();   // 切到符号面板=离开剪贴板内的应用，关掉 overlay 释放 iframe
+  const p=document.getElementById('symPanel');
+  ['emjPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); }   // 打开→编码栏显示符号分类
+  else { clearCatStrip(); }                                                   // 关闭→恢复编码栏
+  updateBtnStates();
+}
+function toggleEmoji(){
+  closeApp();
+  const p=document.getElementById('emjPanel');
+  ['symPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')){ _activePanel='emoji'; buildEmoji(); } // 打开→编码栏显示表情分类
+  else { clearCatStrip(); }
+  updateBtnStates();
+}
+function toggleClip(){
+  const p=document.getElementById('clipPanel');
+  ['symPanel','emjPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  if(p.classList.contains('hidden')){
+    syncPrivClips(false);   // 先并入 Java 侧新捕获的复制内容，再渲染
+    refreshClip(); p.classList.remove('hidden');
+    _activePanel='clip'; buildClipStrip();   // 编码栏轨道: [剪贴板|密码生成器|笔记本|防截屏] 胶囊
+  } else { closeApp(); p.classList.add('hidden'); clearCatStrip(); }
+  updateBtnStates();
+}
+function hideKb(){
+  // 收起键盘：真机调 Android 桥接收起输入法；浏览器模拟器无操作
+  if(typeof Android!=='undefined' && Android.hideKeyboard){ Android.hideKeyboard(); }
+}
+// 剪贴条目"进门"：在剪贴面板内覆盖一个完整内容详情视图，可上屏/删除/返回

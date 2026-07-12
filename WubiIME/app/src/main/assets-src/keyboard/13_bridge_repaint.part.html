@@ -1,0 +1,247 @@
+// ===== Android WebView Bridge =====
+// 检测是否在Android WebView中运行
+const isAndroid = typeof Android !== 'undefined';
+
+// 覆盖commit函数：在Android中调用JSBridge，否则保持原有模拟器行为
+const _origCommit = commit;
+window.commit = function(txt) {
+  if (txt === '\n' && renameHookEnter()) return;     // 重命名浮层：回车=保存
+  if (txt !== '\n' && renameHookCommit(txt)) {       // 重命名浮层：上屏进名称缓冲
+    // #1 编码必须同步归位：空格上屏首选进重命名缓冲后，若不清 code，编码保持粘连态，后续输入全部错位
+    code=''; revMode=false; if(typeof t9code!=='undefined') t9code='';
+    updateCode(); showCands([]); return;
+  }
+  if (_wmActive) { wmInput(txt); return; }   // 造词模式：上屏内容进入"词"缓冲，不发往宿主
+  if (isAndroid) {
+    if (_routeNote()) {
+      if (txt === '\n') { _postNote({src:'wubi',type:'enter'}); }
+      else { _postNote({src:'wubi',type:'commit',text:txt}); }
+      code = ''; revMode = false; updateCode(); showCands([]); return;
+    }
+    if (txt === '\n') { Android.commitEnter(); return; }
+    Android.commitText(txt);
+    // 清除编码状态
+    code = ''; revMode = false; updateCode(); showCands([]);
+  } else {
+    _origCommit(txt);
+  }
+};
+// 旗帜上屏：与普通 commit 相同，删除时由 Java deleteBefore 智能识别整簇一次删除
+function commitFlag(f){ commit(f); }
+
+// 覆盖doDelete
+const _origDelete = doDelete;
+window.doDelete = function() {
+  if (_renameBuf!==null) {                    // 重命名浮层·焦点铁锁：先删编码，编码空才删名称，宿主永不触碰
+    if (code.length>0){ code=code.slice(0,-1); if(!code)revMode=false; updateCode(); return; }
+    renameHookDelete(); return;
+  }
+  if (_wmActive) { wmBackspace(); return; }   // 造词模式：退格作用于编码/词缓冲
+  if (isAndroid) {
+    // 先清编码，无编码则删字符
+    if (code.length > 0) {
+      code = code.slice(0,-1);
+      if (!code) revMode = false;
+      updateCode();
+    } else {
+      if (_routeNote()) { _postNote({src:'wubi',type:'delete'}); }
+      else { Android.deleteBefore(); }
+    }
+  } else {
+    _origDelete();
+  }
+};
+
+// 覆盖pressSpace
+const _origSpace = pressSpace;
+window.pressSpace = function() {
+  if (isAndroid) {
+    if (code.length > 0) {
+      // 有编码时空格上屏第一候选
+      const cands = queryCands();
+      if (cands.length > 0) { commit(cands[0].w); }
+      else { commit(' '); }
+    } else {
+      commit(' ');
+    }
+  } else {
+    _origSpace();
+  }
+};
+
+// 覆盖pressEnter
+const _origEnter = pressEnter;
+window.pressEnter = function() {
+  if (_wmActive) {
+    // #1 造词内回车与主键盘语义一致：有编码→编码原文(字母)上屏进"词"栏，绝不跳栏/触发添加；
+    //    无编码→回车=添加(按钮同款)。旧版直接 wmCommitAdd，词还没填时报错并把焦点甩到编码栏(即"跳到下一栏")。
+    if (code.length > 0) { wmInput(revMode ? code.slice(1) : code); return; }
+    wmCommitAdd(); return;
+  }
+  if (isAndroid) {
+    if (code.length > 0) {
+      // 编码态回车：上屏编码原文(字母)，而非候选。空格才上屏首选候选。
+      const raw = revMode ? code.slice(1) : code;
+      commit(raw); code=''; revMode=false; updateCode(); showCands([]);
+    } else {
+      commit('\n');
+    }
+  } else {
+    _origEnter();
+  }
+};
+
+// 隐藏模拟器专用UI（文本框、标题等），只保留键盘
+if (isAndroid) {
+  document.addEventListener('DOMContentLoaded', function() {
+    // 隐藏非键盘元素
+    const hide = ['#outputWrap','#codeWrap','h1','.simulator-header','#titleBar'];
+    hide.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el) el.style.display = 'none';
+    });
+    // 键盘撑满全屏
+    const kb = document.querySelector('#kbWrap') || document.querySelector('.kb-wrap');
+    if (kb) {
+      kb.style.position = 'fixed';
+      kb.style.bottom = '0';
+      kb.style.left = '0';
+      kb.style.right = '0';
+      kb.style.width = '100%';
+    }
+    // 初始化键盘
+    buildKb();
+  });
+}
+
+// Android调用此函数获取候选词
+window.getCandidates = function(codeStr) {
+  code = codeStr || '';
+  const res = queryCands(10) || [];
+  return JSON.stringify(res.map(c=>c.w));
+};
+
+// Android调用此函数设置主题（按名字定位 THEMES 索引）
+window.setThemeFromAndroid = function(themeName) {
+  const idx = THEMES.indexOf('t-'+themeName);
+  if(idx<0) return;
+  const ime=document.getElementById('ime');
+  ime.classList.remove(THEMES[theme]);
+  theme=idx;
+  ime.classList.add(THEMES[theme]);
+  const ball=document.getElementById('themeBtn');
+  if(ball) ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:'');
+};
+
+// Ctrl/Alt 组合键 → Android JSBridge
+const _origHandleCtrl = typeof handleCtrl === 'function' ? handleCtrl : null;
+const _origHandleAlt = typeof handleAlt === 'function' ? handleAlt : null;
+
+if (isAndroid) {
+  window.handleCtrl = function(l) {
+    if (_renameBuf!==null) return;   // 重命名焦点铁锁：宿主编辑/光标操作一律禁止
+    switch(l) {
+      case 'f': if(typeof openWordMaker==='function') openWordMaker(); break;   // Ctrl+F 造词
+      case 'a': Android.selectAll(); break;
+      case 'c':
+        // 私有捕获：把选区文本存入输入法私有历史（不依赖系统剪贴板）
+        try{ const s=Android.getSelectedText&&Android.getSelectedText(); if(s) addClip(s); }catch(e){}
+        Android.copyText();
+        scheduleClipSync();   // 系统剪贴路径捕获的内容延时合并进面板，随即可见
+        break;
+      case 'v': Android.pasteText(); break;
+      case 'x':
+        try{ const s=Android.getSelectedText&&Android.getSelectedText(); if(s) addClip(s); }catch(e){}
+        Android.cutText();
+        scheduleClipSync();
+        break;
+      case 'z': Android.undoText(); break;
+      case 'b': Android.moveCursor(4, false); break; // ←: 光标移到当前行最左端
+      case 'm': Android.moveCursor(5, false); break; // →: 光标移到当前行最右端
+      case 'j': Android.moveCursor(6, false); break; // ↑: 跳全文开头
+      case 'n': Android.moveCursor(7, false); break; // ↓: 跳全文末尾
+    }
+    // 仅当瞬时 Ctrl 确实处于按下态才复位并重建；九宫功能层/锁定层调用时 ctrl 本就为 false，
+    //   绝不重建——否则方向键长按连发每拍重建整个键盘 DOM(键被摘除→连发失控/卡死的帮凶)。
+    if(ctrl && !ctrlLock){ ctrl = false; buildKb(); }
+  };
+  window.handleAlt = function(l) {
+    if (_renameBuf!==null) return;   // 重命名焦点铁锁
+    // J=上 B=左 N=下 M=右(扩选); Q=Tab(段末); A=跨文本框跳转
+    switch(l) {
+      case 'j': Android.moveCursor(10, true); break;  // ↑：选中至上一视觉行行首
+      case 'b': Android.moveCursor(0, true); break;   // ←：左扩/缩选1字符
+      case 'n': Android.moveCursor(11, true); break;  // ↓：选中至下一视觉行行尾
+      case 'm': Android.moveCursor(1, true); break;   // →：右扩/缩选1字符
+      case 'q': Android.moveCursor(12, false); break; // Tab：跳到段末/下一段末
+      case 'a': Android.moveCursor(13, false); break; // 跨文本框：跳到下一个输入框(循环)
+    }
+  };
+}
+
+// 点击音效：统一走 WebView 自合成黑轴音效（受 soundOn 控制）。
+// 不再调用 Android.playClick（系统音不可换、且无法静音控制）。
+
+// ===== 白屏/卡旧画根治：切到别的 App 再切回时，WebView 的合成缓冲常被系统回收，
+//   表现为整片白屏或停在上一帧、点不动，需反复切换才恢复。这里在「重新可见」的所有
+//   时机强制重绘 + 校验 DOM 完整，零闪烁地把画面拉回来。Java 端也可直接调 window.imeRepaint()。=====
+let _repaintRaf=0, _lastRepaintT=0;
+function imeRepaint(force){
+  const ime=document.getElementById('ime');
+  if(!ime) return;
+  // #6 防抖：笔记本 Tab 连续跳块会触发 Java 侧一连串 restartInput→imeRepaint——
+  //   合成缓冲此刻显然是活的，600ms 内的重复重绘只会造成可见闪动(装机"键盘闪一下"根因)。
+  //   仅"从不可见恢复可见"(force)与冷却期外的调用才做真重绘；DOM 完整性兜底始终保留。
+  const _now=Date.now();
+  const _cool = !force && !document.hidden && (_now-_lastRepaintT<600);
+  _lastRepaintT=_now;
+  // 1) DOM 兜底：若主键盘行被系统回收成空（极端情况），按当前状态重建一次
+  try{
+    const r1=document.getElementById('r1');
+    const numHidden=document.getElementById('numKb') && document.getElementById('numKb').classList.contains('hidden');
+    if(r1 && r1.childElementCount===0 && numHidden){ buildKb(); }
+  }catch(e){}
+  if(_cool) return;   // 冷却期内：DOM 兜底已做，跳过重绘脉冲
+  // 2) 强制合成层重绘：切换一个极廉价、不可见的变换并在下一帧复位，
+  //    迫使 WebView 重新提交缓冲（解决「白屏 / 停在旧帧」两种表现）。
+  if(_repaintRaf) cancelAnimationFrame(_repaintRaf);
+  ime.style.transform='translateZ(0)';
+  void ime.offsetHeight;                 // 同步触发一次回流
+  _repaintRaf=requestAnimationFrame(()=>{
+    ime.style.transform='';
+    // 二次保险：再下一帧轻推 opacity，覆盖个别机型首帧不提交的情况
+    requestAnimationFrame(()=>{ ime.style.opacity='0.999'; requestAnimationFrame(()=>{ ime.style.opacity=''; }); });
+  });
+}
+window.imeRepaint=imeRepaint;            // 暴露给 Java：onStartInputView 里 evaluateJavascript("imeRepaint()")
+// 监听一切「重新回到前台/重新可见」的浏览器侧时机
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) imeRepaint(true); });
+window.addEventListener('pageshow',()=>imeRepaint(true));
+window.addEventListener('focus',imeRepaint);
+window.addEventListener('resume',imeRepaint);      // 部分 WebView 容器会派发
+window.addEventListener('orientationchange',()=>{ setTimeout(imeRepaint,60); });
+
+function onIMEFocus(){
+  updateCode();
+  imeRepaint();
+  try{ syncPrivClips(true); }catch(e){}   // 跨窗口(记事本/别的App)复制的内容回键盘立即并入面板
+}
+function onIMEBlur(){
+  try{ if(typeof KV!=='undefined') KV.flush(); }catch(e){}   // 收键盘即持久落盘
+  // #8 键盘被任意情形收回/切走：Ctrl/Alt(含锁定层、九宫功能层)一律立即释放，
+  //   绝不挂起带到下次弹出——重新弹出永远是干净的普通层。
+  try{
+    const had = ctrl || ctrlLock || alt || (typeof t9Ctrl!=='undefined'&&t9Ctrl) || (typeof t9Alt!=='undefined'&&t9Alt) || (typeof t9Shift!=='undefined'&&t9Shift);
+    ctrl=false; ctrlLock=false; alt=false;
+    if(typeof t9Ctrl!=='undefined') t9Ctrl=false;
+    if(typeof t9Alt!=='undefined') t9Alt=false;
+    if(typeof t9Shift!=='undefined') t9Shift=false;   // 双环英文层同款释放：重新弹出回九宫普通层
+    if(had){
+      if(typeof pyGrid!=='undefined' && pyGrid && mode==='pinyin' && typeof buildPyGridKb==='function') buildPyGridKb();
+      else if(typeof buildKb==='function') buildKb();
+    }
+  }catch(e){}
+}
+</script>
+</body>
+</html>

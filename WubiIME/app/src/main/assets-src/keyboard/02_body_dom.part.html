@@ -1,0 +1,59 @@
+</head>
+<body>
+<div class="ime t-orange" id="ime" style="width:100%">
+<div class="code-bar">
+  <span class="code-text" id="codeText"></span>
+  <div class="cat-strip hidden" id="catStrip"></div>
+  <div class="code-hide" id="codeHide" onclick="hideKb()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--acd,#9a4520)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M7 8.5 L12 13 L17 8.5"></path><path d="M7 14 L12 18 L17 14" opacity=".5"></path></svg></div>
+</div>
+<div id="wmOv" class="wm-bar hidden">
+  <div class="wm-head"><span id="wmTitle">造词</span><span class="wm-x" onclick="closeWordMaker()">×</span></div>
+  <div class="wm-row on" id="wmWordField" onclick="wmSetField('word')">
+    <span class="wm-lbl">词</span>
+    <span class="wm-val"><span id="wmWordText"></span><span class="wm-ph" id="wmWordPh">输入词条，汉字/英文/数字均可…</span></span>
+    <span id="wmEnChip" onclick="wmToggleDirect(event)" style="flex:0 0 auto;margin-left:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.5px;background:rgba(0,0,0,0.08);color:var(--acd,#9a4520);cursor:pointer;transition:background .15s,color .15s">EN</span>
+  </div>
+  <div class="wm-row" id="wmCodeField" onclick="wmSetField('code')">
+    <span class="wm-lbl">码</span>
+    <span class="wm-val"><span id="wmCodeText"></span><span class="wm-ph" id="wmCodePh">自动反显 · 点此自定义(字母/数字≤6位)</span></span>
+  </div>
+  <div class="wm-actions">
+    <div class="wm-btn wm-cancel" onclick="closeWordMaker()">取消</div>
+    <div class="wm-btn wm-add" onclick="wmCommitAdd()">添加</div>
+  </div>
+</div>
+<div id="candBar" class="cand-bar hidden">
+  <div class="cand-list" id="candList"></div>
+  <div class="cand-more" id="candMore" onclick="openPager()">›</div>
+</div>
+<div id="btnBar" class="btn-bar">
+  <div class="sball" id="modeBtn" onclick="toggleModeStrip()"><span class="sball-text" id="modeLbl">五笔</span></div>
+  <div class="sball theme-ball" id="themeBtn" onclick="toggleThemeStrip()"></div>
+  <div class="sball" id="symBtn"><span class="sball-text" id="symLbl">符号</span></div>
+  <div class="trackpad" id="tp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 5 16 12 9 19"/></svg></div>
+  <div class="sball" id="emjBtn" onclick="toggleEmoji()"><span class="sball-text">表情</span></div>
+  <div class="sball" id="clipBtn" onclick="toggleClip()" title="应用"><span class="sball-text">应用</span></div>
+  <div class="sball" id="numBtn" onclick="toggleNumKb()"><span class="sball-text" id="numLbl" style="font-size:15px;letter-spacing:0.5px">123</span></div>
+</div>
+<div id="mainKb" class="keyboard">
+  <div class="kb-row" id="r1"></div>
+  <div class="kb-row" id="r2"></div>
+  <div class="kb-row" id="r3"></div>
+  <div class="kb-row" id="r4"></div>
+</div>
+<div id="numKb" class="hidden">
+  <div class="numpad-wrap" id="numpad"></div>
+</div>
+<div id="symPanel" class="panel hidden"><div class="panel-grid" id="punctG"></div></div>
+<div id="emjPanel" class="panel hidden"><div class="panel-grid" id="emjG"></div></div>
+<div id="clipPanel" class="panel hidden" style="position:relative">
+  <div id="clipList"></div></div>
+</div>
+<div class="pager-overlay hidden" id="pagerOv" onclick="closePager()">
+  <div class="pager-box" onclick="event.stopPropagation()">
+    <div class="pager-title" id="pagerTitle">
+      <span>全部候选</span><span onclick="closePager()" style="cursor:pointer;font-size:20px">×</span>
+    </div>
+    <div class="pager-grid" id="pagerGrid"></div>
+  </div>
+</div>

@@ -1,0 +1,283 @@
+// ===== 滚动容器橡皮筋回弹：顶部继续下拉/底部继续上拉时阻尼跟手、松手弹回 =====
+//   Android WebView 的 overflow 滚动没有原生回弹(iOS 才有)——[符号][表情][剪贴板][候选池]
+//   真机滑到边缘生硬急停。此实现只在"已到边缘还继续拉"时接管(不干扰正常滚动)。
+/* 滚动边缘"iOS 式"流动回弹：
+   跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
+   释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
+   非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
+// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
+function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }
+function _springHome(el, isY, fromPx){
+  const prop=isY?'translateY':'translateX';
+  _springCancel(el);
+  try{
+    const w=2*Math.PI/0.42, z=0.30, wd=w*Math.sqrt(1-z*z);   // 周期0.42s·阻尼比0.30：Q弹且两拍内收敛
+    const D=0.72, N=30, frames=[];
+    for(let i=0;i<=N;i++){
+      const t=D*i/N;
+      const x=(i===N)?0:fromPx*Math.exp(-z*w*t)*Math.cos(wd*t);
+      frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
+    }
+    el.style.transform='';
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; };
+  }catch(e){
+    el.style.transition='transform .55s cubic-bezier(.22,1.9,.36,.94)';
+    el.style.transform='';
+    setTimeout(()=>{ el.style.transition=''; el.style.willChange=''; },570);
+  }
+}
+// #7 惯性撞墙弹簧：以余速为初速度的受击弹簧 x(t)=A·e^(-ζωt)·sin(ωd·t)——飞出→回弹→震荡收敛
+function _springKick(el, isY, amp, onDone){
+  const prop=isY?'translateY':'translateX';
+  _springCancel(el);
+  try{
+    const w=2*Math.PI/0.50, z=0.28, wd=w*Math.sqrt(1-z*z);
+    const D=0.85, N=34;
+    let peak=0;
+    for(let i=1;i<=N;i++){ const t=D*i/N; const x=Math.exp(-z*w*t)*Math.sin(wd*t); if(Math.abs(x)>peak) peak=Math.abs(x); }
+    const frames=[];
+    for(let i=0;i<=N;i++){
+      const t=D*i/N;
+      const x=(i===N)?0:amp*Math.exp(-z*w*t)*Math.sin(wd*t)/peak;
+      frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
+    }
+    el.style.willChange='transform';
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; if(onDone) onDone(); };
+    return true;
+  }catch(e){ if(onDone) onDone(); return false; }
+}
+function _edgeSpring(el, axis){
+  const prop = axis==='x' ? 'translateX' : 'translateY';
+  let p0=0, pull=0, engaged=false, raf=0;
+  const atStart=()=> axis==='x' ? el.scrollLeft<=0 : el.scrollTop<=0;
+  const atEnd  =()=> axis==='x' ? el.scrollLeft+el.clientWidth >=el.scrollWidth -1
+                                : el.scrollTop +el.clientHeight>=el.scrollHeight-1;
+  const pos=e=> axis==='x' ? e.touches[0].clientX : e.touches[0].clientY;
+  const apply=()=>{ raf=0; el.style.transform = pull ? (prop+'('+pull+'px) translateZ(0)') : ''; };   // #8 translateZ强制GPU层，大网格外拉不卡顿
+  const release=()=>{
+    if(!engaged && !pull) return;
+    const cur=pull; engaged=false; pull=0;
+    if(cur) _springHome(el, axis!=='x', cur);
+    else { el.style.transform=''; el.style.willChange=''; }
+  };
+  el.addEventListener('touchstart',e=>{ p0=pos(e); engaged=false; pull=0; _springCancel(el); el.style.transition=''; },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const d=pos(e)-p0;
+    if(!engaged){
+      if(atStart() && d>4) engaged=1;         // 起始缘继续外拉
+      else if(atEnd() && d<-4) engaged=-1;    // 末缘继续外拉
+      else return;                            // 正常滚动区间：完全不接管
+      p0=pos(e);                              // 以入界点为零位，跟手不跳变
+      el.style.willChange='transform';        // #8 提前提升合成层：首帧不再因层创建掉帧
+      return;
+    }
+    const raw=(pos(e)-p0)*engaged;
+    if(raw<=0){ engaged=false; pull=0; if(!raf) raf=requestAnimationFrame(apply); return; }   // 拉回→交还滚动
+    pull=Math.min(84, raw*0.34)*engaged;      // 阻尼+上限
+    if(!raf) raf=requestAnimationFrame(apply);
+  },{passive:true});
+  el.addEventListener('touchend',release,{passive:true});
+  el.addEventListener('touchcancel',release,{passive:true});
+}
+// ===== 长按拖拽排序·边缘自动滚动：拖到滚动容器上/下边缘40px热区内，rAF自驱连续滚动 =====
+//   (touchmove 手指停住不再来事件，必须 rAF 循环；速度随贴边深度线性加速 4→16px/帧)
+let _dasRaf=0, _dasEl=null, _dasY=0;
+function dragAutoScroll(scroller, y){
+  _dasEl=scroller; _dasY=y;
+  if(_dasRaf) return;
+  const loop=()=>{
+    _dasRaf=0;
+    if(!_dasEl) return;
+    const r=_dasEl.getBoundingClientRect(), Z=40;
+    let v=0;
+    if(_dasY<r.top+Z) v=-(4+12*Math.min(1,(r.top+Z-_dasY)/Z));
+    else if(_dasY>r.bottom-Z) v=(4+12*Math.min(1,(_dasY-(r.bottom-Z))/Z));
+    if(v){ _dasEl.scrollTop+=v; _dasRaf=requestAnimationFrame(loop); }
+  };
+  _dasRaf=requestAnimationFrame(loop);
+}
+function dragAutoScrollStop(){ _dasEl=null; _dasY=0; if(_dasRaf){ cancelAnimationFrame(_dasRaf); _dasRaf=0; } }
+
+// ===== 自绘滚动进度条：细雾条贴容器右缘(纵)/底缘(横)，滚动时显形、静止600ms淡出 =====
+//   (原生滚动条被隐藏；自绘条挂在父容器上不随内容滚走，父容器自动补 position:relative)
+function attachScrollHint(el, axis){
+  if(!el || el._hint) return; el._hint=true;
+  const parent=el.parentElement; if(!parent) return;
+  const cs=getComputedStyle(parent);
+  if(cs.position==='static') parent.style.position='relative';
+  const bar=document.createElement('div');
+  const isY=(axis!=='x');
+  bar.style.cssText='position:absolute;pointer-events:none;z-index:60;border-radius:2px;'+
+    'background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33));opacity:0;transition:opacity .28s;'+
+    (isY?'right:2px;width:3px;top:0;':'bottom:1px;height:3px;left:0;');
+  parent.appendChild(bar);
+  let fade=null;
+  const upd=()=>{
+    const total=isY?el.scrollHeight:el.scrollWidth, view=isY?el.clientHeight:el.clientWidth;
+    if(total<=view+2){ bar.style.opacity='0'; return; }
+    const frac=view/total, pos=(isY?el.scrollTop:el.scrollLeft)/(total-view);
+    const len=Math.max(18, view*frac);
+    const off=el.offsetTop, offX=el.offsetLeft;
+    if(isY){ bar.style.height=len+'px'; bar.style.top=(off+pos*(view-len))+'px'; }
+    else   { bar.style.width =len+'px'; bar.style.left=(offX+pos*(view-len))+'px'; }
+    bar.style.opacity='0.55';
+    if(fade) clearTimeout(fade);
+    fade=setTimeout(()=>{ bar.style.opacity='0'; }, 600);
+  };
+  el.addEventListener('scroll',upd,{passive:true});
+  el.addEventListener('touchstart',upd,{passive:true});
+}
+
+// ===== fling 碰边回弹：惯性滚动(手指已离开)冲到端点时按余速弹性过冲回位 =====
+//   _edgeSpring 只接管"手指按住继续拉"；此处补上"甩动惯性撞墙"的那一下弹性。
+function attachFlingBounce(el, axis){
+  if(!el || el._fling) return; el._fling=true;
+  const isY=(axis!=='x');
+  let lastP=0,lastT=0,v=0,vPeak=0,touching=false,bouncing=false;
+  const posOf=()=>isY?el.scrollTop:el.scrollLeft;
+  const maxOf=()=>isY?(el.scrollHeight-el.clientHeight):(el.scrollWidth-el.clientWidth);
+  el.addEventListener('touchstart',()=>{ touching=true; vPeak=0; },{passive:true});
+  el.addEventListener('touchend',()=>{ touching=false; },{passive:true});
+  el.addEventListener('scroll',()=>{
+    const now=performance.now(), p=posOf();
+    if(lastT){ const dt=now-lastT; if(dt>0&&dt<120){ v=(p-lastP)/dt; if(Math.abs(v)>Math.abs(vPeak)) vPeak=v; } }
+    lastP=p; lastT=now;
+    if(touching||bouncing) return;
+    const M=maxOf(); if(M<=2) return;
+    let dir=0;
+    // #7 末帧速度常已衰减→用近程峰值速度兜底判定，撞墙必有回弹(阈值0.25→0.12)
+    const vEff=(Math.abs(v)>0.05)?v:vPeak;
+    if(p<=0 && vEff<-0.12) dir=1;          // 冲到起始端
+    else if(p>=M-1 && vEff>0.12) dir=-1;   // 冲到末端
+    if(!dir) return;
+    bouncing=true;
+    const amp=Math.min(72, 8+Math.abs(vEff)*52);   // 余速→过冲幅度(带保底，轻甩也有生命感)
+    _springKick(el, isY, dir*amp, ()=>{ bouncing=false; v=0; vPeak=0; });
+  },{passive:true});
+}
+function attachRubberBand(el){ if(!el || el._rubber) return; el._rubber=true; _edgeSpring(el,'y'); attachFlingBounce(el,'y'); attachScrollHint(el,'y'); }
+function attachRubberBandX(el){ if(!el || el._rubberX) return; el._rubberX=true; _edgeSpring(el,'x'); attachFlingBounce(el,'x'); }
+// 全局连发登记表：所有键的长按取消函数都登记于此；抬指(document 级)兜底全清，
+//   即使按键元素已被重建摘除、自身 touchend 丢失，也绝不出现"幽灵连发"。
+const _kbRepeatCancels = new Set();
+function cancelAllKeyRepeats(){ [..._kbRepeatCancels].forEach(c=>{ try{c();}catch(e){} }); }
+document.addEventListener('touchend',   ()=>cancelAllKeyRepeats(), {passive:true});
+document.addEventListener('touchcancel',()=>cancelAllKeyRepeats(), {passive:true});
+window.addEventListener('blur',         ()=>cancelAllKeyRepeats());
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) cancelAllKeyRepeats(); });
+function addKeyListeners(div, fn, immediate, noRepeat) {
+  // 普通键盘键（重写 v2）：
+  //   immediate=true（纯字母输入态）→ touchstart 按下**立即**出码，零延迟、零横移取消。
+  //     根因修复：旧版有 50ms 微延迟 + 20px 横移取消，快打时手指自然横移>20px 就吃码丢字；
+  //     现在主键盘已禁用"滑切数字键盘"手势(见下方滑切层 return)，字母键不再需要为滑切让路，
+  //     于是可以像硬件键盘一样按下即出，再快也不丢。长按仍连发(连打/连删)。
+  //   immediate=false（修饰层 alt/ctrl 的方向键/Tab）→ 保持 touchend 触发，防误触连发。
+  let _t=null, _r=null, _fired=false, _moved=false, _sx=0, _sy=0, _touched=false, _longFired=false;
+  const fire = () => { (div._snd||playClick)(); fn(); };   // #11 元素可携带 _snd 钢琴音覆盖
+  // 连发根治(真机崩溃根因)：键盘层重建(buildKb/buildPyGridKb 把行 innerHTML 清空)会把正被按住的键
+  //   从 DOM 摘除 → 该键的 touchend 再也送不到 → 长按 interval 永不停止 → 每 50ms 连发一次直到 ANR。
+  //   三重保险：① interval 每拍检查 div.isConnected，键已摘除立即自停；② cancel 登记到全局
+  //   _kbRepeatCancels，document 级 touchend/touchcancel 兜底全清；③ startLong 前也校验 isConnected。
+  const cancelRepeat = () => {
+    clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
+    div.classList.remove('pressed');
+    try{ if(div._sndUp) div._sndUp(); }catch(e){}   // #9 抬指释放持续音(钢琴绵音收尾)
+    _kbRepeatCancels.delete(cancelRepeat);
+  };
+  const startLong = () => {
+    if (noRepeat) return;   // 空格等：不连发
+    _kbRepeatCancels.add(cancelRepeat);
+    _t = setTimeout(() => {
+      if (!div.isConnected) { cancelRepeat(); return; }
+      if (immediate || !_moved) {
+        _longFired = true;
+        _r = setInterval(() => {
+          if (!div.isConnected) { cancelRepeat(); return; }
+          if (immediate || !_moved) { (div._sndRep||playClick)(); fn(); }   // #9 音乐主题长按=音符绵延不逐拍点击
+        }, 50);
+      }
+    }, 400);
+  };
+  const start = e => {
+    e.preventDefault();
+    _touched = true; _moved = false; _fired = false; _longFired = false;
+    if (e.touches) { _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; }
+    div.classList.add('pressed');
+    if (immediate) {
+      // 真·瞬发：按下立即出码，不等不判，快打绝不丢。
+      fire(); _fired = true;
+    }
+    startLong();
+  };
+  const move = e => {
+    if (!e.touches) return;
+    const dx = Math.abs(e.touches[0].clientX - _sx);
+    const dy = Math.abs(e.touches[0].clientY - _sy);
+    if (immediate) {
+      // 即时键已在按下瞬间出码；这里只负责"取消长按连发"(手指滑走时停止重复)，不撤销已出的码。
+      if (dx > 24 || dy > 24) {
+        _moved = true; clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
+        div.classList.remove('pressed');
+      }
+      return;
+    }
+    // 非即时键(方向/Tab)：横向或较大移动 → 取消本键
+    if ((dx > 16 && dx > dy) || dx > 24 || dy > 22) {
+      _moved = true;
+      clearTimeout(_t); clearInterval(_r); _t=null; _r=null;
+      div.classList.remove('pressed');
+    }
+  };
+  const stop = () => {
+    cancelRepeat();
+    // 非即时键：抬指触发(无大幅移动)。即时键已在按下时出码，此处不再补发。
+    if (!immediate && !_moved && !_longFired && _touched && !_fired) { fire(); _fired = true; }
+    setTimeout(() => { _touched = false; }, 350);
+  };
+  div.addEventListener('touchstart', start, {passive:false});
+  div.addEventListener('touchmove',  move,  {passive:true});
+  div.addEventListener('touchend',   stop,  {passive:true});
+  div.addEventListener('touchcancel',()=>{ _moved=true; cancelRepeat(); }, {passive:true});
+  div.addEventListener('mousedown', e => { e.preventDefault(); if (_touched) return; playClick(); fn(); });
+  div.addEventListener('mouseup',   ()=>{ div.classList.remove('pressed'); });
+  div.addEventListener('mouseleave', ()=>{ div.classList.remove('pressed'); clearTimeout(_t); clearInterval(_r); });
+}
+function addPanelKey(div, fn) {
+  // panel内键: touchend 触发（无大幅移动）；防 touch+mousedown 双触发（上屏2个bug的根源）
+  let _sx=0, _sy=0, _moved=false, _touched=false;
+  div.addEventListener('touchstart', e => {
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; _moved = false; _touched = true;
+  }, {passive:true});
+  div.addEventListener('touchmove', e => {
+    if (Math.abs(e.touches[0].clientX - _sx) > 10 || Math.abs(e.touches[0].clientY - _sy) > 10) _moved = true;
+  }, {passive:true});
+  div.addEventListener('touchend', e => {
+    if (!_moved) { playClick(); fn(); }
+    setTimeout(() => { _touched = false; }, 600);
+  }, {passive:true});
+  div.addEventListener('mousedown', e => {
+    if (_touched) return;   // touch 后屏蔽 mousedown，防止双触发
+    e.preventDefault(); playClick(); fn();
+  });
+}
+function addKeyListenersOnce(div, fn) {
+  // 修饰键专用：只触发一次，无长按重复，有音效
+  let _touched=false;
+  const start = e => { e.preventDefault(); _touched=true; playClick(); fn(); div.classList.add('pressed'); };
+  const stop  = () => { div.classList.remove('pressed'); setTimeout(()=>{_touched=false;},600); };
+  div.addEventListener('touchstart',  start, {passive:false});
+  div.addEventListener('touchend',    stop,  {passive:true});
+  div.addEventListener('touchcancel', stop,  {passive:true});
+  div.addEventListener('mousedown', e => { e.preventDefault(); if(_touched)return; playClick(); fn(); });
+  div.addEventListener('mouseup',    stop);
+  div.addEventListener('mouseleave', stop);
+}
+
+function buildKb() {
+  if(pyGrid && mode==='pinyin'){ buildPyGridKb(); return; }
+  // 退出九宫格回全键盘：清除 t9row/双环层残留样式，恢复正常行布局
+  ['r1','r2','r3','r4'].forEach(id=>{ const r=document.getElementById(id); if(r){ r.classList.remove('t9row'); r.classList.remove('t9last'); r.style.cssText=''; r.style.display=''; } });
+  buildRow('r1',R1); buildRow('r2',R2); buildRow3(); buildRow4();
+}

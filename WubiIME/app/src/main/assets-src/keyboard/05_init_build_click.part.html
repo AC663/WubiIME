@@ -1,0 +1,120 @@
+// ====== 初始化 ======
+window.addEventListener('DOMContentLoaded', () => {
+  // 开机恢复最后一次的主题与输入模式(含持久层镜像回灌)：切App回来/重建 WebView 后仍是走时的样子
+  try{ const tn=KV.get('kbTheme'); const ti=THEMES.indexOf(tn);
+    if(ti>=0&&ti!==theme){ const ime=document.getElementById('ime'); ime.classList.remove(THEMES[theme]); theme=ti; ime.classList.add(THEMES[theme]);
+      const ball=document.getElementById('themeBtn'); if(ball) ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:''); } }catch(e){}
+  try{ const lm=KV.get('kbMode'); if(lm==='wubi'||lm==='pinyin'||lm==='english') mode=lm; }catch(e){}
+  buildKb(); buildNumpad(); buildPunct(); buildEmoji();
+  initCatStripGestures(); clearCatStrip();   // 编码栏分类条：挂手势(一次) + 初始清空隐藏
+  updateBtnStates();
+  updateDisplay();
+  installGhostClickGuard();   // 拦截候选字上屏后穿透到顶栏按钮的合成 click
+  // 符号按钮：短按=符号面板(原行为)；长按=切数字键盘(替代已移除的"滑切数字键盘"手势)。
+  //   主键盘滑切已彻底移除以根治"滑动误触编码+快打丢码"；数字键盘由顶栏 [123] 键进入。
+  (function(){
+    const sb=document.getElementById('symBtn');
+    if(!sb) return;
+    let _touchUsed=false;
+    sb.addEventListener('touchstart',e=>{ _touchUsed=true; },{passive:true});
+    sb.addEventListener('touchend',e=>{
+      setTimeout(()=>{_touchUsed=false;},500);
+      toggleSym();
+    },{passive:true});
+    sb.addEventListener('mousedown',e=>{ if(_touchUsed)return; toggleSym(); });
+  })();
+  // 触摸板 — 灵敏度最高，阈值6px
+  const tp = document.getElementById('tp');
+  let tpX=0, tpAccum=0, tpDir=0, tpActive=false;   // tpDir: 上一次累积方向，用于检测反向
+  let _tpHitR=false, _tpHitL=false;                // 边界方向锁：本次滑动已探到文末/文首，该方向不再发键直到反向
+  // 关键修复：把 touchmove/touchend 挂到 document 而非 tp 自身。
+  //   根因——手指从触控条滑动时一旦移出 tp 的几何边界，挂在 tp 上的 touchmove 就不再触发，
+  //   于是"滑出文首/末后回滑"收不到事件、光标卡死回不来。挂 document 后全程跟手。
+  const tpMove=e=>{
+    if(!tpActive) return;
+    e.preventDefault();
+    const cx=(e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX;
+    const dx=cx-tpX; tpX=cx;
+    if(dx===0) return;
+    const dir=dx>0?1:-1;
+    if(dir!==tpDir){ tpAccum=0; tpDir=dir; _tpHitR=false; _tpHitL=false; }   // 方向反转立即清零并解除两端边界锁，回滑即时生效
+    tpAccum+=dx;
+    // 快速滑动防冲出：累积夹紧±24(最多囤4步)，且单帧最多消费2步——步频跟手、步数绝不雪崩，
+    //   配合 Java 侧发键前边界内查，光标到文首/末必稳稳停驻，绝不滑丢。
+    if(tpAccum>24)tpAccum=24; if(tpAccum<-24)tpAccum=-24;
+    let _steps=0;
+    // 右移：每消费一步先查是否已到文末——到末则立即清零累积并停，不积累"越界credit"，光标硬停文末。
+    //   _tpHitR 锁：一旦本次滑动探到文末，该方向后续步不再发键(兜底宿主键事件异步处理延迟、cursorAtBoundary 读到旧位的窗口)，直到反向解锁。
+    if(typeof _renameBuf!=='undefined'&&_renameBuf!==null){ tpAccum=0; return; }   // 重命名焦点铁锁：触控条不动宿主光标
+    while(tpAccum>=6){
+      if(_tpHitR){ tpAccum=0; break; }
+      if(++_steps>2){ break; }   // 单帧限2步
+      if(typeof Android!=='undefined'){
+        if(Android.cursorAtBoundary && Android.cursorAtBoundary(1)){ tpAccum=0; _tpHitR=true; break; }   // 已到文末→硬停并锁右
+        Android.moveCursor(1,false);
+      } else { if(tA.length>0)moveCur(1); else {tpAccum=0;break;} }
+      tpAccum-=6;
+    }
+    // 左移：到文首同理硬停 + 锁左。
+    while(tpAccum<=-6){
+      if(_tpHitL){ tpAccum=0; break; }
+      if(++_steps>2){ break; }   // 单帧限2步
+      if(typeof Android!=='undefined'){
+        if(Android.cursorAtBoundary && Android.cursorAtBoundary(-1)){ tpAccum=0; _tpHitL=true; break; }   // 已到文首→硬停并锁左
+        Android.moveCursor(0,false);
+      } else { if(tB.length>0)moveCur(-1); else {tpAccum=0;break;} }
+      tpAccum+=6;
+    }
+  };
+  const tpEnd=()=>{ tpActive=false; tpAccum=0; tpDir=0; _tpHitR=false; _tpHitL=false; };
+  tp.addEventListener('touchstart', e=>{ tpActive=true; tpX=e.touches[0].clientX; tpAccum=0; tpDir=0; _tpHitR=false; _tpHitL=false; },{passive:true});
+  document.addEventListener('touchmove', tpMove, {passive:false});
+  document.addEventListener('touchend', tpEnd, {passive:true});
+  document.addEventListener('touchcancel', tpEnd, {passive:true});
+  // 滑切数字键盘的手势已彻底移除：切换改由顶栏 [123] 键(进)与数字键盘右上角 [删除·返回] 键(出)按钮完成，
+  //   不再需要滑动进度条/横滑识别。原 _kbSwiping/SW_LOCK/SW_FULL/swHint 进度条等全部删除，杜绝死代码。
+});
+
+// ====== 键盘构建 ======
+function makeKey(k, extra='') {
+  const div=document.createElement('div');
+  div.className='key'+(extra?' '+extra:'');
+  div.dataset.k=k;
+  return div;
+}
+function setKeyContent(div, main, sub) {
+  div.innerHTML=`<span class="km">${main}</span>${sub?`<span class="ks">${sub}</span>`:''}`;
+}
+// ====== 黑轴风格点击音效（WebView 自合成，可静音；Ctrl+P 开关）======
+let _audioCtx = null;
+let soundOn = true;
+try { const sv=KV.get('kbSound'); if(sv!==null) soundOn=(sv==='1'); } catch(e){}
+function _ensureAudio(){
+  if(!_audioCtx){ try{ _audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ _audioCtx=null; } }
+  return _audioCtx;
+}
+function playClick() {
+  if(!soundOn) return;
+  const ac=_ensureAudio(); if(!ac) return;
+  try {
+    const t=ac.currentTime;
+    // 1) 低频"thock"主体：三角波 ~180Hz 快速下滑，模拟黑轴落底
+    const osc=ac.createOscillator(), g=ac.createGain();
+    osc.type='triangle';
+    osc.frequency.setValueAtTime(190,t);
+    osc.frequency.exponentialRampToValueAtTime(95,t+0.05);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.10,t+0.004);   // 极快起音
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);  // 快速衰减
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(t); osc.stop(t+0.07);
+    // 2) 短噪声"咔"层：模拟按键机械接触
+    const N=Math.floor(ac.sampleRate*0.012);
+    const buf=ac.createBuffer(1,N,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,2.5); }
+    const src=ac.createBufferSource(); src.buffer=buf;
+    const ng=ac.createGain(); ng.gain.value=0.05;
+    src.connect(ng); ng.connect(ac.destination); src.start(t);
+  } catch(e) {}
+}

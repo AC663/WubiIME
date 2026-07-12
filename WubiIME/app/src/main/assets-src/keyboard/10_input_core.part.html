@@ -1,0 +1,526 @@
+// ====== 输入逻辑 ======
+function pressKey(k) {
+  const l=k.toLowerCase();
+  // #2 造词态 Alt 快捷键优先于字段字母拦截：Alt+Tab(Q)=输入光标切到下一栏(词↔码循环，首尾闭环)，
+  //   保持 Alt 不退出可连续切换；旧版被下方"字母直接进字段"分支吞掉，Alt 层在造词里整层失效。
+  if(_wmActive && alt){
+    if(l==='q'){ wmSetField(_wmField==='word'?'code':'word'); try{playClick();}catch(_){} return; }
+    if(l==='e'){ wmSetField(_wmField==='word'?'code':'word'); try{playClick();}catch(_){} return; }   // Alt+E(跨框跳转)同义：造词里就两栏
+    alt=false; setTimeout(buildKb,0);   // 其余键退出 Alt 后按普通键继续处理
+  }
+  // 造词·自定义编码字段：字母直接进自定义码(最多4键)，不走编码/候选；其余忽略
+  if(_wmActive && _wmField==='code'){
+    // 自定义码：字母直接进；数字走 Ctrl(锁定)层第一排；上限6位(兼容拼音式自定义码)
+    const wmNum={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
+    if((ctrl||ctrlLock) && wmNum[l]){
+      if(_wmCustomCode.length<6){ _wmCustomCode+=wmNum[l]; wmRefresh(); }
+      if(ctrl&&!ctrlLock){ ctrl=false; setTimeout(buildKb,0); }
+      return;
+    }
+    if(/^[a-z0-9]$/.test(l) && _wmCustomCode.length<6){ _wmCustomCode+=l; wmRefresh(); }
+    return;
+  }
+  // 造词·词字段·EN直输：字母直接进词条(Shift/Caps=大写)，数字走 Ctrl 层第一排；支持英文/数字/汉字混合词
+  if(_wmActive && _wmField==='word' && _wmDirect){
+    const wmNumW={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
+    if((ctrl||ctrlLock) && wmNumW[l]){
+      _wmWord+=wmNumW[l]; _wmUsedCodes.push({t:wmNumW[l],c:''});
+      if(ctrl&&!ctrlLock){ ctrl=false; setTimeout(buildKb,0); }
+      wmRefresh(); return;
+    }
+    if(/^[a-z]$/.test(l)){
+      const cw=(shift||caps)?l.toUpperCase():l;
+      _wmWord+=cw; _wmUsedCodes.push({t:cw,c:''});
+      if(shift){shift=false;buildKb();}
+      wmRefresh(); return;
+    }
+    return;
+  }
+  // ===== Ctrl 锁定层：连续输入数字，方向键可用，仅按 Ctrl 键本身退出 =====
+  if(ctrlLock){
+    const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
+    if(numMap[l]){ commit(numMap[l]); return; }          // 连续上屏数字，不退出锁定
+    if(['j','b','n','m'].includes(l)){ handleCtrl(l); return; }  // 方向键：行首/行尾/文首/文末，不退出
+    // 编辑功能键：与单击 Ctrl 同款，锁定层保持不退出，可连续操作
+    if(l==='a'){ handleCtrl('a'); return; }   // 全选
+    if(l==='z'){ handleCtrl('z'); return; }   // 撤销
+    if(l==='f'){ openWordMaker(); return; }   // Ctrl+F：造词(锁定层保持)
+    if(l==='x'){ handleCtrl('x'); return; }   // 剪切
+    if(l==='c'){ handleCtrl('c'); return; }   // 复制
+    if(l==='v'){ handleCtrl('v'); return; }   // 粘贴
+    if(l==='l'){ toggleSoundStrip(); return; }                               // #9 音效轨道(静音/默认/钢琴/水晶)
+    if(l==='g'&&mode==='pinyin'){ togglePyGrid(); return; }                  // 九宫格
+    // 其余键在锁定层无动作，忽略
+    return;
+  }
+  if(alt||ctrl) {
+    if(['j','b','n','m'].includes(l)){
+      if(alt) handleAlt(l);   // Alt 方向：保持 Alt 以便连续扩选
+      else { handleCtrl(l); ctrl=false; setTimeout(buildKb,0); }
+      return;
+    }
+    if(alt && l==='q'){ handleAlt('q'); return; }   // Alt+Tab：跳段末，保持 Alt 可连续跳
+    if(alt && l==='e'){ handleAlt('a'); return; }   // Alt+E：跨文本框跳转，保持 Alt 可连续跨
+    if(ctrl){
+      // Ctrl 功能层
+      const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
+      if(numMap[l]){ ctrl=false; commit(numMap[l]); setTimeout(buildKb,0); return; }   // 第一排数字
+      if(l==='l'){ ctrl=false; toggleSoundStrip(); setTimeout(buildKb,0); return; }       // #9 Ctrl+L：音效轨道
+      if(l==='f'){ ctrl=false; openWordMaker(); setTimeout(buildKb,0); return; }          // Ctrl+F：造词
+      if(l==='g'&&mode==='pinyin'){ ctrl=false; togglePyGrid(); return; }               // Ctrl+G：拼音九宫格
+    }
+    if(alt){ alt=false; setTimeout(buildKb,0); }   // Alt 模式按非方向键：自动退出 Alt，继续正常输入该键
+    else if(ctrl){ handleCtrl(l); ctrl=false; setTimeout(buildKb,0); return; }
+  }
+  if(mode==='english'){ commit((shift||caps)?k:l); if(shift){shift=false;buildKb();} return; }
+  // 五笔/拼音模式：Shift 或 Caps 激活时，字母键直接上屏大写字母（Shift 主打大写字母上屏），不进编码
+  if((shift||caps)&&/^[A-Za-z]$/.test(k)){
+    commit(k.toUpperCase());
+    if(shift){shift=false;buildKb();}
+    return;
+  }
+  if(mode==='wubi'&&!code&&l==='z'){ revMode=true; code='z'; updateCode(); return; }
+  const ch=l;
+  // 顶屏：四码已满且多候选驻留时，再键入第5键 → 先上屏当前首选，再以新键开启新一轮编码
+  if(mode==='wubi'&&!revMode&&code.length===4){
+    const top=queryCands(1);
+    if(top.length>0){ commitCand(top[0]); } else { clearCode(); }
+  }
+  code+=ch; updateCode();
+  if(mode==='wubi'&&!revMode&&code.length===4){
+    // 四码到位：唯一候选→自动上屏；多候选→不抢先上屏，驻留候选栏等待挑选(空格=首选)
+    const cs=queryCands(2);
+    if(cs.length===1){commitCand(cs[0]);return;}
+  }
+  if(shift){shift=false;buildKb();}
+}
+function switchNextIME(){
+  try{ if(typeof Android!=='undefined' && Android.switchNextIME){ Android.switchNextIME(); return; } }catch(e){}
+  wmToast('仅装机后可切换输入法');
+}
+function pressShift() {
+  if(ctrl||ctrlLock){   // Ctrl+Shift → 切换至设备已安装的下一个输入法(五笔/拼音/英文/九宫均生效)
+    switchNextIME();
+    ctrl=false; ctrlLock=false; shift=false; buildKb(); return;
+  }
+  if(alt) alt=false;   // 互斥：按 Shift 时关 Alt
+  const now=Date.now();
+  if(now-lastShiftT<380){caps=!caps;shift=false;}
+  else{if(caps){caps=false;shift=false;}else shift=!shift;}
+  lastShiftT=now; buildKb();
+}
+function pressSpace() {
+  if(code){const c=queryCands(1);if(c.length>0)commitCand(c[0]);else{commit(' ');clearCode();}}
+  else commit(' ');
+}
+function pressEnter() {
+  if(code){const raw=revMode?code.slice(1):code;commit(raw);clearCode();}
+  else commit('\n');
+}
+function pressNum(k) {
+  if(k==='↵')commit('\n');
+  else if(k==='空格')commit(' ');
+  else if(k==='⌫'){ doDelete(); }
+  else commit(k);
+}
+// ====== 选区工具 ======
+function getFullText(){return tB+tA;}
+function getCursorPos(){return tB.length;}
+function setCursor(pos){const full=getFullText();pos=Math.max(0,Math.min(pos,full.length));tB=full.slice(0,pos);tA=full.slice(pos);clearSel();updateEditor();}
+
+function getSelRange(){
+  if(selAnchor<0)return null;
+  const active=getCursorPos();
+  const s=Math.min(selAnchor,active),e=Math.max(selAnchor,active);
+  return s===e?null:{start:s,end:e};
+}
+function getSelText(){
+  const r=getSelRange();
+  return r?getFullText().slice(r.start,r.end):'';
+}
+function hasSelection(){return getSelRange()!==null;}
+function deleteSelection(){
+  const r=getSelRange();if(!r)return false;
+  const full=getFullText();
+  tB=full.slice(0,r.start);tA=full.slice(r.end);selAnchor=-1;return true;
+}
+function clearSel(){selAnchor=-1;}
+function lineStartOf(pos){const full=getFullText();const i=full.lastIndexOf('\n',pos-1);return i<0?0:i+1;}
+function lineEndOf(pos){const full=getFullText();const i=full.indexOf('\n',pos);return i<0?full.length:i;}
+
+// ====== 组合键 ======
+function handleAlt(l){
+  const pos = getCursorPos(), full = getFullText();
+  // 首次操作时设置选区锚点（固定端）
+  if (selAnchor < 0) selAnchor = pos;
+  if (l === 'b') {                        // Alt+B → 向左扩选一字符（←）
+    if (pos > 0) { tB = full.slice(0, pos-1); tA = full.slice(pos-1); }
+    updateEditor(); return;
+  }
+  if (l === 'm') {                        // Alt+M → 向右扩选一字符（→）
+    if (pos < full.length) { tB = full.slice(0, pos+1); tA = full.slice(pos+1); }
+    updateEditor(); return;
+  }
+  if (l === 'j') {                        // Alt+J → 扩选至行首（↑ / Home）
+    const ls = lineStartOf(pos);
+    tB = full.slice(0, ls); tA = full.slice(ls);
+    updateEditor(); return;
+  }
+  if (l === 'n') {                        // Alt+N → 扩选至行尾（↓ / End）
+    const le = lineEndOf(pos);
+    tB = full.slice(0, le); tA = full.slice(le);
+    updateEditor(); return;
+  }
+}
+function handleCtrl(l){
+  if(l==='f'){ openWordMaker(); return; }   // Ctrl+F 造词(模拟器与真机一致)
+  const pos=getCursorPos(),full=getFullText();
+  if(l==='b'){// Ctrl+B(←): 跳至行首
+    setCursor(lineStartOf(pos));return;}
+  if(l==='m'){// Ctrl+M(→): 跳至行尾
+    setCursor(lineEndOf(pos));return;}
+  if(l==='j'){// Ctrl+J(Home): 跳至全文开头
+    setCursor(0);return;}
+  if(l==='n'){// Ctrl+N(End): 跳至全文末尾
+    setCursor(full.length);return;}
+  if(l==='a'){selAnchor=0;tB=full;tA='';updateEditor();return;}
+  if(l==='c'){
+    const txt=hasSelection()?getSelText():full;
+    if(txt){addClip(txt);}
+    navigator.clipboard&&navigator.clipboard.writeText(txt);
+    return;}
+  if(l==='x'){
+    const txt=hasSelection()?getSelText():full;
+    if(txt){addClip(txt);}
+    navigator.clipboard&&navigator.clipboard.writeText(txt);
+    if(hasSelection())deleteSelection();else{tB='';tA='';clearSel();}
+    updateEditor();return;}
+  if(l==='v'){
+    const doPaste=t=>{deleteSelection();commit(t);};
+    if(navigator.clipboard&&navigator.clipboard.readText){
+      navigator.clipboard.readText().then(doPaste).catch(()=>{if(clips.length)doPaste(clips[0]);});
+    } else if(clips.length){doPaste(clips[0]);}
+    return;
+  }
+}
+function moveCur(n) {
+  clearSel();
+  if(n>0&&tA.length>0){tB+=tA[0];tA=tA.slice(1);}
+  else if(n<0&&tB.length>0){tA=tB[tB.length-1]+tA;tB=tB.slice(0,-1);}
+  updateEditor();
+}
+function moveCurLine(n) {
+  clearSel();
+  if(n<0){const i=tB.lastIndexOf('\n');if(i>=0){tA=tB.slice(i+1)+tA;tB=tB.slice(0,i);}else{tA=tB+tA;tB='';}}
+  else{const i=tA.indexOf('\n');if(i>=0){tB+=tA.slice(0,i);tA=tA.slice(i+1);}else{tB+=tA;tA='';}}
+  updateEditor();
+}
+function doDelete() {
+  if (_renameBuf!==null) {
+    if(code.length>0){code=code.slice(0,-1);if(!code)revMode=false;updateCode();return;}
+    renameHookDelete(); return;
+  }
+  if(code.length>0){code=code.slice(0,-1);if(!code)revMode=false;updateCode();return;}
+  if(deleteSelection()){updateEditor();return;}
+  if(tB.length>0){tB=tB.slice(0,-1);updateEditor();}
+}
+function commit(txt) {
+  if (txt === '\n' && renameHookEnter()) return;
+  if (txt !== '\n' && renameHookCommit(txt)) return;
+  deleteSelection();
+  tB+=txt; updateEditor();
+}
+let _lastCommitW='', _lastCommitTs=0;
+function commitCand(c){
+  // 防重入：150ms 内同一候选重复触发(触摸抖动/幽灵双击)只上屏一次
+  const now=Date.now();
+  if(c && c.w===_lastCommitW && now-_lastCommitTs<150) return;
+  _lastCommitW=c?c.w:''; _lastCommitTs=now;
+  // 先清编码态再上屏：commit 内部会触发 showCands([])→showBtns，若 t9code 此刻未清，
+  //   showBtns 的"有编码保持候选栏"判定会把旧候选栏卡在屏上(真机复现：九宫用过后回主键盘上屏，
+  //   候选栏残留、后续输入显示不联动)。顺序对了，链路才干净。
+  if(typeof _t9QueryTimer!=='undefined'&&_t9QueryTimer){clearTimeout(_t9QueryTimer);_t9QueryTimer=null;}
+  if(typeof t9code!=='undefined')t9code='';
+  commit(c.w);
+  clearCode();
+}
+function clearCode(){code='';revMode=false;updateCode();}
+function insPunct(p){lastSym=p;commit(p);}
+
+// ====== 用户词库：造词(Ctrl+F) + 候选前置/删除(Ctrl+单击) ======
+// userTop[m][code]=[词...] 置顶(造词新增+前置)；userHide[m][code]=[词...] 隐藏(删除)。m: 'wubi'|'pinyin'
+let userTop={wubi:{},pinyin:{}}, userHide={wubi:{},pinyin:{}};
+try{ const t=KV.get('kbUserTop'); if(t){ const o=JSON.parse(t); if(o&&o.wubi&&o.pinyin) userTop=o; } }catch(e){}
+try{ const h=KV.get('kbUserHide'); if(h){ const o=JSON.parse(h); if(o&&o.wubi&&o.pinyin) userHide=o; } }catch(e){}
+function saveUserDict(){ try{ KV.set('kbUserTop',JSON.stringify(userTop)); KV.set('kbUserHide',JSON.stringify(userHide)); mirrorPrefs(); }catch(e){} }
+function hanCount(s){ return [...String(s)].filter(ch=>/[\u4e00-\u9fff]/.test(ch)).length; }
+// 是否用户自造/前置过的词(查当前模式置顶库，按当前键或词自身码任一命中)
+function isUserWord(codeK, c){
+  try{
+    const t=userTop[dictKey()]||{};
+    const w=c.w, own=(c.c||'').toLowerCase();
+    if(codeK && t[codeK] && t[codeK].includes(w)) return true;
+    if(own && t[own] && t[own].includes(w)) return true;
+  }catch(e){}
+  return !!c.user;
+}
+function dictKey(){ return mode==='pinyin'?'pinyin':'wubi'; }
+function applyUserDict(cands, codeKey){
+  if(!codeKey || mode==='english') return cands;
+  const m=dictKey();
+  const hide=(userHide[m]&&userHide[m][codeKey])||[];
+  const top=(userTop[m]&&userTop[m][codeKey])||[];
+  let out=cands.filter(c=>!hide.includes(c.w));
+  if(top.length){
+    out=out.filter(c=>!top.includes(c.w));
+    const tops=top.map(w=>{ const ex=cands.find(c=>c.w===w); return ex?ex:{w:w,f:99999,user:true}; });
+    out=tops.concat(out);
+  }
+  return out;
+}
+function userAddTop(codeKey, word, mkey){   // 前置/造词：mkey 显式指定落库模式(造词跟随开启时的输入法模式)，缺省=当前模式
+  if(!codeKey||!word) return;
+  const m=mkey||dictKey();
+  if(!userTop[m]) userTop[m]={};
+  if(!userHide[m]) userHide[m]={};
+  if(userHide[m][codeKey]) userHide[m][codeKey]=userHide[m][codeKey].filter(w=>w!==word);
+  const arr=userTop[m][codeKey]||[];
+  const i=arr.indexOf(word); if(i>=0) arr.splice(i,1);
+  arr.unshift(word);
+  if(arr.length>12) arr.length=12;   // 单码置顶组上限，防无限膨胀
+  userTop[m][codeKey]=arr; saveUserDict();
+}
+function userHideWord(codeKey, word, mkey){   // 删除：隐藏该码下这个词
+  if(!codeKey||!word) return;
+  const m=mkey||dictKey();
+  if(!userHide[m]) userHide[m]={};
+  if(!userTop[m]) userTop[m]={};
+  if(userTop[m][codeKey]) userTop[m][codeKey]=userTop[m][codeKey].filter(w=>w!==word);
+  const arr=userHide[m][codeKey]||[];
+  if(!arr.includes(word)) arr.push(word);
+  userHide[m][codeKey]=arr; saveUserDict();
+}
+function refreshCandsAfterEdit(){
+  let cands;
+  if(!code && typeof t9code!=='undefined' && t9code){ cands=t9Cands(t9code,30); showCands(cands); }
+  else { cands=queryCands(); if(cands.length>0) showCand(cands); else showBtns(); }
+  // 候选展开池若开着，同步重建（否则池内顺序看起来"没生效"）
+  try{
+    const pv=document.getElementById('pagerOv');
+    if(pv && !pv.classList.contains('hidden')) openPager();
+  }catch(e){}
+}
+
+// ====== 造词(Ctrl+F) ======
+let _wmActive=false, _wmWord='', _wmCustomCode='', _wmField='word', _wmUsedCodes=[];
+let _wmMode='wubi';   // 造词模式快照：开启造词那一刻的输入法模式，提交严格落入该模式词库(#6 联动)
+let _wmDirect=false;   // 词字段 EN 直输：开启后字母/数字直接进词条(不走编码候选)，造英文/数字/混合词用
+function wmToggleDirect(e){
+  if(e&&e.stopPropagation)e.stopPropagation();
+  _wmDirect=!_wmDirect; _wmField='word';
+  try{playClick();}catch(_){}
+  wmRefresh();
+}
+function deriveWubiCode(word){
+  const chars=[...word].filter(ch=>/[\u4e00-\u9fff]/.test(ch));
+  if(!chars.length) return '';
+  const codes=chars.map(c=>lookupWubi(c)||'');
+  if(chars.length===1) return codes[0].slice(0,4);
+  if(chars.length===2) return codes[0].slice(0,2)+codes[1].slice(0,2);
+  if(chars.length===3) return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,2);
+  return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,1)+codes[chars.length-1].slice(0,1);
+}
+function lookupPinyin(ch){ for(const[k,v]of Object.entries(PINYIN)) if(v.some(c=>c.w===ch)) return k; return ''; }
+function derivePinyinCode(word){ return [...word].filter(ch=>/[\u4e00-\u9fff]/.test(ch)).map(c=>lookupPinyin(c)).join(''); }
+function wmDerivedCode(){
+  // 优先用用户真实键入的整字码(device 上无需反查词库即可成码)
+  if(_wmUsedCodes.length){
+    const codes=_wmUsedCodes.map(x=>x.c).filter(Boolean);
+    if(codes.length){
+      if(_wmMode==='pinyin') return codes.join('');
+      const n=codes.length;
+      if(n===1) return codes[0].slice(0,4);
+      if(n===2) return codes[0].slice(0,2)+codes[1].slice(0,2);
+      if(n===3) return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,2);
+      return codes[0].slice(0,1)+codes[1].slice(0,1)+codes[2].slice(0,1)+codes[n-1].slice(0,1);
+    }
+  }
+  // 回退：扫描内嵌词库(浏览器/常用字)
+  return _wmMode==='pinyin'?derivePinyinCode(_wmWord):deriveWubiCode(_wmWord);
+}
+function wmEffectiveCode(){ return _wmCustomCode || wmDerivedCode(); }
+function openWordMaker(){
+  if(mode==='english'){ wmToast('英文模式不支持造词'); return; }
+  _wmActive=true; _wmWord=''; _wmCustomCode=''; _wmField='word'; _wmUsedCodes=[]; _wmDirect=false;
+  _wmMode=(mode==='pinyin')?'pinyin':'wubi';   // 快照：造词全程与此刻模式绑定
+  code=''; revMode=false; ctrlLock=false;
+  // 关闭面板/数字键盘，回到主键盘以便输入
+  ['symPanel','emjPanel','clipPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden');});
+  _activePanel=null; if(typeof clearCatStrip==='function') clearCatStrip();
+  if(typeof num!=='undefined' && num){ num=false; }
+  const nk=document.getElementById('numKb'), mk=document.getElementById('mainKb');
+  if(nk) nk.classList.add('hidden'); if(mk) mk.classList.remove('hidden');
+  const ov=document.getElementById('wmOv'); if(ov) ov.classList.remove('hidden');
+  const tt=document.getElementById('wmTitle'); if(tt) tt.textContent='造词 · '+(_wmMode==='pinyin'?'拼音':'五笔');
+  updateCode(); wmRefresh(); buildKb(); if(typeof updateBtnStates==='function') updateBtnStates();
+}
+function closeWordMaker(){
+  _wmActive=false; _wmWord=''; _wmCustomCode=''; _wmField='word'; _wmUsedCodes=[]; _wmDirect=false;
+  const ov=document.getElementById('wmOv'); if(ov) ov.classList.add('hidden');
+  code=''; revMode=false; updateCode(); buildKb();
+}
+function wmSetField(f){
+  _wmField=f;
+  // 点进"码"字段：把当前自动反显码接管为自定义码底稿——在已有编码基础上退格/续键自由修改，
+  //   而不是从零开始输(旧版退格无感、体验像"改不了")。
+  if(f==='code' && !_wmCustomCode){ _wmCustomCode=(wmDerivedCode()||'').toLowerCase(); }
+  wmRefresh();
+}
+function wmInput(txt){   // 候选/字符进入"词"
+  const usedCode=(revMode?code.slice(1):code)||'';   // 捕获本次上屏所用编码(用户真实键入)
+  _wmField='word'; _wmWord+=txt;
+  if(usedCode) _wmUsedCodes.push({t:txt,c:usedCode});
+  code=''; revMode=false; updateCode(); wmRefresh();
+}
+function wmBackspace(){
+  if(code.length>0){ code=code.slice(0,-1); if(!code)revMode=false; updateCode(); return; }
+  if(_wmField==='code'){ if(_wmCustomCode.length>0){ _wmCustomCode=_wmCustomCode.slice(0,-1); wmRefresh(); } return; }
+  if(_wmWord.length>0){ _wmWord=[..._wmWord].slice(0,-1).join(''); _wmUsedCodes.pop(); wmRefresh(); }
+}
+function wmRefresh(){
+  const wt=document.getElementById('wmWordText'), wph=document.getElementById('wmWordPh');
+  const ct=document.getElementById('wmCodeText'), cph=document.getElementById('wmCodePh');
+  if(!wt) return;
+  wt.textContent=_wmWord; if(wph) wph.style.display=_wmWord?'none':'';
+  const eff=wmEffectiveCode();
+  ct.textContent=eff; if(cph) cph.style.display=eff?'none':'';
+  // 活动字段末尾渲染闪烁光标：明确"正在输入哪一栏 + 插入点在哪"
+  let caret=document.getElementById('wmCaret');
+  if(!caret){ caret=document.createElement('span'); caret.id='wmCaret'; caret.className='wm-caret'; }
+  (_wmField==='word'?wt:ct).appendChild(caret);
+  const wf=document.getElementById('wmWordField'), cf=document.getElementById('wmCodeField');
+  if(wf) wf.classList.toggle('on',_wmField==='word');
+  if(cf) cf.classList.toggle('on',_wmField==='code');
+  ct.classList.toggle('custom', !!_wmCustomCode);
+  const en=document.getElementById('wmEnChip');
+  if(en){
+    en.style.background=_wmDirect?'linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33))':'rgba(0,0,0,0.08)';
+    en.style.color=_wmDirect?'#fff':'var(--acd,#9a4520)';
+    en.style.boxShadow=_wmDirect?'0 1px 4px rgba(150,60,20,0.3)':'none';
+  }
+}
+function wmCommitAdd(){
+  const word=_wmWord.trim();
+  const codeK=(wmEffectiveCode()||'').toLowerCase();
+  if(!word){ wmToast('请先输入要造的词'); return; }
+  // 词条支持汉字/英文/数字及混合(如 闲鱼APP、2024年)；非汉字词无法自动成码时引导自定义码
+  if(!codeK){ wmToast('无法生成编码，请点"编码"自定义'); _wmField='code'; wmRefresh(); return; }
+  userAddTop(codeK, word, _wmMode);   // 严格落入开启造词时的模式词库(#6)
+  wmToast('已添加  '+word+' = '+codeK+'（'+(_wmMode==='pinyin'?'拼音':'五笔')+'）');
+  closeWordMaker();
+}
+function wmToast(msg){
+  let t=document.getElementById('wmToast');
+  if(!t){ t=document.createElement('div'); t.id='wmToast'; t.style.cssText='position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:400;background:rgba(0,0,0,0.84);color:#fff;padding:10px 18px;border-radius:11px;font-size:13px;font-weight:600;pointer-events:none;opacity:0;transition:opacity .2s;box-shadow:0 6px 20px rgba(0,0,0,0.3)'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._h); t._h=setTimeout(()=>{ t.style.opacity='0'; },1700);
+}
+
+// ====== Ctrl+单击候选 → 前置/删除菜单 ======
+// 当前"生效编码键"：全键盘取 code；九宫取 t9code(数字串)。用户词库(前置/删除/造词)统一按此键落库。
+function activeCodeKey(){
+  if(code) return code.toLowerCase();
+  if(typeof pyGrid!=='undefined'&&pyGrid&&typeof t9code!=='undefined'&&t9code) return t9code;
+  return '';
+}
+// 前置双键落库：既存"当前键入的前缀码"，也存"候选自身完整码"(c.c)。
+//   根治"前置显示生效实际没生效"——用户下次少打/多打一两码时，两个键任一命中都能置顶。
+function userAddTopBoth(codeK, c){
+  userAddTop(codeK, c.w);
+  const own=(c.c||'').toLowerCase();
+  if(own && own!==codeK) userAddTop(own, c.w);
+}
+// 通用确认弹窗（贴合造词 toast 风格，防误删）
+function kbConfirm(msg, onYes){
+  let ov=document.getElementById('kbConfirm'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='kbConfirm';
+  ov.style.cssText='position:fixed;inset:0;z-index:390;background:rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,0.32);padding:16px 18px 12px;min-width:210px;max-width:76vw';
+  const m=document.createElement('div');
+  m.textContent=msg;
+  m.style.cssText='font-size:14.5px;font-weight:600;color:#2a1408;text-align:center;line-height:1.5;padding-bottom:12px';
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:10px';
+  const mkBtn=(label,bg,fg,fn)=>{
+    const b=document.createElement('div'); b.textContent=label;
+    b.style.cssText='flex:1;text-align:center;padding:9px 0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;background:'+bg+';color:'+fg;
+    let _t=false;
+    b.addEventListener('touchend',e=>{ e.preventDefault(); e.stopPropagation(); _t=true; fn(); },{passive:false});
+    b.addEventListener('mousedown',e=>{ if(_t)return; e.preventDefault(); e.stopPropagation(); fn(); });
+    return b;
+  };
+  const close=()=>{ ov.remove(); };
+  row.appendChild(mkBtn('取消','rgba(0,0,0,0.08)','#2a1408',close));
+  row.appendChild(mkBtn('确认删除','#c0392b','#fff',()=>{ close(); onYes(); }));
+  box.appendChild(m); box.appendChild(row); ov.appendChild(box);
+  // 点遮罩=取消
+  ov.addEventListener('touchend',e=>{ if(e.target===ov){ e.preventDefault(); close(); } },{passive:false});
+  ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); });
+  document.body.appendChild(ov);
+}
+function showCandMenu(c, anchorEl){
+  closeCandMenu();
+  const codeK=activeCodeKey();
+  const menu=document.createElement('div');
+  menu.id='candMenu';
+  menu.style.cssText='position:fixed;z-index:350;background:#fff;border-radius:11px;box-shadow:0 8px 28px rgba(0,0,0,0.30);display:flex;overflow:hidden;border:1px solid rgba(0,0,0,0.10)';
+  const mk=(label,color,fn)=>{
+    const b=document.createElement('div'); b.textContent=label;
+    b.style.cssText='padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;color:'+color+';white-space:nowrap';
+    b.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();fn();});
+    b.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();fn();},{passive:false});
+    return b;
+  };
+  const lbl=document.createElement('div');
+  lbl.textContent=c.w; lbl.style.cssText='padding:11px 14px;font-size:14px;font-weight:700;color:var(--ktxt,#2a1408);background:rgba(0,0,0,0.05);white-space:nowrap';
+  const sep=()=>{ const s=document.createElement('div'); s.style.cssText='width:1px;background:rgba(0,0,0,0.10)'; return s; };
+  menu.appendChild(lbl); menu.appendChild(sep());
+  menu.appendChild(mk('前置','var(--ac,#d6822e)',()=>{ userAddTopBoth(codeK,c); closeCandMenu(); refreshCandsAfterEdit(); wmToast('已前置  '+c.w); }));
+  if(hanCount(c.w)>=2 || isUserWord(codeK,c)){   // 单字硬编码禁删；用户自造词(含单字/英数)可删(#6)
+    menu.appendChild(sep());
+    menu.appendChild(mk('删除','#c0392b',()=>{
+      closeCandMenu();
+      kbConfirm('确认删除此内容？「'+c.w+'」',()=>{
+        userHideWord(codeK,c.w);
+        const own=(c.c||'').toLowerCase(); if(own && own!==codeK) userHideWord(own,c.w);
+        refreshCandsAfterEdit(); wmToast('已删除  '+c.w);
+      });
+    }));
+  }
+  document.body.appendChild(menu);
+  const r=anchorEl.getBoundingClientRect();
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let left=r.left+r.width/2-mw/2; left=Math.max(6,Math.min(window.innerWidth-mw-6,left));
+  let top=r.top-mh-8; if(top<6) top=r.bottom+8;
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+  setTimeout(()=>{ document.addEventListener('touchstart',_candMenuOutside,{passive:true,capture:true}); document.addEventListener('mousedown',_candMenuOutside,{capture:true}); },0);
+}
+function _candMenuOutside(e){ const m=document.getElementById('candMenu'); if(m && !m.contains(e.target)) closeCandMenu(); }
+function closeCandMenu(){ const m=document.getElementById('candMenu'); if(m) m.remove(); document.removeEventListener('touchstart',_candMenuOutside,{capture:true}); document.removeEventListener('mousedown',_candMenuOutside,{capture:true}); }
+// 候选点击统一处理：
+//   Shift(或Caps)+单击多字词 → 直接删除该词条(组合键快捷删词)；单字硬编码不可删。
+//   Ctrl(或锁定层)+多字词 → 弹前置/删除菜单；其余正常上屏。
+function onCandTap(c, anchorEl){
+  const ck=activeCodeKey();   // 全键盘 code / 九宫 t9code 通吃
+  // Shift+点击删词已取消(删除统一走 Ctrl+单击菜单，带确认弹窗)——Shift 态点击=正常上屏
+  // Ctrl+单击：词与单字都可进菜单——单字允许前置调序，仅删除受限；
+  //   用户自造词(含纯英文/数字词，hanCount=0)一律可进菜单(#6修复：此前直接上屏拦不住)
+  if((ctrl||ctrlLock||(typeof t9Ctrl!=='undefined'&&t9Ctrl)) && (hanCount(c.w)>=1 || isUserWord(ck,c)) && ck){
+    showCandMenu(c, anchorEl);
+    if(ctrl){ ctrl=false; setTimeout(buildKb,0); }
+    return;
+  }
+  commitCand(c);
+}
+

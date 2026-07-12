@@ -1,0 +1,661 @@
+// ===== 拼音九宫格(T9) — 紧凑标准布局 =====
+// 数字键左3列固定宽，右列为工具列（⌫/符/换/回车），底排拼英切换+空格
+const T9_GROUPS={ '1':"", '2':"abc", '3':"def", '4':"ghi", '5':"jkl", '6':"mno", '7':"pqrs", '8':"tuv", '9':"wxyz" };
+let t9code='';   // 已按的数字序列
+let t9NumMode=false;   // Num 灯：亮=九宫输出纯数字，灭=九宫拼音
+try{ t9NumMode=(KV.get('t9NumMode')==='1'); }catch(e){}
+// ===== 九宫功能层：Ctrl/Alt（点亮=激活、再点=退出，互斥）=====
+//   Ctrl：2=↑ 4=← 6=→ 8=↓，1=全选 3=音效 7=剪切 9=复制 5=粘贴 0=撤销，Num=造词
+//   Alt ：2/4/6/8 方向同 Ctrl，Num=Tab(下一段)；其余键灰置
+let t9Ctrl=false, t9Alt=false;
+let t9Shift=false, t9Upper=false;   // 九宫 Shift 层：multi-tap 英文键盘(经典九宫英文，循环选字)；t9Upper=大写锁
+function t9Arrow(d){
+  if(typeof _renameBuf!=='undefined'&&_renameBuf!==null) return;   // 重命名焦点铁锁
+  if(typeof Android!=='undefined'&&Android.moveCursor){
+    if(d==='left')Android.moveCursor(0,false);
+    else if(d==='right')Android.moveCursor(1,false);
+    else if(d==='up')Android.moveCursor(2,false);
+    else Android.moveCursor(3,false);
+    return;
+  }
+  if(d==='left')moveCur(-1); else if(d==='right')moveCur(1); else moveCurLine(d==='up'?-1:1);
+}
+function buildPyGridKb(){
+  if(mode!=='pinyin'){ buildKb(); return; }   // 九宫仅属拼音：任何路径误入一律回落主键盘(五笔+九宫错配根治)
+  if(t9Shift){ buildT9EnKb(); return; }        // Shift 层：multi-tap 英文键盘
+  const r1=document.getElementById('r1'), r2=document.getElementById('r2'), r3=document.getElementById('r3'), r4=document.getElementById('r4');
+  [r1,r2,r3,r4].forEach(r=>{ r.style.display=''; r.style.cssText=''; });   // 从双环层返回：恢复行显示与布局
+  r1.innerHTML=''; r2.innerHTML=''; r3.innerHTML=''; r4.innerHTML='';
+  // 九宫格专属：清除全键盘 r2/r3 的缩进，加 t9row 标记统一布局
+  [r1,r2,r3,r4].forEach(r=>{ r.classList.add('t9row'); r.style.paddingLeft=''; r.style.paddingRight=''; });
+  r4.classList.add('t9last');   // 末行专属高度(=主键盘空格键)
+  // 布局：左功能列([Num]灯键/[Ctrl]) + 中间3列数字 + 右功能列(⌫/0/[Alt])
+  const LW=0.72, RW=0.82;
+  const mk=(label,sub,cls,fn,grow,imm,noRep)=>{
+    const d=document.createElement('div');
+    d.className='key t9key'+(cls?' '+cls:'');
+    d.style.flex='0 0 auto';
+    d.style.flexGrow=(grow==null?1:grow);
+    d.style.flexBasis='0';
+    if(sub){
+      d.innerHTML=`<span class="km" style="font-size:18px;line-height:1.05">${label}</span><span class="ks" style="font-size:11px;letter-spacing:.5px;opacity:.85;font-weight:500">${sub}</span>`;
+    }else{
+      d.innerHTML=`<span class="km" style="font-size:16px">${label}</span>`;
+    }
+    addKeyListeners(d,fn,imm,noRep);
+    return d;
+  };
+  // [Num] 灯键：普通层=纯数字灯；Ctrl 层=造词；Alt 层=Tab(下一段)
+  const mkNum=(grow)=>{
+    if(t9Ctrl||t9Alt){
+      const d=document.createElement('div');
+      d.className='key t9key func arrow-active';
+      d.style.flex='0 0 auto'; d.style.flexGrow=grow; d.style.flexBasis='0';
+      d.innerHTML=t9Ctrl
+        ? `<span class="km" style="font-size:14px;font-weight:600">造词</span>`
+        : `<span class="km" style="font-size:13px;font-weight:600;opacity:0.28">Num</span>`;   // Alt层灰置：Tab跳段已收归1键位
+      // Ctrl层=造词(单发)；Alt层无职能(Tab跳段已收归1键位，去重)——灰置不响应
+      addKeyListeners(d,()=>{
+        if(t9Ctrl){ t9Ctrl=false; openWordMaker(); }
+      },false,true);
+      return d;
+    }
+    const d=document.createElement('div');
+    d.className='key t9key func'+(t9NumMode?' locked':'');
+    d.style.flex='0 0 auto'; d.style.flexGrow=grow; d.style.flexBasis='0';
+    const lampColor=t9NumMode?'#39d353':'rgba(0,0,0,0.25)';
+    const lampGlow=t9NumMode?'box-shadow:0 0 6px 1px #39d353;':'';
+    d.innerHTML=`<span class="km" style="font-size:13px;font-weight:600">Num</span>`+
+      `<span style="display:block;width:7px;height:7px;border-radius:50%;margin-top:3px;background:${lampColor};${lampGlow}"></span>`;
+    addKeyListeners(d,()=>{ t9NumMode=!t9NumMode; try{KV.set('t9NumMode',t9NumMode?'1':'0');mirrorPrefs();}catch(e){} t9code=''; showCands([]); buildPyGridKb(); });
+    return d;
+  };
+  // [Ctrl]/[Alt] 功能层开关键（左下/右下角）：点亮=激活功能层，再点=退出；互斥
+  const mkMod=(name,on,fn,grow)=>{
+    const d=document.createElement('div');
+    d.className='key t9key func'+(on?' locked':'');
+    d.style.flex='0 0 auto'; d.style.flexGrow=grow; d.style.flexBasis='0';
+    d.innerHTML=`<span class="km" style="font-size:15px;font-weight:600">${name}</span>`;   // 字样调大(与"全选"字样同级)；激活态仅靠点亮(locked)指示
+    addKeyListenersOnce(d,fn);
+    return d;
+  };
+  // ===== 功能层键面：九宫组合键 = 主键盘组合键 100% 同款(功效+主字+副字) =====
+  //   Ctrl 方向：↑文首 ←行首 →行尾 ↓文末(与主键盘 Ctrl+J/B/M/N 完全一致，经同一 handleCtrl 通道)
+  //   Alt  方向：↑选上行 ←左扩选 →右扩选 ↓选下行(与主键盘 Alt+J/B/M/N 一致，可长按连续扩选)
+  //   剪切/复制/粘贴：副字改剪刀/复制/粘贴图标。
+  const _icoCut=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><line x1="20" y1="4" x2="8.2" y2="15.9"/><line x1="14.5" y1="12.4" x2="20" y2="20"/><line x1="8.2" y1="8.1" x2="12.3" y2="12.2"/></svg>`;
+  const _icoCopy=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`;
+  const _icoPaste=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4a2.5 2.5 0 0 1 5 0"/><path d="M9 12h6M9 16h4"/></svg>`;
+  // 音效图标：与主键盘 L 键完全同款(喇叭/静音叉)
+  const _icoSndOn=`<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>`;
+  const _icoSndOff=`<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>`;
+  // 全选/撤销图标：虚线选框 / 回退弧箭头(与剪切/复制/粘贴同风格)
+  const _icoSelAll=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 3"/><path d="M9 12l2.2 2.2L15.5 9.5"/></svg>`;
+  const _icoUndo=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h11a5 5 0 0 1 0 10h-4"/><path d="M8 6l-4 4 4 4"/></svg>`;
+  const fnMap = t9Ctrl ? {
+    '1':{t:_icoSelAll,s:'全选',fn:()=>handleCtrl('a'),one:true},
+    '2':{t:'↑',s:'文首',fn:()=>handleCtrl('j')},
+    '3':{t:(soundOn?_icoSndOn:_icoSndOff),s:(soundOn?'音效':'静音'),fn:()=>{toggleSoundStrip();buildPyGridKb();},one:true},
+    '4':{t:'←',s:'行首',fn:()=>handleCtrl('b')},
+    '5':{t:_icoPaste,s:'粘贴',fn:()=>handleCtrl('v'),one:true},
+    '6':{t:'→',s:'行尾',fn:()=>handleCtrl('m')},
+    '7':{t:_icoCut,s:'剪切',fn:()=>handleCtrl('x'),one:true},
+    '8':{t:'↓',s:'文末',fn:()=>handleCtrl('n')},
+    '9':{t:_icoCopy,s:'复制',fn:()=>handleCtrl('c'),one:true},
+    '0':{t:_icoUndo,s:'撤销',fn:()=>handleCtrl('z'),one:true}
+  } : t9Alt ? {
+    '1':{t:'Tab',s:'下一段',fn:()=>handleAlt('q')},            // 唯一的 Tab跳段(可长按连续)；Num 键位的重复项已撤
+    '2':{t:'↑',s:'选上行',fn:()=>handleAlt('j')},
+    '3':{t:'Tab',s:'下一项',fn:()=>handleAlt('a'),one:true},    // 与主键盘 Alt+E 同款：跨文本框跳转(由5挪来)
+    '4':{t:'←',s:'左',fn:()=>handleAlt('b')},
+    '6':{t:'→',s:'右',fn:()=>handleAlt('m')},
+    '8':{t:'↓',s:'选下行',fn:()=>handleAlt('n')}
+  } : null;
+  const numKey=(d0,sub,grow)=>{
+    if(fnMap && fnMap[d0]){
+      const m=fnMap[d0];
+      const k=mk(m.t, m.s||d0, ' t9num', m.fn, grow==null?1:grow, !m.one, !!m.one);   // 方向/Tab键可长按连发；编辑键单发
+      k.classList.add('arrow-active');
+      if(m.s) k.classList.add('t9fnsub');   // 功能副字加大：与"全选/音效"字样同级观感
+      return k;
+    }
+    if(fnMap){   // 功能层内无动作的键：灰置，防误输
+      const k=mk(d0, sub, ' t9num', ()=>{}, grow==null?1:grow, false, true);
+      k.style.opacity='0.35';
+      return k;
+    }
+    const kk=mk(d0, sub, ' t9num', ()=>t9press(d0), grow==null?1:grow, true);
+    kk._snd=()=>t9Sound(d0);   // #11 九宫2~9=do~高do，1/0=和弦
+    kk._sndUp=()=>t9SoundUp(d0);                                   // #9 抬指释放绵音
+    kk._sndRep=()=>{ if(sndTheme==='click') playClick(); };        // #9 音乐主题长按不逐拍点击
+    return kk;
+  };
+  // 空占位（对齐用）
+  const pad=(grow)=>{ const d=document.createElement('div'); d.className='key t9pad'; d.style.flex='0 0 auto'; d.style.flexGrow=grow; d.style.flexBasis='0'; d.style.visibility='hidden'; return d; };
+
+  // 行1: [Num灯/造词/Tab] 1(主键盘) 2ABC 3DEF  ⌫
+  r1.appendChild(mkNum(LW));
+  // 1 键：功能层=全选；Num 灯亮=数字1(即时)；灭=主键盘切换。键面恒为 1+(主键盘)，Num 激活不改样(不变小)
+  r1.appendChild(fnMap ? numKey('1','(主键盘)',1)
+                       : mk('1', '(主键盘)', ' t9num', ()=>{ if(t9NumMode){ t9press('1'); } else { togglePyGrid(); } }, 1, t9NumMode));
+  r1.appendChild(numKey('2','ABC'));
+  r1.appendChild(numKey('3','DEF'));
+  r1.appendChild(mk(`<svg width="20" height="14" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,'',' func',()=>t9del(),RW,true,false));
+  // 行2: [Shift] 4GHI 5JKL 6MNO  0
+  //   Shift=进入双环英文键盘；Ctrl 层激活时按 Shift=切换系统下一个输入法(与主键盘 Ctrl+Shift 同款)
+  (function(){
+    const d=document.createElement('div');
+    d.className='key t9key func'+(t9Ctrl?' arrow-active':'');
+    d.style.flex='0 0 auto'; d.style.flexGrow=LW; d.style.flexBasis='0';
+    if(t9Ctrl){
+      const _icoIME=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
+      d.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:9px">输入法</span>`;
+    } else {
+      d.innerHTML=`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">Shift</span>`;
+    }
+    addKeyListenersOnce(d,()=>{
+      if(t9Ctrl){ t9Ctrl=false; switchNextIME(); buildPyGridKb(); return; }
+      t9code=''; showCands([]); t9Shift=true; t9Upper=false; buildPyGridKb();
+    });
+    r2.appendChild(d);
+  })();
+  r2.appendChild(numKey('4','GHI'));
+  r2.appendChild(numKey('5','JKL'));
+  r2.appendChild(numKey('6','MNO'));
+  r2.appendChild(numKey('0','',RW));
+  // 行3: [Ctrl] 7PQRS 8TUV 9WXYZ [Alt]
+  // 激活功能层【不清】t9code/候选：编码与候选保留在栏上，才能 Ctrl+单击候选做前置/删除；
+  //   编码残留无忧——功能层内 t9press 直接 return，数字键绝不进拼音编码。
+  r3.appendChild(mkMod('Ctrl',t9Ctrl,()=>{ t9Ctrl=!t9Ctrl; if(t9Ctrl)t9Alt=false; buildPyGridKb(); },LW));
+  r3.appendChild(numKey('7','PQRS'));
+  r3.appendChild(numKey('8','TUV'));
+  r3.appendChild(numKey('9','WXYZ'));
+  r3.appendChild(mkMod('Alt',t9Alt,()=>{ t9Alt=!t9Alt; if(t9Alt)t9Ctrl=false; buildPyGridKb(); },RW));
+  // 行4: [计算器] 空格(=中3列宽) 回车
+  r4.appendChild(mk('计算器','',' func',()=>{ t9code=''; showCands([]); calcFromGrid=true; num=true; calcMode=true; calcReset(); switchNum(); },LW));
+  r4.appendChild(mk('空格','',' ',()=>{ if(t9code){t9commitFirst();} else commit(' '); },3));
+  r4.appendChild(mk('回车','',' accent',()=>{ if(t9code){t9commitFirst();t9code='';} else pressEnter(); },RW));
+}
+
+// ===== 九宫 Shift 层：multi-tap 英文键盘 =====
+//   与拼音九宫完全同构的骨架(5列4行)，经典循环选字：700ms 内连按同键=替换为该键下一字母。
+//   行1 [A/a大写锁] [1符号] [2abc] [3def] [⌫]；行2 [⇧Shift点亮退出] 4/5/6 [0]；
+//   行3 [,] 7/8/9 [.]；行4 [计算器] 空格 回车。长按数字键=直接输该数字。
+const T9E_MAP={'1':".,?!'-@",'2':'abc','3':'def','4':'ghi','5':'jkl','6':'mno','7':'pqrs','8':'tuv','9':'wxyz'};
+let _mtKey=null,_mtIdx=0,_mtTime=0;
+function mtReset(){ _mtKey=null; _mtIdx=0; _mtTime=0; }
+function mtPress(k){
+  const set=T9E_MAP[k]; if(!set) return;
+  const now=Date.now();
+  if(k===_mtKey && now-_mtTime<700){
+    _mtIdx=(_mtIdx+1)%set.length;
+    doDelete();                                   // 循环：删上一字符换成下一个
+  } else { _mtKey=k; _mtIdx=0; }
+  _mtTime=now;
+  const ch=set[_mtIdx];
+  commit(t9Upper && /[a-z]/.test(ch) ? ch.toUpperCase() : ch);
+}
+function buildT9EnKb(){
+  const r1=document.getElementById('r1'), r2=document.getElementById('r2'), r3=document.getElementById('r3'), r4=document.getElementById('r4');
+  r1.innerHTML=''; r2.innerHTML=''; r3.innerHTML=''; r4.innerHTML='';
+  [r1,r2,r3,r4].forEach(r=>{ r.classList.add('t9row'); r.style.cssText=''; r.style.display=''; });
+  r4.classList.add('t9last');
+  const LW=0.72, RW=0.82;
+  const mk=(html,cls,fn,grow,imm,noRep,lp)=>{
+    const d=document.createElement('div');
+    d.className='key t9key'+(cls?' '+cls:'');
+    d.style.flex='0 0 auto'; d.style.flexGrow=(grow==null?1:grow); d.style.flexBasis='0';
+    d.innerHTML=html;
+    if(lp){
+      // 支持长按：短按=fn，长按500ms=lp(输数字)
+      let _t=null,_fired=false;
+      d.addEventListener('touchstart',e=>{ e.preventDefault(); playClick(); d.classList.add('pressed');
+        _fired=false; _t=setTimeout(()=>{ _fired=true; lp(); },500); },{passive:false});
+      d.addEventListener('touchend',e=>{ e.preventDefault(); d.classList.remove('pressed');
+        if(_t){clearTimeout(_t);_t=null;} if(!_fired) fn(); },{passive:false});
+      d.addEventListener('touchcancel',()=>{ if(_t){clearTimeout(_t);_t=null;} d.classList.remove('pressed'); },{passive:true});
+      d.addEventListener('mousedown',e=>{ e.preventDefault(); playClick(); _fired=false; _t=setTimeout(()=>{ _fired=true; lp(); },500); });
+      d.addEventListener('mouseup',()=>{ if(_t){clearTimeout(_t);_t=null;} if(!_fired) fn(); });
+    } else {
+      addKeyListeners(d,fn,imm,noRep);
+    }
+    return d;
+  };
+  // multi-tap 内容键：主字=当前形态字母组，副字=数字(长按可得)
+  const mtKeyEl=(k)=>{
+    const set=T9E_MAP[k];
+    const disp=t9Upper?set.toUpperCase():set;
+    return mk(`<span class="km" style="font-size:15px;letter-spacing:1.5px;font-weight:600">${disp.slice(0,4)}</span><span class="ks" style="font-size:10px;opacity:.7">${k}</span>`,
+      ' t9num',()=>{ mtPress(k); },1,false,true,
+      ()=>{ mtReset(); commit(k); });
+  };
+  // 行1: [A/a] [1符号] [2] [3] [⌫]
+  r1.appendChild(mk(`<span class="km" style="font-size:15px;font-weight:700">${t9Upper?'ABC':'abc'}</span><span class="ks" style="font-size:9px">${t9Upper?'大写':'小写'}</span>`,
+    ' func'+(t9Upper?' locked':''),()=>{ t9Upper=!t9Upper; mtReset(); buildT9EnKb(); },LW,false,true));
+  r1.appendChild(mtKeyEl('1'));
+  r1.appendChild(mtKeyEl('2'));
+  r1.appendChild(mtKeyEl('3'));
+  r1.appendChild(mk(`<span class="km"><svg width="22" height="16" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>`,
+    ' func',()=>{ mtReset(); doDelete(); },RW,true));
+  // 行2: [⇧Shift点亮=退出] [4] [5] [6] [0]
+  r2.appendChild(mk(`<span class="km" style="font-size:16px">⇧</span><span class="ks" style="font-size:9px">Shift</span>`,
+    ' func locked',()=>{ t9Shift=false; mtReset(); buildPyGridKb(); },LW,false,true));
+  r2.appendChild(mtKeyEl('4'));
+  r2.appendChild(mtKeyEl('5'));
+  r2.appendChild(mtKeyEl('6'));
+  r2.appendChild(mk(`<span class="km" style="font-size:16px;font-weight:600">0</span>`,' t9num',()=>{ mtReset(); commit('0'); },RW,true));
+  // 行3: [,] [7] [8] [9] [.]
+  r3.appendChild(mk(`<span class="km" style="font-size:18px;font-weight:600">,</span>`,' ',()=>{ mtReset(); commit(','); },LW,true));
+  r3.appendChild(mtKeyEl('7'));
+  r3.appendChild(mtKeyEl('8'));
+  r3.appendChild(mtKeyEl('9'));
+  r3.appendChild(mk(`<span class="km" style="font-size:18px;font-weight:600">.</span>`,' ',()=>{ mtReset(); commit('.'); },RW,true));
+  // 行4: [计算器] 空格 回车
+  r4.appendChild(mk(`<span class="km" style="font-size:16px">计算器</span>`,' func',()=>{ mtReset(); calcFromGrid=true; num=true; calcMode=true; calcReset(); switchNum(); },LW,false,true));
+  r4.appendChild(mk(`<span class="km" style="font-size:16px">空格</span>`,' ',()=>{ mtReset(); commit(' '); },3,true));
+  r4.appendChild(mk(`<span class="km" style="font-size:16px">回车</span>`,' accent',()=>{ mtReset(); pressEnter(); },RW,false,true));
+}
+
+function t9UpdateCode(cands){
+  const el=document.getElementById('codeText');
+  if(!el) return;
+  if(!t9code){ el.textContent=''; if(typeof syncCodeBar==='function') syncCodeBar(); return; }
+  // 显示拼音字母：取置顶候选的拼音编码(c字段)，但**必须与已按键数对齐**——
+  // 候选可能是更长编码的前缀匹配(按1键查出"hai"等3字母音节)，直接显示会让编码栏
+  // 凭空多出未按的字母。只在候选拼音长度==已按键数时采用其拼写，否则按已按数字
+  // 取各档首字母粗拼，保证"按几个键就显示几个字母"。
+  const n=t9code.length;
+  let py='';
+  if(cands && cands.length && cands[0].c && cands[0].c.length===n){ py=cands[0].c; }
+  if(!py){ py=t9code.split('').map(d=>(T9_GROUPS[d]||'').charAt(0)||'').join(''); }
+  el.textContent=py;
+  if(typeof syncCodeBar==='function') syncCodeBar();   // 编码优先：面板开着时也让分类条让位
+}
+let _t9QueryTimer=null;
+function t9press(d){
+  if(t9Ctrl||t9Alt) return;             // 功能层激活中：数字键已另有职责，绝不进拼音编码(防残留)
+  if(t9NumMode){ commit(d); return; }   // Num 灯亮：直接上屏纯数字
+  // 灯灭(拼音模式)：1 无字母不参与拼音组合（按1是主键盘切换，已在按键处理）
+  if(d==='1'){ return; }
+  // 关键：计码即时累加，绝不丢码；候选查询去抖合并，避免连打时每键同步字典查询阻塞主线程。
+  t9code+=d;
+  if(_t9QueryTimer){ clearTimeout(_t9QueryTimer); _t9QueryTimer=null; }
+  _t9QueryTimer=setTimeout(()=>{
+    _t9QueryTimer=null;
+    const cands=t9code?t9Cands(t9code,30):[];
+    t9UpdateCode(cands);
+    showCands(cands);
+  }, 28);
+}
+// 连打中途需要立即用候选时（空格/回车上屏），强制冲刷待查询
+function t9FlushQuery(){
+  if(_t9QueryTimer){ clearTimeout(_t9QueryTimer); _t9QueryTimer=null; }
+  const cands=t9code?t9Cands(t9code,30):[];
+  t9UpdateCode(cands);
+  showCands(cands);
+  return cands;
+}
+function t9del(){
+  if(_t9QueryTimer){ clearTimeout(_t9QueryTimer); _t9QueryTimer=null; }
+  if(t9code){ t9code=t9code.slice(0,-1); const cands=t9code?t9Cands(t9code,30):[]; t9UpdateCode(cands); showCands(cands); }
+  else doDelete();
+}
+function t9commitFirst(){
+  if(_t9QueryTimer){ clearTimeout(_t9QueryTimer); _t9QueryTimer=null; }  // 取消待查询，防上屏后回填旧候选
+  const c=t9Cands(t9code,1);
+  if(c.length){ commit(c[0].w); }
+  t9code=''; t9UpdateCode(); showCands([]);
+}
+function t9commitRaw(){ t9code=''; t9UpdateCode(); showCands([]); }
+// T9 候选：真机走 Java 真实词库(含连打)，模拟器回退到内嵌 PINYIN
+function t9Cands(code,maxN){
+  if(!code) return [];
+  let out=null;
+  if(typeof Android!=='undefined' && Android.queryT9){
+    try{
+      const r=JSON.parse(Android.queryT9(code)||'[]');
+      if(r&&r.length) out=r.slice(0,maxN);
+    }catch(e){}
+  }
+  if(!out) out=t9CandsLocal(code,maxN);
+  // 用户词库对九宫同样生效：键=数字串（Ctrl+候选的前置/删除即按此键落库）
+  try{ out=applyUserDict(out, code); }catch(e){}
+  // #1 智能互认：主键盘造的词落在"字母码"键下(如 wan)，九宫输入的是数字串(926)——
+  //   n/o 同在 6 键上，旧版按数字键查库永远命中不了字母码词。现把拼音用户词库里所有
+  //   字母码翻译成数字串比对：精确匹配→置顶(视作用户明确想要的词)；前缀匹配→随后追加(长词联想)。
+  try{ out=t9MergeLetterUserWords(out, code, maxN); }catch(e){}
+  return out;
+}
+// 字母→九宫数字映射(由 T9_GROUPS 反导，仅一次)
+let _L2D=null;
+function _letter2digit(){
+  if(_L2D) return _L2D;
+  _L2D={};
+  for(const[d,ls]of Object.entries(T9_GROUPS)) for(const ch of ls) _L2D[ch]=d;
+  return _L2D;
+}
+function t9CodeOfLetters(s){
+  const m=_letter2digit(); let r='';
+  for(const ch of String(s).toLowerCase()){ const d=m[ch]; if(!d) return ''; r+=d; }
+  return r;
+}
+function t9MergeLetterUserWords(cands, digits, maxN){
+  const top=(userTop['pinyin'])||{}; const hide=(userHide['pinyin'])||{};
+  const exact=[], pref=[];
+  for(const codeK of Object.keys(top)){
+    if(/^[0-9]+$/.test(codeK)) continue;              // 数字键词条 applyUserDict 已处理
+    const dk=t9CodeOfLetters(codeK); if(!dk) continue;
+    if(dk===digits) exact.push(...top[codeK]);
+    else if(dk.indexOf(digits)===0) pref.push(...top[codeK]);
+  }
+  if(!exact.length && !pref.length) return cands;
+  const hidden=new Set(hide[digits]||[]);
+  const seen=new Set(), merged=[];
+  const pushW=(w,f)=>{ if(!w||seen.has(w)||hidden.has(w)) return; seen.add(w); merged.push({w:w,f:f,user:true}); };
+  exact.forEach(w=>pushW(w,99999));
+  cands.forEach(c=>{ if(!seen.has(c.w)){ seen.add(c.w); merged.push(c); } });
+  pref.forEach(w=>pushW(w,88888));
+  return merged.slice(0, maxN);
+}
+// 模拟器本地回退（内嵌小词库，仅供浏览器预览）
+function t9CandsLocal(code,maxN){
+  if(!code) return [];
+  const groups=code.split('').map(d=>T9_GROUPS[d]||'');
+  if(groups.some(g=>!g)) return [];
+  const seen=new Set(), out=[];
+  for(const key of Object.keys(PINYIN)){
+    if(key.length<groups.length) continue;
+    let ok=true;
+    for(let i=0;i<groups.length;i++){ if(groups[i].indexOf(key[i])<0){ ok=false; break; } }
+    if(!ok) continue;
+    for(const c of PINYIN[key]){
+      if(!seen.has(c.w)){ seen.add(c.w); out.push({w:c.w, f:c.f, c:key}); if(out.length>=maxN*3) break; }
+    }
+    if(out.length>=maxN*3) break;
+  }
+  out.sort((a,b)=>(b.f||0)-(a.f||0));
+  return out.slice(0,maxN);
+}
+function buildRow(id, keys) {
+  const row=document.getElementById(id); row.innerHTML='';
+  keys.forEach(k=>{
+    const div=makeKey(k);
+    const lbl=(shift||caps)?k:k.toLowerCase();
+    const sub=(mode==='wubi'&&k!=='Z'&&ROOTS[k])?ROOTS[k]:'';
+    setKeyContent(div,lbl,sub);
+    // ===== Ctrl 功能层 =====
+    if(ctrl||ctrlLock){
+      // 第一排 QWERTYUIOP → 1234567890（纯阿拉伯数字，无"数字"字样）
+      const numMap={Q:'1',W:'2',E:'3',R:'4',T:'5',Y:'6',U:'7',I:'8',O:'9',P:'0'};
+      if(numMap[k]){
+        div.classList.add('arrow-active');
+        div.innerHTML=`<span class="km" style="font-size:20px">${numMap[k]}</span>`;
+      }
+      // a/z/x/c/v → 保留字母 + 功能字样(与方向键同款：主字母 km + 小字 ks)
+      const editMap={A:'全选',F:'造词',Z:'撤销',X:'剪切',C:'复制',V:'粘贴'};
+      if(editMap[k]){
+        div.classList.add('arrow-active');
+        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
+      }
+      // L 键 → 音效开关
+      if(k==='L'){
+        div.classList.add('arrow-active');
+        const icon = soundOn
+          ? `<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>`
+          : `<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>`;
+        div.innerHTML=`<span class="km">${icon}</span><span class="ks" style="font-size:8px">${soundOn?'音效':'静音'}</span>`;
+      }
+      // G 键 → 九宫格切换（仅拼音模式）
+      if(k==='G' && mode==='pinyin'){
+        div.classList.add('arrow-active');
+        div.innerHTML=`<span class="km">⊞</span><span class="ks" style="font-size:8px">九宫格</span>`;
+      }
+    }
+    if((alt||ctrl||ctrlLock)&&['J','B','N','M'].includes(k)){
+      div.classList.add('arrow-active');
+      const arrowMap={J:'↑',B:'←',N:'↓',M:'→'};
+      const subMap=(ctrl||ctrlLock)?{J:'文首',B:'行首',N:'文末',M:'行尾'}:{J:'选上行',B:'左',N:'选下行',M:'右'};
+      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:8px">${subMap[k]}</span>`:''}`;
+    }
+    // Alt 模式：q=Tab(下一段)、e=Tab(下一项)；a 恢复字母原状
+    if(alt && k==='Q'){
+      div.classList.add('arrow-active');
+      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:8px">下一段</span>`;
+    }
+    if(alt && k==='E'){
+      div.classList.add('arrow-active');
+      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:8px">下一项</span>`;
+    }
+    // 纯输入态：字母键按下(touchstart)即时出码，像固件键盘瞬时响应、快打不丢码；
+    // 修饰层(alt/ctrl/锁定)下是方向/Tab功能键，保持 touchend 防连触误选。
+    div._snd=()=>keySound(k);   // #11 前两行=钢琴音区(修饰层内 keySound 自动回落click)
+    div._sndUp=()=>keySoundUp(k); div._sndRep=()=>keySoundRep(k);   // #9 绵音释放/连发拍音
+    addKeyListeners(div,()=>pressKey(k), !alt && !ctrl && !ctrlLock);
+    row.appendChild(div);
+  });
+}
+function buildRow3() {
+  const row=document.getElementById('r3'); row.innerHTML='';
+  // Shift（单击=held，与 Ctrl 单击同款；双击=caps，与 Ctrl 锁定同款 locked）
+  const sh=makeKey('SHIFT','shift-key'+(caps?' locked':(shift?' held':'')));
+  if(ctrl||ctrlLock){
+    // Ctrl 层：Shift 键面换"输入法"图标(地球) —— Ctrl+Shift = 切换至设备下一个输入法
+    sh.classList.add('arrow-active');
+    const _icoIME=`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
+    sh.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:8px">输入法</span>`;
+  } else {
+    setKeyContent(sh,'⇧','Shift');
+  }
+  addKeyListenersOnce(sh,pressShift);
+  row.appendChild(sh);
+  // ZXCVBNM
+  R3.forEach(k=>{
+    const div=makeKey(k);
+    const lbl=(shift||caps)?k:k.toLowerCase();
+    // Z无字根但给空sub保持字母与同行其他键的高度对齐
+    const sub=(mode==='wubi'&&ROOTS[k])?ROOTS[k]:'';
+    setKeyContent(div,lbl,sub);
+    if(mode==='wubi'&&k==='Z'){
+      const ph=document.createElement('span');
+      ph.className='ks';ph.style.visibility='hidden';ph.textContent='金';
+      div.appendChild(ph);
+    }
+    // Ctrl层 z/x/c/v → 保留字母 + 撤销/剪切/复制/粘贴
+    if((ctrl||ctrlLock) && ['Z','X','C','V'].includes(k)){
+      const editMap={Z:'撤销',X:'剪切',C:'复制',V:'粘贴'};
+      div.classList.add('arrow-active');
+      div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
+    }
+    if((alt||ctrl||ctrlLock)&&['J','B','N','M'].includes(k)){
+      div.classList.add('arrow-active');
+      const arrowMap={J:'↑',B:'←',N:'↓',M:'→'};
+      const subMap=(ctrl||ctrlLock)?{J:'文首',B:'行首',N:'文末',M:'行尾'}:{J:'选上行',B:'左',N:'选下行',M:'右'};
+      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:8px">${subMap[k]}</span>`:''}`;
+    }
+    div._snd=()=>keySound(k);   // #11 第3行=百搭和弦
+    div._sndUp=()=>keySoundUp(k); div._sndRep=()=>keySoundRep(k);   // #9 绵音释放/连发拍音
+    addKeyListeners(div,()=>pressKey(k), !alt && !ctrl && !ctrlLock);
+    row.appendChild(div);
+  });
+  // 右侧删除键，flex:1.5与Shift等宽，使z～m七键与r1每键等宽
+  const delKey=makeKey('DEL','func del-r3');
+  delKey.style.flex='1.5';
+  delKey.innerHTML=`<svg width="20" height="14" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+</svg>`;
+  // 长按连续删除
+  let _dt=null,_dr=null;
+  const startD=()=>{playClick();doDelete();_dt=setTimeout(()=>{_dr=setInterval(()=>{playClick();doDelete();},50);},500);};
+  const stopD=()=>{clearTimeout(_dt);clearInterval(_dr);};
+  delKey.addEventListener('touchstart',e=>{e.preventDefault();startD();delKey.classList.add('pressed');},{passive:false});
+  delKey.addEventListener('touchend',()=>{stopD();delKey.classList.remove('pressed');},{passive:true});
+  delKey.addEventListener('touchcancel',()=>{stopD();delKey.classList.remove('pressed');},{passive:true});
+  delKey.addEventListener('mousedown',startD);
+  delKey.addEventListener('mouseup',stopD);
+  delKey.addEventListener('mouseleave',stopD);
+  row.appendChild(delKey);
+}
+function buildRow4() {
+  const row=document.getElementById('r4'); row.innerHTML='';
+  // Ctrl（含 Ctrl+Shift 切换语言）
+  const ctrlDiv=makeKey('CTRL','func ctrl-key'+(ctrl?' held':'')+(ctrlLock?' locked':''));
+  // Ctrl 字样：颜色/字重与 Alt 标签一致(km 主字色)；锁定时附"锁定"小字
+  ctrlDiv.innerHTML=`<span class="km" style="font-size:13px">Ctrl</span>${ctrlLock?'<span class="ks" style="font-size:8px">锁定</span>':''}`;
+  let _ctrlTouched=false;
+  const _ctrlToggle = () => {
+    playClick();
+    if (shift) { switchNextIME(); ctrl=false; ctrlLock=false; shift=false; alt=false; buildKb(); return; }   // Shift+Ctrl → 切换系统下一个输入法
+    const now=Date.now();
+    if (ctrlLock) {                       // 已锁定 → 任意点击解锁退出
+      ctrlLock=false; ctrl=false; _lastCtrlTap=0; buildKb(); return;
+    }
+    if (ctrl && (now-_lastCtrlTap)<400) { // 第二次快速点击 → 锁定功能层
+      ctrlLock=true; ctrl=true; alt=false; _lastCtrlTap=0; buildKb(); return;
+    }
+    ctrl = !ctrl; if(ctrl) alt=false;     // 单击：瞬时 Ctrl（按一个键后消费）
+    _lastCtrlTap = ctrl?now:0;
+    buildKb();
+  };
+  ctrlDiv.addEventListener('touchstart', e=>{e.preventDefault(); _ctrlTouched=true; _ctrlToggle();}, {passive:false});
+  ctrlDiv.addEventListener('touchend', ()=>{setTimeout(()=>{_ctrlTouched=false;},600);}, {passive:true});
+  ctrlDiv.addEventListener('mousedown',  e=>{e.preventDefault(); if(_ctrlTouched)return; _ctrlToggle();});
+  row.appendChild(ctrlDiv);
+  // Alt
+  const altDiv=makeKey('ALT','func alt-key'+(alt?' held':''));
+  setKeyContent(altDiv,'Alt','');
+  let _altTouched=false;
+  const _altToggle = () => {
+    playClick();
+    alt=!alt; if(alt){ctrl=false; shift=false; caps=false;}   // 互斥：开 Alt 时关 Ctrl/Shift
+    buildKb();
+  };
+  altDiv.addEventListener('touchstart', e=>{e.preventDefault(); _altTouched=true; _altToggle();}, {passive:false});
+  altDiv.addEventListener('touchend', ()=>{setTimeout(()=>{_altTouched=false;},600);}, {passive:true});
+  altDiv.addEventListener('mousedown',  e=>{e.preventDefault(); if(_altTouched)return; _altToggle();});
+  row.appendChild(altDiv);
+  // 空格
+  const sp=makeKey('SPC','space-key'); sp.style.flex='1';
+  setKeyContent(sp,'空格','');
+  addKeyListeners(sp,pressSpace,true);
+  row.appendChild(sp);
+  // 回车
+  const en=makeKey('ENT','accent enter-key');
+  setKeyContent(en,'回车','');
+  addKeyListeners(en,pressEnter);
+  row.appendChild(en);
+}
+
+// 一键两区通用绑定：按下坐标定区(左半/右半)、按下即出字；长按该半区=连续输出；滑走取消连发。
+//   根治 [. X]/[- +] 左右单击不准：不再靠长按切换字符，而是和硬件键一样按哪半出哪个。
+function bindDualZone(el, leftFn, rightFn){
+  let _t=null,_r=null,_sx=0,_sy=0;
+  const zone=x=>{ const r=el.getBoundingClientRect(); return (x-r.left)>r.width/2; };
+  const hl=(right,on)=>{ const z=el.querySelector(right?'.delz-r':'.delz-l'); if(z) z.style.background=on?'rgba(0,0,0,0.10)':''; };
+  const clear=()=>{ clearTimeout(_t); clearInterval(_r); _t=_r=null; el.classList.remove('pressed'); hl(false,false); hl(true,false); };
+  const start=(x,y)=>{
+    _sx=x; _sy=y;
+    const rt=zone(x); const fn=rt?rightFn:leftFn;
+    el.classList.add('pressed'); hl(rt,true);
+    playClick(); fn();                                   // 按下即出，零延迟
+    _t=setTimeout(()=>{ _r=setInterval(()=>{ playClick(); fn(); },70); },420);   // 长按该半区=连续输出
+  };
+  el.addEventListener('touchstart',e=>{ e.preventDefault(); start(e.touches[0].clientX,e.touches[0].clientY); },{passive:false});
+  el.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(Math.abs(t.clientX-_sx)>26||Math.abs(t.clientY-_sy)>26) clear(); },{passive:true});
+  el.addEventListener('touchend',e=>{ e.preventDefault(); clear(); },{passive:false});
+  el.addEventListener('touchcancel',clear,{passive:true});
+  el.addEventListener('mousedown',e=>{ e.preventDefault(); start(e.clientX,e.clientY); });
+  el.addEventListener('mouseup',clear);
+  el.addEventListener('mouseleave',clear);
+}
+function buildNumpad() {
+  const np=document.getElementById('numpad'); np.innerHTML='';
+  np.style.cssText='display:flex;gap:5px;padding:5px';
+  if(calcMode){ buildCalcPad(np); return; }
+  // Issue: 普通数字键盘总高 = 主键盘(220)，切换无高度跳动。
+  // 主键盘 4 行×(44键+10行距)+4 = 220；数字键亦 4 行×44，行距拉10px、底部+4，凑足 220。
+  np.style.padding='5px 5px 9px';
+  // ===== Issue3 普通数字键盘（重构）=====
+  // 布局：
+  //   7 8 9 | [删除·返回](双用：左半删除/长按连删，右半返回上一键盘)
+  //   4 5 6 | [- +](一键两用：左 -，右 +)
+  //   1 2 3 | [. X](一键两用：左 . ，右长按 X)
+  //   计算器 0 空格 | 回车
+  // 右列加宽到 76px，容纳"两键共用一个键帽"的双用键。
+  const RIGHT_W=76;
+  // 左侧 3 列（数字 + 计算器/0/空格）
+  const leftGrid=document.createElement('div');
+  leftGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,47px);gap:6px 5px;flex:1';   // 行距收紧(10→6)，键高44→47补足总高220无跳动
+  [['7','8','9'],['4','5','6'],['1','2','3'],['CALC','0','SPACE']].forEach(row=>{
+    row.forEach(k=>{
+      const div=document.createElement('div');
+      div.className='num-key';
+      if(k==='CALC'){
+        div.className+=' func';
+        div.innerHTML='<span class="km" style="font-size:13px">计算器</span>';
+        addKeyListeners(div,()=>{calcMode=true; calcReset(); buildNumpad();});
+      } else if(k==='SPACE'){
+        div.className+=' func';
+        div.innerHTML='<span class="km" style="font-size:13px">空格</span>';
+        addKeyListeners(div,()=>pressNum(' '));
+      } else {
+        div.innerHTML=`<span class="km">${k}</span>`;
+        addKeyListeners(div,()=>pressNum(k));
+      }
+      leftGrid.appendChild(div);
+    });
+  });
+  np.appendChild(leftGrid);
+  // 右列：删除·返回(双用) / [- +] / [. X] / 回车
+  const rightCol=document.createElement('div');
+  rightCol.style.cssText='display:flex;flex-direction:column;gap:6px;width:'+RIGHT_W+'px';
+
+  // ① 删除键（纯删除：单击删除·长按连删；返回功能已移至顶栏 [123]↔[返回] 键）
+  const delRet=document.createElement('div');
+  delRet.className='num-key func'; delRet.style.height='47px';
+  delRet.innerHTML=
+    `<span class="km" style="display:flex;align-items:center;justify-content:center">`+
+      `<svg width="22" height="16" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">`+
+      `<path d="M9.5 1H24C24.55 1 25 1.45 25 2V16C25 16.55 24.55 17 24 17H9.5C9.1 17 8.73 16.78 8.53 16.43L1.5 9L8.53 1.57C8.73 1.22 9.1 1 9.5 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/>`+
+      `<line x1="14" y1="6" x2="21" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`+
+      `<line x1="21" y1="6" x2="14" y2="13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`+
+    `</span>`;
+  (function(){
+    let _dt=null,_dr=null;
+    const start=()=>{ delRet.classList.add('pressed'); doDelete(); _dt=setTimeout(()=>{ _dr=setInterval(()=>{playClick();doDelete();},50); },500); };
+    const end=()=>{ clearTimeout(_dt); clearInterval(_dr); _dt=_dr=null; delRet.classList.remove('pressed'); };
+    const cancel=end;
+    delRet.addEventListener('touchstart',e=>{e.preventDefault();playClick();start();},{passive:false});
+    delRet.addEventListener('touchend',e=>{e.preventDefault();end();},{passive:false});
+    delRet.addEventListener('touchcancel',cancel,{passive:true});
+    delRet.addEventListener('mousedown',e=>{e.preventDefault();playClick();start();});
+    delRet.addEventListener('mouseup',end);
+    delRet.addEventListener('mouseleave',cancel);
+  })();
+  rightCol.appendChild(delRet);
+
+  // ② [- +] 一键两用（左 -，右 +；按下即出，长按该半区连续输出）
+  const pm=document.createElement('div');
+  pm.className='num-key func calc-delz'; pm.style.height='47px';
+  pm.innerHTML=`<span class="delz-l" style="font-size:20px">-</span><span class="delz-r" style="font-size:20px;font-weight:400">+</span>`;
+  bindDualZone(pm,()=>pressNum('-'),()=>pressNum('+'));
+  rightCol.appendChild(pm);
+
+  // ③ [. X] 一键两用（左半= . 右半= X：按下坐标判区，不再长按切换；长按该半区=连续输出）
+  const dotX=document.createElement('div');
+  dotX.className='num-key calc-delz'; dotX.style.height='47px';
+  dotX.innerHTML=`<span class="delz-l" style="font-size:18px">.</span><span class="delz-r" style="font-size:20px;font-weight:400">X</span>`;
+  bindDualZone(dotX,()=>pressNum('.'),()=>pressNum('X'));
+  rightCol.appendChild(dotX);
+
+  // ④ 回车
+  const en=document.createElement('div');
+  en.className='num-key accent'; en.style.cssText='height:47px';
+  en.innerHTML='<span class="km" style="font-size:14px;font-weight:600">回车</span>';
+  addKeyListeners(en,()=>pressNum('↵'));
+  rightCol.appendChild(en);
+
+  np.appendChild(rightCol);
+}
+
