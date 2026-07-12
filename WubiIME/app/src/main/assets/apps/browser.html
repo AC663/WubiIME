@@ -1,1 +1,358 @@
-a
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>PURE 浏览器</title>
+<style>
+/* ===== PURE · 隐私浏览器（设计稿移植：暗底 #07080B + 薄荷 #3FE0A8 + 等宽微标） =====
+   适配安键应用格式：零外链(设计稿的 Google Fonts/CDN 全部去除，系统字体栈)、
+   KV 持久化走 AndroidPW 桥(铁律：localStorage 仅浏览器调试回退)、AppActivity 暗色窗。 */
+:root{ --bg:#07080B; --bg2:#0D0F14; --card:#12151C; --line:rgba(63,224,168,0.16);
+  --ac:#3FE0A8; --acd:#2BB586; --tx:#E8ECEA; --sub:#8A948F; --warn:#FF6B5A;
+  --mono:ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; background:var(--bg); color:var(--tx);
+  font-family:-apple-system,'Noto Sans SC','Space Grotesk',system-ui,sans-serif; overflow:hidden; }
+#app{ height:100%; display:flex; flex-direction:column; }
+::-webkit-scrollbar{ display:none; }
+a{ color:var(--ac); text-decoration:none; }
+.mono{ font-family:var(--mono); }
+@keyframes fadeUp{ from{ transform:translateY(12px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+@keyframes toastIn{ from{ transform:translate(-50%,-8px); opacity:0; } to{ transform:translate(-50%,0); opacity:1; } }
+/* 顶栏 */
+#topbar{ flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:10px 12px 8px; background:var(--bg); }
+#urlbox{ flex:1; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
+  background:var(--bg2); border:1px solid var(--line); border-radius:12px; }
+#urlbox svg{ flex:0 0 auto; }
+#url{ flex:1; min-width:0; background:none; border:none; outline:none; color:var(--tx);
+  font-size:13.5px; font-family:var(--mono); }
+#url::placeholder{ color:var(--sub); }
+.tbtn{ flex:0 0 auto; width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+  border-radius:11px; background:var(--bg2); border:1px solid var(--line); color:var(--tx);
+  font-size:15px; cursor:pointer; user-select:none; position:relative; }
+.tbtn:active{ transform:scale(0.92); }
+#shield-n{ position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 4px;
+  border-radius:8px; background:var(--ac); color:#06231A; font-size:9.5px; font-weight:800;
+  font-family:var(--mono); display:flex; align-items:center; justify-content:center; }
+/* 内容区 */
+#stage{ flex:1; min-height:0; position:relative; overflow:hidden; }
+.screen{ position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:18px 18px 90px; display:none; animation:fadeUp .22s cubic-bezier(.22,1,.36,1); }
+.screen.on{ display:block; }
+#webwrap{ position:absolute; inset:0; display:none; background:#fff; }
+#webwrap.on{ display:block; }
+#webframe{ width:100%; height:100%; border:none; background:#fff; }
+/* 起始页 */
+.wordmark{ text-align:center; margin:34px 0 8px; font-weight:800; letter-spacing:12px; font-size:26px; color:var(--tx); }
+.wordsub{ text-align:center; letter-spacing:6px; font-size:11px; color:var(--sub); margin-bottom:22px; }
+.counter{ text-align:center; font-family:var(--mono); font-size:11px; color:var(--sub); margin-bottom:26px; }
+.counter b{ color:var(--ac); font-size:13px; }
+.homebox{ display:flex; align-items:center; gap:10px; height:48px; padding:0 14px; margin:0 auto 20px; max-width:420px;
+  background:var(--bg2); border:1px solid var(--line); border-radius:14px; }
+.homebox input{ flex:1; min-width:0; background:none; border:none; outline:none; color:var(--tx); font-size:14px; }
+.chips{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:26px; }
+.chip{ padding:7px 14px; border-radius:20px; border:1px solid var(--line); background:var(--bg2);
+  color:var(--sub); font-size:12px; cursor:pointer; }
+.chip.on{ background:rgba(63,224,168,0.12); color:var(--ac); border-color:var(--ac); }
+.tiles{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:420px; margin:0 auto; }
+.tile{ aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  background:var(--card); border:1px solid var(--line); border-radius:14px; cursor:pointer; }
+.tile:active{ transform:scale(0.95); }
+.tile .ti{ width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:15px; color:#06231A; background:var(--ac); }
+.tile .tn{ font-size:10.5px; color:var(--sub); }
+/* 面板卡片通用 */
+.sect{ max-width:480px; margin:0 auto 14px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; }
+.sect h3{ margin:0 0 10px; font-size:13px; letter-spacing:2px; color:var(--ac); font-family:var(--mono); font-weight:600; }
+.rowi{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.rowi:last-child{ border-bottom:none; }
+.rowi .rl{ font-size:13.5px; }
+.rowi .rd{ font-size:10.5px; color:var(--sub); margin-top:2px; }
+.rowi .rv{ font-family:var(--mono); font-size:11px; color:var(--sub); }
+.sw{ width:40px; height:22px; border-radius:11px; background:rgba(255,255,255,0.10); position:relative; cursor:pointer; flex:0 0 auto; transition:background .15s; }
+.sw::after{ content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .15s; }
+.sw.on{ background:var(--ac); }
+.sw.on::after{ transform:translateX(18px); }
+/* 标签页 */
+.tabrow{ display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; }
+.tabrow .tini{ width:34px; height:34px; border-radius:10px; background:var(--bg2); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; color:var(--ac); font-weight:800; flex:0 0 auto; }
+.tabrow .tt{ flex:1; min-width:0; }
+.tabrow .tt .t1{ font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tabrow .tt .t2{ font-size:10.5px; color:var(--sub); font-family:var(--mono); }
+.tabx{ flex:0 0 auto; width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  color:var(--sub); font-size:14px; cursor:pointer; }
+/* 底部导航 */
+#navbar{ flex:0 0 auto; display:flex; align-items:stretch; background:var(--bg2); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
+.nbtn{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0 8px; color:var(--sub); font-size:10px; cursor:pointer; user-select:none; }
+.nbtn.on{ color:var(--ac); }
+.nbtn .ni{ font-size:17px; line-height:1; }
+/* 隐私面板(抽屉) */
+#privacy{ position:absolute; left:0; right:0; bottom:0; max-height:76%; background:var(--bg2); z-index:60;
+  border-top:1px solid var(--ac); border-radius:20px 20px 0 0; padding:16px 18px 26px; overflow-y:auto;
+  transform:translateY(105%); transition:transform .24s cubic-bezier(.22,1,.36,1); }
+#privacy.on{ transform:translateY(0); }
+#scrim{ position:absolute; inset:0; background:rgba(0,0,0,0.5); z-index:55; display:none; }
+#scrim.on{ display:block; }
+.tkrow{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:12px; padding:7px 0; color:var(--sub); border-bottom:1px solid rgba(255,255,255,0.04); }
+.tkrow b{ color:var(--warn); font-weight:600; }
+/* 受限站点降级卡 */
+.blockcard{ max-width:420px; margin:60px auto 0; text-align:center; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px 22px; }
+.blockcard .bi{ font-size:34px; margin-bottom:12px; }
+.bbtn{ display:inline-block; margin:14px 6px 0; padding:11px 20px; border-radius:12px; font-size:13px; font-weight:700; cursor:pointer; }
+.bbtn.pri{ background:var(--ac); color:#06231A; }
+.bbtn.sec{ border:1px solid var(--line); color:var(--tx); }
+#toast{ position:absolute; top:14px; left:50%; transform:translate(-50%,0); z-index:90; background:var(--card);
+  border:1px solid var(--ac); color:var(--tx); font-size:12.5px; padding:9px 16px; border-radius:12px;
+  display:none; animation:toastIn .2s ease-out; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="tbtn" id="btnBack">‹</div>
+    <div id="urlbox">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3FE0A8" stroke-width="2.4"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <input id="url" placeholder="搜索或输入网址" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="tbtn" id="btnShield">◈<span id="shield-n">0</span></div>
+    <div class="tbtn" id="btnClose">✕</div>
+  </div>
+
+  <div id="stage">
+    <div class="screen on" id="scr-home"></div>
+    <div class="screen" id="scr-tabs"></div>
+    <div class="screen" id="scr-set"></div>
+    <div id="webwrap"><iframe id="webframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>
+    <div id="scrim"></div>
+    <div id="privacy"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="navbar">
+    <div class="nbtn on" data-nav="home"><span class="ni">⌂</span>起始页</div>
+    <div class="nbtn" data-nav="tabs"><span class="ni">▤</span>标签页</div>
+    <div class="nbtn" data-nav="set"><span class="ni">⚙</span>设置</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ===== KV 持久层：AndroidPW 桥(AES-GCM) 优先 ===== */
+const KV={
+  _cache:null,
+  _load(){ if(this._cache) return this._cache;
+    try{
+      if(typeof AndroidPW!=='undefined'&&AndroidPW.loadAppData){
+        this._cache=JSON.parse(AndroidPW.loadAppData('pure_browser')||'{}')||{};
+      } else {
+        this._cache=JSON.parse(localStorage.getItem('pure_browser')||'{}')||{};   /* 浏览器调试回退 */
+      }
+    }catch(e){ this._cache={}; }
+    return this._cache; },
+  get(k,d){ const v=this._load()[k]; return v===undefined?d:v; },
+  set(k,v){ const c=this._load(); c[k]=v;
+    try{
+      const str=JSON.stringify(c);
+      if(typeof AndroidPW!=='undefined'&&AndroidPW.saveAppData) AndroidPW.saveAppData('pure_browser',str);
+      else localStorage.setItem('pure_browser',str);   /* 浏览器调试回退 */
+    }catch(e){} }
+};
+/* ===== 状态 ===== */
+const MODES=[{id:'std',n:'标准',d:'拦截追踪与广告'},{id:'strict',n:'严格',d:'附加指纹混淆·脚本收紧'},{id:'ghost',n:'无痕',d:'关闭即焚·零落盘'}];
+const DOH=['Cloudflare 1.1.1.1','Quad9 9.9.9.9','AliDNS 223.5.5.5','DNSPod 120.53.53.53'];
+const S={
+  view:'home',
+  mode: KV.get('mode','std'),
+  doh: KV.get('doh',DOH[0]),
+  dohOn: KV.get('dohOn',true),
+  isoOn: KV.get('isoOn',true),
+  blockedTotal: KV.get('blockedTotal', 128470),
+  tabs: KV.get('tabs', []),          // {t:标题,u:网址,c:容器}
+  cur:-1,                            // 当前标签(webview中)
+  pageBlocked:[],                    // 本页拦截项(原型演绎)
+  seed: KV.get('seed', Math.random().toString(36).slice(2,10)),
+  hist:[], hi:-1,
+};
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){ const t=$('toast'); t.textContent=m; t.style.display='block';
+  clearTimeout(t._h); t._h=setTimeout(()=>{t.style.display='none';},1800); }
+function persist(){ KV.set('mode',S.mode); KV.set('doh',S.doh); KV.set('dohOn',S.dohOn);
+  KV.set('isoOn',S.isoOn); KV.set('blockedTotal',S.blockedTotal); KV.set('seed',S.seed);
+  if(S.mode!=='ghost') KV.set('tabs',S.tabs); }
+/* ===== 顶栏 ===== */
+$('btnClose').addEventListener('click',()=>{ try{ if(typeof AndroidPW!=='undefined'&&AndroidPW.closeApp){ AndroidPW.closeApp(); return; } }catch(e){} history.back(); });
+$('btnBack').addEventListener('click',()=>{
+  if($('privacy').classList.contains('on')){ togglePrivacy(false); return; }
+  if($('webwrap').classList.contains('on')){
+    if(S.hi>0){ S.hi--; navigate(S.hist[S.hi],true); }
+    else { showWeb(false); nav('home'); }
+    return;
+  }
+  nav('home');
+});
+$('btnShield').addEventListener('click',()=>togglePrivacy());
+$('scrim').addEventListener('click',()=>togglePrivacy(false));
+$('url').addEventListener('keydown',e=>{ if(e.key==='Enter'){ go($('url').value); $('url').blur(); } });
+/* ===== 导航 ===== */
+function nav(v){
+  S.view=v;
+  showWeb(false); togglePrivacy(false);
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('scr-'+v).classList.add('on');
+  document.querySelectorAll('.nbtn').forEach(b=>b.classList.toggle('on', b.dataset.nav===v));
+  if(v==='home') renderHome();
+  if(v==='tabs') renderTabs();
+  if(v==='set') renderSet();
+}
+document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.nav)));
+/* ===== URL 处理与"拦截"演绎 ===== */
+function normUrl(q){
+  q=String(q||'').trim(); if(!q) return null;
+  if(/^https?:\/\//i.test(q)) return q;
+  if(/^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(q)) return 'https://'+q;
+  return 'https://www.bing.com/search?q='+encodeURIComponent(q);
+}
+function domainOf(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } }
+function hashN(str,mod){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h)%mod; }
+function fakeBlocked(u){
+  // 原型演绎：按域名稳定生成"本页拦截"清单(同站同结果)，并累计总拦截数
+  const d=domainOf(u), base=hashN(d,9)+3;
+  const pool=['doubleclick.net','google-analytics.com','hm.baidu.com','cnzz.com','umeng.com','facebook.net','scorecardresearch.com','criteo.com','adnxs.com'];
+  const list=[]; let tot=0;
+  for(let i=0;i<Math.min(4,1+hashN(d+'x',4));i++){ const c=1+hashN(d+i,base); tot+=c; list.push({domain:pool[(hashN(d,9)+i*2)%pool.length], count:c}); }
+  S.pageBlocked=list;
+  S.blockedTotal+=tot;
+  $('shield-n').textContent=String(tot);
+  persist();
+}
+function go(q){
+  const u=normUrl(q); if(!u) return;
+  S.hist=S.hist.slice(0,S.hi+1); S.hist.push(u); S.hi=S.hist.length-1;
+  navigate(u,false);
+}
+function navigate(u,isBack){
+  $('url').value=u;
+  fakeBlocked(u);
+  // 标签页登记(无痕模式不落盘)
+  if(!isBack){
+    const d=domainOf(u);
+    const t={t:d, u:u, c: S.mode==='ghost'?'无痕':'个人'};
+    const i=S.tabs.findIndex(x=>x.u===u);
+    if(i>=0) S.tabs.splice(i,1);
+    S.tabs.unshift(t); if(S.tabs.length>24) S.tabs.length=24;
+    S.cur=0; persist();
+  }
+  showWeb(true);
+  const f=$('webframe');
+  let settled=false;
+  f.onload=()=>{ settled=true; };
+  try{ f.src=u; }catch(e){}
+  // 受限站点(X-Frame-Options 拒绝内嵌)降级：3.5s 未着陆 → 呈现降级卡
+  clearTimeout(navigate._t);
+  navigate._t=setTimeout(()=>{ if(!settled) showBlockedCard(u); },3500);
+}
+function showWeb(on){
+  $('webwrap').classList.toggle('on',!!on);
+  if(on){ document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('on')); }
+}
+function showBlockedCard(u){
+  showWeb(false);
+  const h=$('scr-home');
+  h.classList.add('on');
+  h.innerHTML='<div class="blockcard"><div class="bi">◈</div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:6px;">该站点拒绝内嵌呈现</div>'
+    +'<div style="font-size:12px;color:var(--sub);line-height:1.7;">'+esc(domainOf(u))+' 通过 X-Frame-Options 阻止了容器内加载。<br>这是站点侧策略，与隐私防护无关。</div>'
+    +'<div class="bbtn pri" id="bc-copy">复制链接</div><div class="bbtn sec" id="bc-back">返回起始页</div></div>';
+  $('bc-copy').addEventListener('click',()=>{ try{ if(typeof AndroidPW!=='undefined'&&AndroidPW.copyToClipboard){ AndroidPW.copyToClipboard(u); toast('链接已存入私有剪贴板'); return; } }catch(e){} toast('已尝试复制'); });
+  $('bc-back').addEventListener('click',()=>nav('home'));
+}
+/* ===== 起始页 ===== */
+function renderHome(){
+  const h=$('scr-home');
+  h.innerHTML='<div class="wordmark">PURE</div><div class="wordsub">隐 私 浏 览 器</div>'
+    +'<div class="counter">自安装以来已拦截 <b>'+S.blockedTotal.toLocaleString()+'</b> 次<br>追踪请求 · 指纹探测 · 广告</div>'
+    +'<div class="homebox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A948F" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
+    +'<input id="homeq" placeholder="搜索或输入网址" autocomplete="off"></div>'
+    +'<div class="chips">'+MODES.map(m=>'<div class="chip'+(S.mode===m.id?' on':'')+'" data-mode="'+m.id+'">'+m.n+'模式</div>').join('')
+    +'<div class="chip'+(S.dohOn?' on':'')+'" data-t="doh">DoH</div>'
+    +'<div class="chip'+(S.isoOn?' on':'')+'" data-t="iso">容器隔离</div></div>'
+    +'<div class="tiles">'+[['必应','bing.com'],['知乎','zhihu.com'],['B站','bilibili.com'],['微博','weibo.com'],['豆瓣','douban.com'],['GitHub','github.com'],['维基','zh.wikipedia.org'],['少数派','sspai.com']]
+      .map(x=>'<div class="tile" data-u="'+x[1]+'"><div class="ti">'+x[0][0]+'</div><div class="tn">'+x[0]+'</div></div>').join('')+'</div>';
+  $('homeq').addEventListener('keydown',e=>{ if(e.key==='Enter') go(e.target.value); });
+  h.querySelectorAll('[data-mode]').forEach(c=>c.addEventListener('click',()=>{ S.mode=c.dataset.mode; persist(); renderHome(); toast(MODES.find(m=>m.id===S.mode).n+'模式已启用'); }));
+  h.querySelectorAll('[data-t]').forEach(c=>c.addEventListener('click',()=>{
+    if(c.dataset.t==='doh'){ S.dohOn=!S.dohOn; } else { S.isoOn=!S.isoOn; }
+    persist(); renderHome();
+  }));
+  h.querySelectorAll('.tile').forEach(t=>t.addEventListener('click',()=>go(t.dataset.u)));
+}
+/* ===== 标签页/容器 ===== */
+function renderTabs(){
+  const cs={}; S.tabs.forEach(t=>{ cs[t.c]=(cs[t.c]||0)+1; });
+  const t=$('scr-tabs');
+  t.innerHTML='<div class="sect"><h3>容器</h3>'
+    +(Object.keys(cs).length?Object.keys(cs).map(c=>'<div class="rowi"><div><div class="rl">'+esc(c)+'</div><div class="rd">Cookie · 存储 · Canvas 种子完全隔离</div></div><div class="rv">'+cs[c]+'</div></div>').join('')
+      :'<div class="rd" style="padding:8px 0;">暂无活动容器</div>')
+    +'</div><div class="sect"><h3>标签页 '+S.tabs.length+'</h3>'
+    +(S.tabs.length?S.tabs.map((x,i)=>'<div class="tabrow" data-i="'+i+'"><div class="tini">'+esc(x.t[0]||'?').toUpperCase()+'</div>'
+      +'<div class="tt"><div class="t1">'+esc(x.t)+'</div><div class="t2">'+esc(domainOf(x.u))+' · '+esc(x.c)+'</div></div>'
+      +'<div class="tabx" data-x="'+i+'">✕</div></div>').join('')
+      :'<div class="rd" style="padding:8px 0;">暂无标签页</div>')
+    +'</div>';
+  t.querySelectorAll('.tabrow').forEach(r=>r.addEventListener('click',e=>{
+    if(e.target.dataset.x!=null) return;
+    const x=S.tabs[parseInt(r.dataset.i,10)]; if(x) go(x.u);
+  }));
+  t.querySelectorAll('.tabx').forEach(x=>x.addEventListener('click',()=>{
+    S.tabs.splice(parseInt(x.dataset.x,10),1); persist(); renderTabs();
+  }));
+}
+/* ===== 设置 ===== */
+function renderSet(){
+  const t=$('scr-set');
+  t.innerHTML='<div class="sect"><h3>隐私模式</h3>'
+    +MODES.map(m=>'<div class="rowi" data-m="'+m.id+'" style="cursor:pointer;"><div><div class="rl">'+m.n+'模式</div><div class="rd">'+m.d+'</div></div><div class="rv">'+(S.mode===m.id?'●':'○')+'</div></div>').join('')
+    +'</div><div class="sect"><h3>网络</h3>'
+    +'<div class="rowi"><div><div class="rl">加密 DNS (DoH)</div><div class="rd">绕过运营商 DNS 劫持与记录</div></div><div class="sw'+(S.dohOn?' on':'')+'" data-sw="doh"></div></div>'
+    +'<div class="rowi" id="dohsel" style="cursor:pointer;"><div><div class="rl">DoH 服务商</div><div class="rd">点按轮换</div></div><div class="rv">'+esc(S.doh)+'</div></div>'
+    +'<div class="rowi"><div><div class="rl">容器隔离</div><div class="rd">按站点隔离 Cookie / 存储 / Canvas 种子</div></div><div class="sw'+(S.isoOn?' on':'')+'" data-sw="iso"></div></div>'
+    +'</div><div class="sect"><h3>指纹防护</h3>'
+    +'<div class="rowi"><div><div class="rl">Canvas / Audio 种子</div><div class="rd">按站点独立 · 会话结束自动轮换</div></div><div class="rv mono">'+esc(S.seed)+'</div></div>'
+    +'<div class="rowi" id="seedbtn" style="cursor:pointer;"><div class="rl" style="color:var(--ac);">立即轮换种子</div><div class="rv">↻</div></div>'
+    +'</div><div class="sect"><h3>关于</h3>'
+    +'<div class="rowi"><div class="rl">运行方式</div><div class="rv">与输入法同包 · 独立窗口</div></div>'
+    +'<div class="rowi"><div class="rl">形态</div><div class="rv">交互原型 · 容器内呈现</div></div>'
+    +'</div>';
+  t.querySelectorAll('[data-m]').forEach(r=>r.addEventListener('click',()=>{ S.mode=r.dataset.m; persist(); renderSet(); }));
+  t.querySelectorAll('[data-sw]').forEach(w=>w.addEventListener('click',()=>{
+    if(w.dataset.sw==='doh') S.dohOn=!S.dohOn; else S.isoOn=!S.isoOn;
+    persist(); renderSet();
+  }));
+  $('dohsel').addEventListener('click',()=>{ S.doh=DOH[(DOH.indexOf(S.doh)+1)%DOH.length]; persist(); renderSet(); });
+  $('seedbtn').addEventListener('click',()=>{ S.seed=Math.random().toString(36).slice(2,10); persist(); renderSet(); toast('指纹种子已轮换'); });
+}
+/* ===== 隐私面板 ===== */
+function togglePrivacy(force){
+  const p=$('privacy'), on = force!=null ? !!force : !p.classList.contains('on');
+  if(on){
+    p.innerHTML='<h3 class="mono" style="margin:0 0 4px;font-size:13px;letter-spacing:2px;color:var(--ac);">隐私面板</h3>'
+      +'<div style="font-size:11px;color:var(--sub);margin-bottom:12px;">本页已拦截 '+S.pageBlocked.reduce((a,b)=>a+b.count,0)+' 项 · Canvas 已混淆</div>'
+      +(S.pageBlocked.length?S.pageBlocked.map(k=>'<div class="tkrow"><span>'+esc(k.domain)+'</span><b>×'+k.count+'</b></div>').join('')
+        :'<div class="tkrow"><span>当前无页面</span><b>—</b></div>')
+      +'<div style="margin-top:14px;font-size:11px;color:var(--sub);line-height:1.7;">匿名不是把自己藏起来，而是让自己看起来和十万个人一模一样。<br>Canvas / Audio 种子：<span class="mono" style="color:var(--ac);">'+esc(S.seed)+'</span></div>';
+  }
+  p.classList.toggle('on',on);
+  $('scrim').classList.toggle('on',on);
+}
+/* ===== 启动 ===== */
+renderHome();
+$('shield-n').textContent='0';
+})();
+</script>
+</body>
+</html>

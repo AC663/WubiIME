@@ -700,10 +700,11 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
       // 清空历史(确认后执行；走 Java 安全抹除通道)
       const clr=L.querySelector('[data-paste="clear"]');
       if(clr) clr.addEventListener('click', ()=>{
-        this.sharpConfirm('清空剪贴历史','全部 '+(this.state.clips||[]).length+' 条将被彻底删除，<b style="color:#c73a2b;">不可恢复</b>。','清空',()=>{
+        this.sharpConfirm('清空剪贴历史','全部 '+(this.state.clips||[]).length+' 条将被清空，10 秒内可撤销。','清空',()=>{
+          this._clipsUndo=(this.state.clips||[]).slice();   // #4 撤销备份
           try{ if(typeof AndroidPW!=='undefined'&&AndroidPW.clearClipboardAll) AndroidPW.clearClipboardAll(); }catch(e){}
           this._noteClips=[];   /* 浏览器预览回退 */
-          setTimeout(()=>this.refreshPasteList(),60);
+          setTimeout(()=>{ this.refreshPasteList(); this.showPasteUndo(); },60);
         });
       });
       // 单条：点击=详情确认；左滑=删除
@@ -727,13 +728,16 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
           face.style.transition='transform .16s ease';
           if(dx<-72){
             const txt=(this.state.clips||[])[idx];
-            face.style.transform='translateX(-110%)';
-            row.style.transition='height .18s ease,margin .18s ease,border-width .18s ease,box-shadow .18s ease';
-            row.style.height=row.offsetHeight+'px';
-            requestAnimationFrame(()=>{ row.style.height='0px'; row.style.marginBottom='0px'; row.style.borderWidth='0px'; row.style.boxShadow='none'; });
-            try{ if(txt!=null&&typeof AndroidPW!=='undefined'&&AndroidPW.removeClipboardText) AndroidPW.removeClipboardText(txt); }catch(e){}
-            const j=this._noteClips.indexOf(txt); if(j>=0)this._noteClips.splice(j,1);   /* 浏览器预览回退 */
-            setTimeout(()=>this.refreshPasteList(),200);
+            // #4 删除需确认：确认前面层停在滑出位，取消=弹回
+            this.sharpConfirm('删除此条','该条剪贴内容将被删除。','删除',()=>{
+              face.style.transform='translateX(-110%)';
+              row.style.transition='height .18s ease,margin .18s ease,border-width .18s ease,box-shadow .18s ease';
+              row.style.height=row.offsetHeight+'px';
+              requestAnimationFrame(()=>{ row.style.height='0px'; row.style.marginBottom='0px'; row.style.borderWidth='0px'; row.style.boxShadow='none'; });
+              try{ if(txt!=null&&typeof AndroidPW!=='undefined'&&AndroidPW.removeClipboardText) AndroidPW.removeClipboardText(txt); }catch(e){}
+              const j=this._noteClips.indexOf(txt); if(j>=0)this._noteClips.splice(j,1);   /* 浏览器预览回退 */
+              setTimeout(()=>this.refreshPasteList(),200);
+            },()=>{ face.style.transform=''; back.style.opacity='0'; });
           } else { face.style.transform=''; back.style.opacity='0'; }
           mode=0; dx=0;
         };
@@ -743,6 +747,32 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
           if(row._swc){ row._swc=false; return; }
           this.openPasteDetail(idx);
         });
+      });
+    },
+    showPasteUndo(){
+      // #4 清空后的 10 秒撤销条(锐利风)：撤销=倒序回灌 Java 私有剪贴板恢复原序；到期=落定(Java 已安全抹除)
+      const L=document.getElementById('paste-list'); if(!L||!this._clipsUndo||!this._clipsUndo.length) return;
+      let n=10;
+      const bar=document.createElement('div'); bar.id='paste-undo';
+      bar.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 10px;padding:10px 12px;border:1.5px solid #111;box-shadow:3px 3px 0 #111;background:#fff;';
+      bar.innerHTML='<div style="font-size:12.5px;color:#333;">已清空 '+this._clipsUndo.length+' 条 · <b id="pu-n" style="font-family:var(--mono);color:#c73a2b;">10</b> 秒后彻底删除</div>'+
+        '<div id="pu-undo" style="cursor:pointer;font-weight:800;letter-spacing:2px;font-size:13px;color:#111;border:1.5px solid #111;box-shadow:2px 2px 0 #111;background:#fff;padding:7px 14px;">撤 销</div>';
+      L.insertBefore(bar, L.firstChild);
+      const tick=setInterval(()=>{
+        n--; const el=document.getElementById('pu-n');
+        if(el) el.textContent=String(n);
+        if(n<=0){ clearInterval(tick); this._clipsUndo=null; const b=document.getElementById('paste-undo'); if(b)b.remove(); }
+      },1000);
+      bar.querySelector('#pu-undo').addEventListener('click',()=>{
+        clearInterval(tick);
+        const buf=this._clipsUndo||[]; this._clipsUndo=null;
+        try{
+          if(typeof AndroidPW!=='undefined'&&AndroidPW.copyToClipboard)
+            buf.slice().reverse().forEach(t=>AndroidPW.copyToClipboard(t));   // 倒序回灌=恢复原顺序
+        }catch(e){}
+        this._noteClips=buf.slice();   /* 浏览器预览回退 */
+        this.refreshPasteList();
+        this.flash('已恢复 '+buf.length+' 条');
       });
     },
     openPasteDetail(idx){
@@ -772,7 +802,7 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         });
       });
     },
-    sharpConfirm(title, html, yesLabel, onYes){
+    sharpConfirm(title, html, yesLabel, onYes, onNo){
       let ov=document.getElementById('nb-cfm-ov'); if(ov) ov.remove();
       ov=document.createElement('div'); ov.id='nb-cfm-ov';
       ov.style.cssText='position:absolute;inset:0;z-index:90;background:rgba(17,17,17,.42);display:flex;align-items:center;justify-content:center;';
@@ -785,8 +815,8 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         '<div id="cfm-yes" style="flex:1;cursor:pointer;text-align:center;padding:11px 0;border:1.5px solid #7a1d12;background:linear-gradient(180deg,#e05545,#c73a2b);color:#fff;font-weight:800;">'+yesLabel+'</div></div>';
       ov.appendChild(box);
       (document.querySelector('.phone-screen')||document.body).appendChild(ov);
-      ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
-      box.querySelector('#cfm-no').addEventListener('click',()=>ov.remove());
+      ov.addEventListener('click',e=>{ if(e.target===ov){ ov.remove(); onNo&&onNo(); } });
+      box.querySelector('#cfm-no').addEventListener('click',()=>{ ov.remove(); onNo&&onNo(); });
       box.querySelector('#cfm-yes').addEventListener('click',()=>{ ov.remove(); onYes&&onYes(); });
     },
     insertAtCaret(text){
