@@ -12,7 +12,7 @@
    ============================================================ */
 const fs = require('fs'), cp = require('child_process'), os = require('os'), path = require('path');
 const A = 'WubiIME/app/src/main/assets';
-const FILES = [A+'/keyboard.html', A+'/apps/note.html', A+'/apps/pwgen.html'];
+const FILES = [A+'/keyboard.html', A+'/apps/note.html', A+'/apps/pwgen.html', A+'/apps/browser.html'];
 const RENDER_BUDGET = 12;   // note.html 整页 render() 白名单上限（当前实测基线+1裕量）
 let fails = 0;
 const bad = (m)=>{ fails++; console.error('  ✗ ' + m); };
