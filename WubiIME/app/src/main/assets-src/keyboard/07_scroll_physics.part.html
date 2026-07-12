@@ -1,18 +1,26 @@
-// ===== 滚动容器橡皮筋回弹：顶部继续下拉/底部继续上拉时阻尼跟手、松手弹回 =====
-//   Android WebView 的 overflow 滚动没有原生回弹(iOS 才有)——[符号][表情][剪贴板][候选池]
-//   真机滑到边缘生硬急停。此实现只在"已到边缘还继续拉"时接管(不干扰正常滚动)。
-/* 滚动边缘"iOS 式"流动回弹：
-   跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
-   释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
-   非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
-// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
-function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }
+// #5 锐利边缘印线：撞边瞬间在边缘压出一道 2px 主题色实线，200ms 干脆淡出——版画"压印"反馈
+function _edgeStamp(el, isY, atStart){
+  try{
+    const SC=(typeof sharpColors==='function')?sharpColors():{bd:'#111'};
+    const ln=document.createElement('div');
+    ln.style.cssText='position:absolute;z-index:9;pointer-events:none;background:'+SC.bd+';opacity:0.9;'+
+      (isY?('left:6px;right:6px;height:2px;'+(atStart?'top:0;':'bottom:0;'))
+          :('top:4px;bottom:4px;width:2px;'+(atStart?'left:0;':'right:0;')));
+    const host=el.parentElement||el;
+    if(getComputedStyle(host).position==='static') host.style.position='relative';
+    host.appendChild(ln);
+    ln.animate([{opacity:0.9},{opacity:0}],{duration:200,easing:'ease-out'}).onfinish=()=>ln.remove();
+    setTimeout(()=>{ try{ln.remove();}catch(_){}} ,260);
+  }catch(e){}
+}
 function _springHome(el, isY, fromPx){
   const prop=isY?'translateY':'translateX';
   _springCancel(el);
   try{
-    const w=2*Math.PI/0.42, z=0.30, wd=w*Math.sqrt(1-z*z);   // 周期0.42s·阻尼比0.30：Q弹且两拍内收敛
-    const D=0.72, N=30, frames=[];
+    const SHARP=!!el._sharp;
+    const w=2*Math.PI/(SHARP?0.22:0.42), z=SHARP?0.72:0.30, wd=w*Math.sqrt(1-z*z);   // 锐利=短周期高阻尼：一次干脆回弹即收；常规=Q弹两拍
+    const D=SHARP?0.34:0.72, N=SHARP?16:30, frames=[];
+    if(SHARP) _edgeStamp(el, isY, fromPx>0);
     for(let i=0;i<=N;i++){
       const t=D*i/N;
       const x=(i===N)?0:fromPx*Math.exp(-z*w*t)*Math.cos(wd*t);
@@ -32,8 +40,10 @@ function _springKick(el, isY, amp, onDone){
   const prop=isY?'translateY':'translateX';
   _springCancel(el);
   try{
-    const w=2*Math.PI/0.50, z=0.28, wd=w*Math.sqrt(1-z*z);
-    const D=0.85, N=34;
+    const SHARP=!!el._sharp;
+    if(SHARP){ amp=Math.max(-30,Math.min(30,amp)); _edgeStamp(el, isY, amp>0); }   // 锐利=小幅硬弹+压印
+    const w=2*Math.PI/(SHARP?0.26:0.50), z=SHARP?0.66:0.28, wd=w*Math.sqrt(1-z*z);
+    const D=SHARP?0.40:0.85, N=SHARP?18:34;
     let peak=0;
     for(let i=1;i<=N;i++){ const t=D*i/N; const x=Math.exp(-z*w*t)*Math.sin(wd*t); if(Math.abs(x)>peak) peak=Math.abs(x); }
     const frames=[];

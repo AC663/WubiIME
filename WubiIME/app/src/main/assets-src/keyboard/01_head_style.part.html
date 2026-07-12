@@ -76,18 +76,18 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
   background:rgba(0,0,0,0.07);
   box-shadow:none;
   animation:chipOn .24s cubic-bezier(.2,.7,.3,1)}
-.t-dark .cat-chip.on{background:rgba(255,255,255,0.13)}
+.t-dark .cat-chip.on{background:var(--ac,#c8a020);color:#1c1608;font-weight:800;opacity:1}   /* #4 暗主题选中=金填充黑字，反差拉满 */
 @keyframes chipOn{0%{transform:scale(.88)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
 .cat-chip.emo{padding:0 11px;font-size:19px;min-width:44px;height:30px;margin:0}   /* 间距与符号分类一致(容器gap:3px)，保留大字号触区 */
 .cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
-.t-dark .cat-chip.emo.on{background:rgba(255,255,255,0.13)}
+.t-dark .cat-chip.emo.on{background:rgba(255,255,255,0.24)}
 .cat-chip.emo{position:relative}
 /* 编码栏轨道内的迷你主题球/模式项：点选直达 */
 .cat-chip.ball{height:30px;padding:0 6px;min-width:34px}
 .cat-chip .theme-ball{width:22px;height:22px;flex:0 0 auto;box-shadow:none}   /* #6 默认不带阴影 */
 .cat-chip.on .theme-ball{box-shadow:0 2px 5px rgba(0,0,0,0.25),inset 0 -2px 4px rgba(0,0,0,0.22),inset 0 1px 2px rgba(255,255,255,0.4)}   /* 选中才伴随阴影 */
 .cat-chip.ball.on{background:rgba(0,0,0,0.09)}
-.t-dark .cat-chip.ball.on{background:rgba(255,255,255,0.15)}
+.t-dark .cat-chip.ball.on{background:rgba(255,255,255,0.24)}
 /* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
    底部铁轨+枕木，车轮搭轨，车厢间联轴器相连；横滑时整列车在轨上滑动 */
 .cat-strip.train{gap:8px;padding:0 4px 4px;align-items:center}   /* 铁轨/枕木已撤：纯胶囊列车更清爽 */
@@ -220,8 +220,7 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
 #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f3e3d6);
   border:1px solid rgba(150,90,40,0.15);box-shadow:0 1px 2px rgba(120,60,20,0.12)}
 #modeBtn.plain .sball-text{color:var(--acd,#9a4520);text-shadow:none}
-.t-dark #modeBtn.plain{background:linear-gradient(180deg,rgba(255,235,160,0.16),rgba(255,225,120,0.05));border-color:rgba(255,220,80,0.28)}
-.t-dark #modeBtn.plain .sball-text{color:var(--ktxt)}
+/* #4 英文模式按钮=其它按钮未激活样式：暗主题不再特殊化(其它工具按钮在暗主题同为白瓷) */
 .t-white #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f2ecdf);border-color:rgba(150,125,70,0.22)}
 /* #6 白主题工具按钮：未激活=白玉瓷(与其它主题同族暖瓷)；激活=釉面径向填充，反差质感对齐第一个[输入法]键 */
 .t-white .sball{background:linear-gradient(180deg,#ffffff,#f2ecdf);

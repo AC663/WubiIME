@@ -45,9 +45,78 @@ function _pianoVerb(){
     return _pianoWet;
   }catch(e){ _pianoWet=null; return null; }
 }
-// 钢琴单音发声核 v3：物理不谐和分音 + 三弦失谐合唱 + 双段衰减 + 音板混响。
-//   返回 {release()} 供按住/抬指控制。sustain=true 进入持续段直到 release(绵音)。
+// ===== #1 钢琴真采样音源(v13.9)：MusyngKite 三角钢琴 16 枚真实采样(C3~A6，每3半音一枚，CI 打进 assets/piano/) =====
+//   最近采样 + playbackRate 变调(最大±1.5半音，无感)；每音=1个 BufferSource——快速连打 CPU 近零，
+//   电流音/卡顿(合成引擎每音21振荡器的CPU尖峰)从源头消失。采样缺失/桥不可用→自动回退合成引擎。
+const _SAMPLE_MIDIS=[48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93];
+const _SAMPLE_NAMES={48:'C3',51:'Eb3',54:'Gb3',57:'A3',60:'C4',63:'Eb4',66:'Gb4',69:'A4',72:'C5',75:'Eb5',78:'Gb5',81:'A5',84:'C6',87:'Eb6',90:'Gb6',93:'A6'};
+let _pianoBuf={};        // midi -> AudioBuffer
+let _pianoLoadState=0;   // 0未载 1载入中 2可用 -1不可用(回退合成)
+function _loadPianoSamples(){
+  if(_pianoLoadState) return;
+  const ac=_ensureAudio(); if(!ac) return;
+  if(typeof Android==='undefined' || !Android.readAssetB64){ _pianoLoadState=-1; return; }
+  _pianoLoadState=1;
+  let done=0, okN=0;
+  const fin=()=>{ if(++done===_SAMPLE_MIDIS.length) _pianoLoadState = okN>=8 ? 2 : -1; };
+  _SAMPLE_MIDIS.forEach((m,idx)=>{
+    setTimeout(()=>{   // 错峰读取+解码：绝不卡打字
+      try{
+        const b64=Android.readAssetB64('piano/'+_SAMPLE_NAMES[m]+'.mp3');
+        if(!b64){ fin(); return; }
+        const bin=atob(b64), u=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+        ac.decodeAudioData(u.buffer, buf=>{ _pianoBuf[m]=buf; okN++; fin(); }, ()=>fin());
+      }catch(e){ fin(); }
+    }, idx*70);
+  });
+}
+function _nearestSample(midi){
+  let best=null,bd=1e9;
+  for(const m of _SAMPLE_MIDIS){ if(_pianoBuf[m]){ const d=Math.abs(m-midi); if(d<bd){ bd=d; best=m; } } }
+  return best;
+}
+function _samplePianoVoice(midi, vel){
+  const ac=_ensureAudio(); const bus=_sndBus(); if(!ac||!bus) return null;
+  const sm=_nearestSample(midi); if(sm==null) return null;
+  try{
+    const t=ac.currentTime, v=Math.min(1.15,(vel==null?0.30:vel)*3.2);
+    const src=ac.createBufferSource(); src.buffer=_pianoBuf[sm];
+    src.playbackRate.value=Math.pow(2,(midi-sm)/12);
+    const g=ac.createGain(); g.gain.setValueAtTime(v,t);
+    src.connect(g); g.connect(bus);
+    src.start(t);
+    src.onended=()=>{ try{ src.disconnect(); g.disconnect(); }catch(_){} };   // 播毕即拆链，图零残留
+    return {
+      release(){   // 抬指=制音器落弦：线性收到真 0 再停(指数收不到0=尾端咔哒/电流感的元凶之一)
+        try{
+          const rt=ac.currentTime;
+          g.gain.cancelScheduledValues(rt);
+          g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||v), rt);
+          g.gain.linearRampToValueAtTime(0, rt+0.32);
+          src.stop(rt+0.36);
+        }catch(e){}
+      }
+    };
+  }catch(e){ return null; }
+}
+// 复音上限：同时鸣响的合成声部>10 时偷走最老的(采样不占额度——BufferSource 近零成本)
+const _synthPool=[];
+function _synthPoolAdd(vc){
+  _synthPool.push(vc);
+  while(_synthPool.length>10){ const old=_synthPool.shift(); try{ old.release(); }catch(_){} }
+}
+function _synthPoolDrop(vc){ const i=_synthPool.indexOf(vc); if(i>=0) _synthPool.splice(i,1); }
+// 分发器：采样可用走采样(真钢琴)；否则合成 v3 兜底
 function _pianoVoice(midi, vel, sustain){
+  if(_pianoLoadState===0) _loadPianoSamples();
+  if(_pianoLoadState===2){ const s=_samplePianoVoice(midi, vel); if(s) return s; }
+  const vc=_pianoVoiceSynth(midi, vel, sustain);
+  if(vc){ _synthPoolAdd(vc); const rel=vc.release; vc.release=()=>{ _synthPoolDrop(vc); rel(); }; }
+  return vc;
+}
+// 钢琴合成发声核 v3(回退用)：物理不谐和分音 + 三弦失谐合唱 + 双段衰减 + 音板混响。
+function _pianoVoiceSynth(midi, vel, sustain){
   const ac=_ensureAudio(); if(!ac) return null;
   const bus=_sndBus(); if(!bus) return null;
   try{
@@ -82,9 +151,12 @@ function _pianoVoice(midi, vel, sustain){
         g.gain.exponentialRampToValueAtTime(a, t+0.004);             // 锤击起音
         g.gain.exponentialRampToValueAtTime(a*0.50, t+0.055+0.02*n); // 快衰段(prompt sound)
         if(sustain){ g.gain.exponentialRampToValueAtTime(a*0.14, t+Math.max(0.9,dur*0.6)); }   // 持续段缓降(绵音)
-        else { g.gain.exponentialRampToValueAtTime(0.0001, t+dur); }                            // 余响段(aftersound)
+        else {
+          g.gain.exponentialRampToValueAtTime(0.0001, t+dur);      // 余响段(aftersound)
+          g.gain.linearRampToValueAtTime(0, t+dur+0.03);           // #1 线性归真0：指数永远到不了0，直接stop=尾端咔哒/电流感
+        }
         o.connect(g); g.connect(out);
-        o.start(t); if(!sustain) o.stop(t+dur+0.1);
+        o.start(t); if(!sustain) o.stop(t+dur+0.08);
         stops.push(o); gains.push(g);
       }
     }
@@ -104,8 +176,9 @@ function _pianoVoice(midi, vel, sustain){
           const rt=ac.currentTime;
           gains.forEach(g=>{ g.gain.cancelScheduledValues(rt);
             g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||0.0001), rt);
-            g.gain.exponentialRampToValueAtTime(0.0001, rt+0.42); });   // 柔性放键(制音器落弦)
-          stops.forEach(o=>{ try{ o.stop(rt+0.5); }catch(_){} });
+            g.gain.exponentialRampToValueAtTime(0.0001, rt+0.40);
+            g.gain.linearRampToValueAtTime(0, rt+0.44); });   // 柔性放键+归真0(无尾端咔哒)
+          stops.forEach(o=>{ try{ o.stop(rt+0.48); }catch(_){} });
         }catch(e){}
       }
     };
@@ -126,13 +199,15 @@ function playCrystal(midi, vel){
     mod.connect(mg); mg.connect(car.frequency);
     cg.gain.setValueAtTime(0.0001,t);
     cg.gain.exponentialRampToValueAtTime(v,t+0.004);
-    cg.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
+    cg.gain.exponentialRampToValueAtTime(0.0001,t+1.38);
+    cg.gain.linearRampToValueAtTime(0,t+1.42);   // 归真0防尾端咔哒
     car.connect(cg); cg.connect(bus);
     const sp=ac.createOscillator(), sg=ac.createGain();   // 八度闪光泛音
     sp.type='sine'; sp.frequency.value=f*2.0;
     sg.gain.setValueAtTime(0.0001,t);
     sg.gain.exponentialRampToValueAtTime(v*0.28,t+0.004);
-    sg.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    sg.gain.exponentialRampToValueAtTime(0.0001,t+0.48);
+    sg.gain.linearRampToValueAtTime(0,t+0.52);
     sp.connect(sg); sg.connect(bus);
     car.start(t); mod.start(t); sp.start(t);
     car.stop(t+1.5); mod.stop(t+1.5); sp.stop(t+0.6);
@@ -228,7 +303,7 @@ function applySndOpt(i){
     if(!soundOn){ soundOn=true; try{ KV.set('kbSound','1'); mirrorPrefs(); }catch(e){} }
     sndTheme=o.v; saveSndTheme();
     // 试听反馈：选中即闻其声
-    if(o.v==='piano') playChord([48,60,64,67]);
+    if(o.v==='piano'){ _loadPianoSamples(); playChord([48,60,64,67]); }
     else if(o.v==='crystal') playCrystal(72);
     else playClick();
   }
@@ -282,3 +357,12 @@ function togglePyGrid(){
   buildKb();
 }
 
+// ===== 滚动容器橡皮筋回弹：顶部继续下拉/底部继续上拉时阻尼跟手、松手弹回 =====
+//   Android WebView 的 overflow 滚动没有原生回弹(iOS 才有)——[符号][表情][剪贴板][候选池]
+//   真机滑到边缘生硬急停。此实现只在"已到边缘还继续拉"时接管(不干扰正常滚动)。
+/* 滚动边缘"iOS 式"流动回弹：
+   跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
+   释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
+   非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
+// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
+function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }
