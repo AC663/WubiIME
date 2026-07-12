@@ -1,1 +1,552 @@
-a
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>安键输入法·模拟器</title>
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans SC","Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif;padding:0;overflow:hidden}
+/* 内置彩色 emoji 字体(COLRv1 矢量，离线打包进 assets/fonts/)：根治安卓机型缺彩色 emoji
+   字体集时回退到低质单色字形导致的"粗糙/发暗"。若机型 WebView 太旧不支持 COLRv1，
+   会静默回退到系统 emoji(与改动前一致，不会更糟)。 */
+@font-face{font-family:'KBEmoji';
+  src:url('fonts/Noto-COLRv1.ttf') format('truetype');
+  font-display:swap;unicode-range:U+1F000-1FAFF,U+2600-27BF,U+2190-21FF,U+2B00-2BFF,U+1F1E6-1F1FF,U+2700-27BF,U+FE00-FE0F,U+1F900-1F9FF,U+2300-23FF}
+/* 表情专用：强制走彩色 emoji 字体、不继承文字色(彩色emoji不应被 --ktxt 染色)，
+   修复安卓装机后 emoji 粗糙发暗(回退到低质单色字形)的问题 */
+.emoji-cell{font-family:'KBEmoji',"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif!important;
+  color:initial!important;-webkit-font-feature-settings:normal;font-variant-emoji:emoji}
+/* 表情格：对标精修——扁平无按钮底，仅圆角点击反馈，emoji 更大更清爽(不被按钮渐变/阴影压暗) */
+.emj-cell{height:30px;display:flex;align-items:center;justify-content:center;
+  border-radius:9px;cursor:pointer;font-size:23px;line-height:1;padding:0;-webkit-font-smoothing:antialiased;
+  background:transparent;transition:background .1s,transform .08s}
+.emj-cell:active{background:rgba(0,0,0,0.06);transform:scale(0.9)}
+
+.title{color:#9090b0;font-size:12px;letter-spacing:2px;padding:6px 0 10px}
+
+.editor-wrap{width:100%;max-width:420px;margin-bottom:6px}
+.editor-box{
+  width:100%;min-height:100px;max-height:180px;overflow-y:auto;
+  background:#0d1020;border:1px solid #252545;border-radius:12px;
+  padding:12px 14px;color:#e0eaff;font-size:17px;line-height:1.7;
+  word-break:break-all;white-space:pre-wrap;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,0.4),0 0 0 2px rgba(120,140,255,0.2)
+}
+.cursor{display:inline-block;width:2px;height:1.1em;background:#6090ff;
+  vertical-align:text-bottom;animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.sel{background:rgba(100,140,255,0.35);border-radius:2px}
+.t-orange .sel{background:rgba(232,96,48,0.3)}
+.t-blue .sel{background:rgba(40,120,208,0.3)}
+.t-purple .sel{background:rgba(144,48,224,0.3)}
+.t-red .sel{background:rgba(200,20,20,0.3)}
+.t-green .sel{background:rgba(20,140,60,0.3)}
+.t-pink .sel{background:rgba(210,50,150,0.3)}
+.t-brown .sel{background:rgba(130,70,20,0.3)}
+.t-cyan .sel,.t-white .sel{background:rgba(0,150,190,0.3)}
+.t-dark .sel{background:rgba(200,160,20,0.35)}
+
+.ime{width:100%;position:relative;background:linear-gradient(180deg,var(--bg1,#f5ede5),var(--bg2,#ebd5c5))}
+
+.code-bar{display:flex;align-items:center;gap:6px;
+  padding:3px 4px 3px 12px;min-height:34px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0.10));   /* 亮玻璃：与键帽同族光感 */
+  border-radius:11px 11px 0 0;
+  border-top:1px solid rgba(255,255,255,0.5);
+  border-bottom:1px solid rgba(0,0,0,0.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)}
+.t-dark .code-bar{background:linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02));border-top-color:rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.08)}
+.code-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#7090ff;font-size:15px;font-weight:700;letter-spacing:4px}
+/* 编码栏内的「符号/表情」分类条：左右滑动，单击切换分类。开启面板时取代编码文字。 */
+.cat-strip{flex:1;min-width:0;display:flex;align-items:center;gap:3px;height:28px;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none}
+.cat-strip::-webkit-scrollbar{display:none}
+.cat-strip.hidden{display:none}
+/* 表情分类(9个)：均分铺满编码栏全宽、间距拉到右端；符号分类(多)仍可左右滚动 */
+.cat-strip.spread{gap:0;justify-content:space-between}
+.cat-strip.spread .cat-chip{flex:1 1 0;min-width:0}
+.cat-chip{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  height:24px;padding:0 11px;border-radius:8px;font-size:13px;font-weight:500;line-height:1;
+  white-space:nowrap;cursor:pointer;color:var(--ktxt,#5d5048);opacity:0.62;
+  transition:background .12s,color .12s,opacity .12s}
+.cat-chip.on{opacity:1;color:inherit;font-weight:600;
+  background:rgba(0,0,0,0.07);
+  box-shadow:none;
+  animation:chipOn .24s cubic-bezier(.2,.7,.3,1)}
+.t-dark .cat-chip.on{background:rgba(255,255,255,0.13)}
+@keyframes chipOn{0%{transform:scale(.88)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
+.cat-chip.emo{padding:0 11px;font-size:19px;min-width:44px;height:30px;margin:0}   /* 间距与符号分类一致(容器gap:3px)，保留大字号触区 */
+.cat-chip.emo.on{color:inherit;background:rgba(0,0,0,0.07);box-shadow:none}
+.t-dark .cat-chip.emo.on{background:rgba(255,255,255,0.13)}
+.cat-chip.emo{position:relative}
+/* 编码栏轨道内的迷你主题球/模式项：点选直达 */
+.cat-chip.ball{height:30px;padding:0 6px;min-width:34px}
+.cat-chip .theme-ball{width:22px;height:22px;flex:0 0 auto;box-shadow:none}   /* #6 默认不带阴影 */
+.cat-chip.on .theme-ball{box-shadow:0 2px 5px rgba(0,0,0,0.25),inset 0 -2px 4px rgba(0,0,0,0.22),inset 0 1px 2px rgba(255,255,255,0.4)}   /* 选中才伴随阴影 */
+.cat-chip.ball.on{background:rgba(0,0,0,0.09)}
+.t-dark .cat-chip.ball.on{background:rgba(255,255,255,0.15)}
+/* 【应用】轨道列车：防截屏=车头、剪贴隔离=车尾，中间应用是车厢；
+   底部铁轨+枕木，车轮搭轨，车厢间联轴器相连；横滑时整列车在轨上滑动 */
+.cat-strip.train{gap:8px;padding:0 4px 4px;align-items:center}   /* 铁轨/枕木已撤：纯胶囊列车更清爽 */
+.cat-chip.car{position:relative;height:26px;padding:0 10px;border-radius:6px;opacity:0.92;font-size:12.5px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.38));
+  border:1px solid rgba(0,0,0,0.15);box-shadow:0 1px 2px rgba(0,0,0,0.13)}
+.cat-chip.car-head{border-radius:13px 6px 6px 6px}
+.cat-chip.car-tail{border-radius:6px 13px 6px 6px}
+/* 车轮/铁轨已撤(定案)；联轴器恢复——车厢之间以短杆相连成一列 */
+.car .coupler{position:absolute;left:-9px;top:50%;margin-top:-1.5px;width:9px;height:3px;border-radius:2px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,0.30),rgba(0,0,0,0.44));box-shadow:0 1px 0 rgba(255,255,255,0.25)}
+.t-dark .cat-chip.car{background:linear-gradient(180deg,rgba(255,225,120,0.20),rgba(255,225,120,0.08));border-color:rgba(255,220,80,0.30)}
+.mode-tag{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:9px;
+  background:rgba(100,130,255,0.15);color:#7090ff;letter-spacing:1px}
+
+.cand-bar{height:48px;display:flex;align-items:center;
+  background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.5),inset 0 -1px 0 rgba(0,0,0,0.05)}
+.t-dark .cand-bar{box-shadow:inset 0 1px 0 rgba(255,255,255,0.07),inset 0 -1px 0 rgba(0,0,0,0.25)}
+.cand-list{flex:1;display:flex;align-items:center;overflow-x:auto;
+  overflow-y:hidden;height:100%;gap:2px;padding:0 6px;scrollbar-width:none}
+.cand-list::-webkit-scrollbar{display:none}
+.cand-item{padding:4px 10px;border-radius:8px;font-size:16px;color:var(--ktxt,#1a1a2e);
+  white-space:nowrap;cursor:pointer;height:36px;display:flex;align-items:center;
+  flex-shrink:0;transition:background .1s;gap:4px}
+.cand-item:first-child{background:var(--ac,#6090ff);color:#fff!important;
+  color:#fff;font-weight:500;border:1px solid rgba(100,140,255,0.25)}
+.cand-sub{font-size:8px;color:rgba(120,170,255,0.6)}
+.cand-more{padding:0 10px;color:rgba(100,140,255,0.55);font-size:18px;cursor:pointer;
+  flex-shrink:0;height:100%;display:flex;align-items:center}
+.code-hide{flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  width:38px;height:30px;cursor:pointer;border-radius:7px;margin-left:4px}
+.code-hide:active{background:rgba(0,0,0,0.08)}
+
+.btn-bar{height:48px;display:flex;align-items:center;gap:3px;padding:0 5px;
+  background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+
+/* 工具栏按钮：柔色磨砂圆角 tile（统一主键盘风格，去药片感）*/
+.sball{flex-shrink:0;width:36px;height:34px;border-radius:11px;margin:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  position:relative;transition:transform .14s cubic-bezier(.4,0,.2,1);
+  background:linear-gradient(180deg,#ffffff,#f3e3d6);
+  border:1px solid rgba(150,90,40,0.15);
+  box-shadow:0 1px 2px rgba(120,60,20,0.12)}
+.sball:active{transform:scale(0.9)}
+/* 工具栏按钮「激活态」：符号/表情/剪贴板/123 面板开启时，按钮呈现当前主题色填充(联动反差)，
+   寓示已按下、再按一下收回。配色随主题(--ac/--acl/--acd)。 */
+.sball.on{background:radial-gradient(circle at 38% 30%,var(--acl,#f8a070),var(--ac,#e86030) 55%,var(--acd,#c03810));
+  border-color:transparent;box-shadow:0 2px 7px rgba(180,70,20,0.38),inset 0 1px 1px rgba(255,255,255,0.25)}
+.sball.on .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+.sball-text{position:relative;z-index:1;color:var(--acd,#9a4520);font-weight:600;
+  font-size:12px}
+/* 模式键(第一个)：accent 强调 */
+#modeBtn{background:radial-gradient(circle at 38% 30%,var(--acl,#f8a070),var(--ac,#e86030) 55%,var(--acd,#c03810));
+  border-color:transparent;box-shadow:0 2px 6px rgba(180,70,20,0.35)}
+#modeBtn .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+/* 剪贴板球：完全复刻主题颜色球(themeBtn)的釉瓷质感(色随主题 var)，再叠加"内核"填充——寓示球内装着内容，区别于空的颜色球。 */
+/* (v12) 剪贴板球已撤：入口改为文字按钮[应用]，与[符号][表情]一致 */
+
+/* 主题球：唯一保留的陶瓷圆球（作品牌点缀）*/
+.theme-ball{width:34px;height:34px;border-radius:50%;position:relative;overflow:visible;
+  box-shadow:0 3px 10px rgba(0,0,0,0.30),
+             inset 0 -3px 6px rgba(0,0,0,0.30),
+             inset 0 2px 3px rgba(255,255,255,0.25)}
+
+/* 主题颜色球 — 釉瓷·金属釉面（高温釉烧质感：顶部强反光、釉层下沉、底缘暗釉）*/
+.theme-ball{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#f0843a 0%,#d8500e 52%,#a8420f 100%);
+  box-shadow:0 4px 9px rgba(150,60,20,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(120,55,20,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+/* 釉面顶光：横向柔光带（金属釉的高反光关键，非玻璃锐点）*/
+.theme-ball::after{content:'';position:absolute;top:9%;left:26%;
+  width:48%;height:22%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0));
+  transform:none;filter:none}
+/* 底缘釉层反光（釉料下沉的细微回光）*/
+.theme-ball::before{content:'';position:absolute;bottom:8%;left:50%;
+  width:30%;height:12%;border-radius:50%;margin-left:-15%;
+  background:radial-gradient(ellipse,rgba(255,200,160,0.4) 0%,rgba(255,200,160,0) 70%);
+  transform:none}
+.theme-ball.blue{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#3a8ce8 0%,#1058c8 52%,#1a44b0 100%);
+  box-shadow:0 4px 9px rgba(0,60,200,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(30,50,120,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.purple{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#b658f0 0%,#8a18e8 52%,#6a30b0 100%);
+  box-shadow:0 4px 9px rgba(110,0,220,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(90,40,130,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.red{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#e84a4a 0%,#cc1414 52%,#a02828 100%);
+  box-shadow:0 4px 9px rgba(180,0,0,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(150,40,40,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.green{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#3ac868 0%,#089838 52%,#0a7838 100%);
+  box-shadow:0 4px 9px rgba(0,130,30,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(20,110,55,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.pink{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#f050b0 0%,#d82090 52%,#b03080 100%);
+  box-shadow:0 4px 9px rgba(190,10,120,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(150,50,110,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.brown{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#bc803c 0%,#985828 52%,#8a5828 100%);
+  box-shadow:0 4px 9px rgba(110,50,0,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(120,80,40,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.cyan{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#28b4e0 0%,#0090c0 52%,#0a6a96 100%);
+  box-shadow:0 4px 9px rgba(0,120,180,0.34),0 1px 4px rgba(0,0,0,0.22),
+             inset 0 -3px 6px rgba(20,100,140,0.30),inset 0 2px 3px rgba(255,255,255,0.45)}
+.theme-ball.dark{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,0.85) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#3a3a44 0%,#1a1a22 52%,#000000 100%);
+  box-shadow:0 4px 9px rgba(0,0,0,0.45),0 1px 4px rgba(0,0,0,0.3),
+             inset 0 -4px 8px rgba(0,0,0,0.6),inset 0 2px 3px rgba(255,255,255,0.3)}
+/* 白·白玉釉瓷球：与其它颜色球完全同族的高温釉烧配方(顶部强反光/釉层下沉/底缘暗釉)，仅换白玉色料 */
+.theme-ball.white{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#ffffff 0%,#ece8dd 52%,#c9c3b2 100%);
+  box-shadow:0 4px 9px rgba(120,110,80,0.30),0 1px 4px rgba(0,0,0,0.18),
+             inset 0 -3px 6px rgba(140,130,100,0.30),inset 0 2px 3px rgba(255,255,255,0.9)}
+.theme-ball.white::before{background:radial-gradient(ellipse,rgba(255,245,225,0.6) 0%,rgba(255,245,225,0) 70%)}
+/* 英文模式下模式键回归"未激活白瓷"质感(与其它工具按钮一致)，寓示纯直通、无引擎介入 */
+#modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f3e3d6);
+  border:1px solid rgba(150,90,40,0.15);box-shadow:0 1px 2px rgba(120,60,20,0.12)}
+#modeBtn.plain .sball-text{color:var(--acd,#9a4520);text-shadow:none}
+.t-dark #modeBtn.plain{background:linear-gradient(180deg,rgba(255,235,160,0.16),rgba(255,225,120,0.05));border-color:rgba(255,220,80,0.28)}
+.t-dark #modeBtn.plain .sball-text{color:var(--ktxt)}
+.t-white #modeBtn.plain{background:linear-gradient(180deg,#ffffff,#f2ecdf);border-color:rgba(150,125,70,0.22)}
+/* #6 白主题工具按钮：未激活=白玉瓷(与其它主题同族暖瓷)；激活=釉面径向填充，反差质感对齐第一个[输入法]键 */
+.t-white .sball{background:linear-gradient(180deg,#ffffff,#f2ecdf);
+  border:1px solid rgba(150,125,70,0.20);box-shadow:0 1px 2px rgba(120,100,50,0.12)}
+.t-white .sball-text{color:#5d5540;text-shadow:none}
+.t-white .sball.on{background:radial-gradient(circle at 38% 30%,var(--acl,#cfc4a6),var(--ac,#93876c) 55%,var(--acd,#6f6449));
+  border-color:transparent;box-shadow:0 2px 7px rgba(110,95,60,0.38),inset 0 1px 1px rgba(255,255,255,0.3)}
+.t-white .sball.on .sball-text{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+/* 白主题下的白色球按钮：保留完整釉瓷球质感(与其它主题球一致)，不再压扁 */
+.t-white .sball.theme-ball.white{background:
+  radial-gradient(circle at 50% 16%,rgba(255,255,255,1) 0%,rgba(255,255,255,0) 24%),
+  radial-gradient(circle at 50% 52%,#ffffff 0%,#ece8dd 52%,#c9c3b2 100%);
+  border:none;box-shadow:0 3px 8px rgba(120,110,80,0.28),0 1px 3px rgba(0,0,0,0.14),
+             inset 0 -3px 6px rgba(140,130,100,0.28),inset 0 2px 3px rgba(255,255,255,0.9)}
+
+.trackpad{flex:1;height:32px;margin:0 4px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(30,40,80,0.6),rgba(15,25,55,0.5));
+  border:1px solid rgba(100,130,220,0.18);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,0.4),inset 0 0 0 1px rgba(255,255,255,0.04);
+  display:flex;align-items:center;justify-content:center;gap:26px;
+  color:rgba(100,140,255,0.45);cursor:pointer}
+
+.keyboard{border-radius:0 0 14px 14px;overflow:hidden;padding-bottom:4px}
+.kb-row{display:flex;gap:3px;padding:5px 3px}   /* #7 键帽左右间距缩紧 */
+.kb-row#r2{padding-left:16px;padding-right:16px}
+.kb-row#r3{padding-left:4px;padding-right:4px}
+
+.key{flex:1;height:44px;border-radius:12px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;cursor:pointer;
+  transition:transform .08s,box-shadow .08s;
+  border:1px solid rgba(255,255,255,0.07)}
+.key:active,.key.pressed{transform:scale(0.93) translateY(1px)}
+.key .km{font-size:17px;color:#d8e8ff;line-height:1}
+.key .ks{font-size:10px;color:rgba(140,180,255,0.6);line-height:1;margin-top:2px}
+
+.key.func{}
+.key.accent .km,.key.enter-key .km{color:#fff;font-size:13px;font-weight:600}
+.key.shift-key{flex:1.5;min-width:0}
+.key.shift-key .km{font-size:18px}
+.key.space-key .km{font-size:13px;opacity:0.4}
+.key.enter-key{flex:0 0 auto;width:70px}
+.key.ctrl-key{flex:0 0 auto;width:50px}
+.key.alt-key{flex:0 0 auto;width:40px}
+.key.ctrl-key .km,.key.alt-key .km{font-size:12px}
+.key.held{border-color:rgba(100,160,255,0.5)!important}
+.key.locked{border-color:var(--ac,#e86030)!important;background:rgba(232,96,48,0.18)!important;box-shadow:0 0 0 1.5px var(--ac,#e86030) inset}
+.key.arrow-active .km{font-size:15px!important;color:var(--ac,#e86030)!important;font-weight:600}
+.key.arrow-active .ks{font-size:9px!important;color:var(--ac,#e86030)!important;margin-top:1px}
+.key.del-r3 svg{color:var(--ktxt,#2a1408)}
+.key.t9key{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.key.t9key.t9num .km{font-weight:600}
+.key.t9key.t9num .ks{margin-top:1px}
+.kb-row.t9row{padding-left:5px!important;padding-right:5px!important;padding-top:2px!important;padding-bottom:2px!important;gap:6px}
+.kb-row.t9row .key{height:52px}                 /* 末行让出的高度均分回前3行 */
+.kb-row.t9row.t9last .key{height:44px}          /* 末行(计算器/空格/回车)=主键盘空格键同高 */
+/* 九宫功能层副字：与"全选/音效"字样同级观感(加大加粗)，图标键同理 */
+.key.t9fnsub .ks{font-size:15px;font-weight:600;margin-top:2px;opacity:.92}
+.key.t9pad{pointer-events:none;background:transparent!important;box-shadow:none!important;border:none!important}
+.t-orange .key.del-r3 svg,.t-red .key.del-r3 svg,.t-green .key.del-r3 svg,
+.t-pink .key.del-r3 svg,.t-brown .key.del-r3 svg,.t-cyan .key.del-r3 svg,.t-white .key.del-r3 svg,
+.t-blue .key.del-r3 svg,.t-purple .key.del-r3 svg{color:var(--ktxt)}
+.t-dark .key.del-r3 svg{color:var(--ktxt)}
+
+.numpad-wrap{padding:5px}
+.num-key{border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;cursor:pointer;transition:transform .08s;border:1px solid rgba(255,255,255,0.07)}
+.num-key:active,.num-key.pressed{transform:scale(0.92)}
+.calc-delz{position:relative;overflow:hidden;padding:0}
+.calc-delz .delz-l,.calc-delz .delz-r{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;border-radius:inherit;transition:background .1s}
+.calc-delz .delz-l{left:0;right:50%;color:var(--ktxt,#2a1408)}
+.calc-delz .delz-r{left:50%;right:0;font-size:11px;font-weight:600;color:var(--ktxt,#2a1408);opacity:0.78}
+/* 一键双用不再用深色块硬切两半：改中缝细分隔线(30%高·随文字色)，读作"一键两区"，克制美观 */
+.calc-delz::before{content:'';position:absolute;left:calc(50% - 0.75px);top:26%;bottom:26%;width:1.5px;border-radius:1px;background:currentColor;opacity:0.20;pointer-events:none}
+.calc-delz .delz-l:active,.calc-delz .delz-r:active{background:rgba(0,0,0,0.08)}
+.num-key .km{font-size:20px}
+.calc-disp{min-height:54px;border-radius:12px;padding:6px 12px;display:flex;
+  flex-direction:column;align-items:flex-end;justify-content:center;
+  background:linear-gradient(180deg,var(--kbg1,#fef6f0),var(--kbg2,#f0ddd0));
+  border:1px solid rgba(0,0,0,0.06);box-shadow:inset 0 1px 4px rgba(0,0,0,0.12)}
+.calc-expr{font-size:22px;font-weight:600;color:var(--ktxt,#2a1408);line-height:1.2;
+  word-break:break-all;max-width:100%}
+.calc-prep{display:inline-block;margin-right:7px;padding:1px 7px;border-radius:9px;
+  font-size:13px;font-weight:600;color:rgba(120,110,100,0.55);
+  border:1px dashed rgba(120,110,100,0.4);background:rgba(0,0,0,0.03);
+  vertical-align:2px;user-select:none;-webkit-user-select:none;cursor:pointer}
+.calc-prep.on{color:var(--acd,#9a4520);border:1.5px solid var(--ac,#e86030);
+  background:rgba(232,96,48,0.10)}
+.t-dark .calc-prep{color:rgba(230,215,170,0.5);border-color:rgba(230,215,170,0.35);background:rgba(255,255,255,0.05)}
+.calc-res{font-size:14px;color:var(--ac,#e86030);margin-top:2px;font-weight:600}
+
+.panel{height:var(--panelH,84px);max-height:none;display:flex;flex-direction:column;overflow:hidden;padding:0;
+  border-radius:0 0 14px 14px;
+  border-top:1.5px solid rgba(0,0,0,0.13);
+  box-shadow:inset 0 3px 9px rgba(0,0,0,0.07),inset 0 1px 0 rgba(0,0,0,0.04);
+  background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+/* 展开区与键盘区边界分明：深一档的主题联动底色(--panel) + 顶部内阴影 + 发丝线，看得清不累眼 */
+.t-dark .panel{border-top-color:rgba(255,220,80,0.22)}
+/* 面板内滚动区：拖杆冻结在其上方，内容只在此区域上下滚动(拖杆不随滚动) */
+.panel-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.panel-grid{display:block}
+/* 表情面板独立高度：默认正好 2 行，与符号/剪贴(--panelH)分开，可各自拖杆调整 */
+#emjPanel{height:var(--emjH,80px)}
+.pi{height:28px;display:flex;align-items:center;justify-content:center;
+  text-align:center;font-size:17px;border-radius:8px;
+  cursor:pointer;color:var(--ktxt,#2a1408);transition:background .1s,transform .08s;
+  background:linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.42));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(150,110,80,0.16)}
+.pi:active{background:linear-gradient(180deg,rgba(255,255,255,0.7),rgba(0,0,0,0.06));transform:scale(0.9)}
+.panel-close{padding:7px;text-align:center;color:var(--ac,#e86030);opacity:0.7;
+  font-size:12px;cursor:pointer;border-top:1px solid rgba(0,0,0,0.06);margin-top:3px}
+
+/* 造词(Ctrl+F)顶部条：词 + 码 + 添加/取消，不遮挡候选栏/键盘 */
+.wm-bar{background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6));border-bottom:1px solid rgba(0,0,0,0.10);padding:8px 12px 10px;display:flex;flex-direction:column;gap:7px}
+.wm-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:var(--ac,#d6822e)}
+.wm-x{font-size:20px;line-height:1;color:var(--ktxt,#2a1408);opacity:0.5;cursor:pointer;padding:0 4px}
+.wm-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.55);border:1.5px solid transparent;cursor:pointer}
+.wm-row.on{border-color:var(--ac,#d6822e);background:#fff}
+.wm-lbl{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--ac,#d6822e);width:16px;text-align:center}
+.wm-val{flex:1;min-width:0;font-size:16px;font-weight:600;color:var(--ktxt,#2a1408);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;letter-spacing:1px}
+.wm-ph{color:var(--ktxt,#888);opacity:0.45;font-weight:400;font-size:13px;letter-spacing:0}
+.wm-caret{display:inline-block;width:2px;height:1.05em;background:var(--ac,#e86030);vertical-align:-0.14em;margin-left:1px;border-radius:1px;animation:wmBlink 1s steps(1,end) infinite}
+@keyframes wmBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
+#wmCodeText{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px}
+#wmCodeText.custom{color:var(--ac,#d6822e)}
+.wm-actions{display:flex;gap:8px}
+.wm-btn{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;user-select:none}
+.wm-cancel{background:rgba(0,0,0,0.07);color:var(--ktxt,#2a1408)}
+.wm-add{background:linear-gradient(180deg,var(--ac,#d6822e),var(--acd,#a8420f));color:#fff;box-shadow:0 2px 7px rgba(180,90,30,0.3)}
+.pager-overlay{position:fixed;left:0;right:0;bottom:0;top:0;background:rgba(0,0,0,0.35);z-index:100;
+  display:flex;flex-direction:column}   /* fixed=铺满整个输入法窗口视口：下缘必然盖过空格键底边 */
+.pager-box{flex:1;min-height:0;border-radius:12px 12px 0 0;padding:10px 12px;
+  display:flex;flex-direction:column;overflow:hidden;   /* 顶栏冻结：box本身不滚 */
+  background:linear-gradient(180deg,var(--kbg1,#fbeee4),var(--kbg2,#f2e2d6))}
+.pager-grid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}   /* 仅网格区滚动，"全部候选"+×常驻 */
+.pager-title{display:flex;align-items:center;justify-content:space-between;
+  font-size:13px;margin-bottom:8px;padding-bottom:6px;color:var(--ktxt,#2a1408);
+  border-bottom:1px solid rgba(0,0,0,0.10)}
+.pager-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.pager-item{padding:10px 4px;text-align:center;font-size:16px;border-radius:8px;
+  cursor:pointer;color:var(--ktxt,#2a1408);transition:background .1s;
+  background:linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.42));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.85),0 1px 2px rgba(150,110,80,0.16)}
+.pager-item:first-child{font-weight:600;color:#fff;
+  background:linear-gradient(180deg,var(--acl,#eb976f),var(--ac,#c75f33))}
+.pager-item:active{transform:scale(0.94)}
+.wb-code{font-size:9px;display:block;margin-top:2px;color:rgba(120,80,40,0.7)}
+
+/* 主题 */
+.t-orange{--ac:#f06a36;--acd:#d04a18;--acl:#ffb082;--bg1:#f5ede5;--bg2:#ebd5c5;
+  --kbg1:#fef6f0;--kbg2:#f0ddd0;--ktxt:#2a1408;--ksub:rgba(200,70,20,0.7);
+  --panel:rgba(240,208,182,0.985);--cbar:rgba(232,80,26,0.06)}
+.t-blue{--ac:#3b8ee6;--acd:#1e64c2;--acl:#8cc6ff;--bg1:#e8f0fa;--bg2:#d8e8f5;
+  --kbg1:#eff6ff;--kbg2:#daeaf8;--ktxt:#081828;--ksub:rgba(20,110,210,0.7);
+  --panel:rgba(203,228,250,0.985);--cbar:rgba(28,120,210,0.06)}
+.t-purple{--ac:#a44ef0;--acd:#7a1ed6;--acl:#d68eff;--bg1:#f0e4fa;--bg2:#e4d0f5;
+  --kbg1:#f8eeff;--kbg2:#ead8f8;--ktxt:#1a0830;--ksub:rgba(130,30,220,0.7);
+  --panel:rgba(226,199,250,0.985);--cbar:rgba(130,30,220,0.06)}
+.t-red{--ac:#d9483a;--acd:#b52a1e;--acl:#f88a75;--bg1:#faeaea;--bg2:#f0d0d0;
+  --kbg1:#fff4f4;--kbg2:#f8e0e0;--ktxt:#280808;--ksub:rgba(180,20,20,0.7);
+  --panel:rgba(243,204,204,0.985);--cbar:rgba(200,20,20,0.06)}
+.t-green{--ac:#2fae57;--acd:#178a3c;--acl:#6fe094;--bg1:#e8f5ec;--bg2:#d0ecda;
+  --kbg1:#f0faf3;--kbg2:#d8f0e0;--ktxt:#081a10;--ksub:rgba(15,120,50,0.7);
+  --panel:rgba(196,232,208,0.985);--cbar:rgba(20,140,60,0.06)}
+.t-pink{--ac:#e858ae;--acd:#c62e8c;--acl:#ff9ed6;--bg1:#fdeaf5;--bg2:#f8d8ee;
+  --kbg1:#fff0fa;--kbg2:#fcddf2;--ktxt:#280818;--ksub:rgba(200,40,140,0.7);
+  --panel:rgba(248,204,232,0.985);--cbar:rgba(210,50,150,0.06)}
+.t-brown{--ac:#a56428;--acd:#824a14;--acl:#d49a5c;--bg1:#f2ece4;--bg2:#e8d8c4;
+  --kbg1:#fdf6ee;--kbg2:#f0e4d0;--ktxt:#281408;--ksub:rgba(130,70,20,0.7);
+  --panel:rgba(233,214,184,0.985);--cbar:rgba(130,70,20,0.06)}
+.t-cyan,.t-white{--ac:#14b2d4;--acd:#0888ac;--acl:#5ce4fa;--bg1:#e4f6fa;--bg2:#c8ecf5;
+  --kbg1:#edfaff;--kbg2:#d0f0f8;--ktxt:#041820;--ksub:rgba(0,140,180,0.7);
+  --panel:rgba(184,229,243,0.985);--cbar:rgba(0,150,190,0.06)}
+.t-dark{--ac:#c8a020;--acd:#a07808;--acl:#f0d060;--bg1:#1e1a10;--bg2:#16120a;
+  --kbg1:#2a2414;--kbg2:#221e0e;--ktxt:#f0e8c0;--ksub:rgba(210,170,40,0.8);
+  --panel:rgba(13,11,4,0.985);--cbar:rgba(200,160,20,0.08)}
+/* 白·白玉：暖玉强调色，键帽白玉瓷、底盘暖雾——对齐其它主题按钮未激活时的白瓷质感，非纯白 */
+.t-white{--ac:#93876c;--acd:#6f6449;--acl:#cfc4a6;--bg1:#f6f3ec;--bg2:#eae5da;
+  --kbg1:#fdfcf8;--kbg2:#f2eee4;--ktxt:#28231a;--ksub:rgba(115,105,80,0.72);
+  --panel:rgba(238,233,222,0.985);--cbar:rgba(145,130,95,0.06)}
+
+.t-orange .key:not(.accent):not(.enter-key),
+.t-blue   .key:not(.accent):not(.enter-key),
+.t-purple .key:not(.accent):not(.enter-key),
+.t-red    .key:not(.accent):not(.enter-key),
+.t-green  .key:not(.accent):not(.enter-key),
+.t-pink   .key:not(.accent):not(.enter-key),
+.t-brown  .key:not(.accent):not(.enter-key),
+.t-cyan   .key:not(.accent):not(.enter-key),.t-white   .key:not(.accent):not(.enter-key),
+.t-dark   .key:not(.accent):not(.enter-key){
+  background:linear-gradient(180deg,var(--kbg1),var(--kbg2));
+  box-shadow:0 2px 4px rgba(0,0,0,0.15),inset 0 1px rgba(255,255,255,0.8)}
+.t-dark .key:not(.accent):not(.enter-key){
+  box-shadow:0 3px 5px rgba(0,0,0,0.8),inset 0 1px rgba(255,215,60,0.7)}
+.t-orange .key:not(.accent):not(.enter-key) .km,
+.t-blue   .key:not(.accent):not(.enter-key) .km,
+.t-purple .key:not(.accent):not(.enter-key) .km,
+.t-red    .key:not(.accent):not(.enter-key) .km,
+.t-green  .key:not(.accent):not(.enter-key) .km,
+.t-pink   .key:not(.accent):not(.enter-key) .km,
+.t-brown  .key:not(.accent):not(.enter-key) .km,
+.t-cyan   .key:not(.accent):not(.enter-key) .km,.t-white   .key:not(.accent):not(.enter-key) .km,
+.t-dark   .key:not(.accent):not(.enter-key) .km{color:var(--ktxt)}
+.t-orange .key:not(.accent):not(.enter-key) .ks,
+.t-blue   .key:not(.accent):not(.enter-key) .ks,
+.t-purple .key:not(.accent):not(.enter-key) .ks,
+.t-red    .key:not(.accent):not(.enter-key) .ks,
+.t-green  .key:not(.accent):not(.enter-key) .ks,
+.t-pink   .key:not(.accent):not(.enter-key) .ks,
+.t-brown  .key:not(.accent):not(.enter-key) .ks,
+.t-cyan   .key:not(.accent):not(.enter-key) .ks,.t-white   .key:not(.accent):not(.enter-key) .ks,
+.t-dark   .key:not(.accent):not(.enter-key) .ks{color:var(--ksub)}
+.t-orange .key.accent,.t-orange .key.enter-key,
+.t-blue   .key.accent,.t-blue   .key.enter-key,
+.t-purple .key.accent,.t-purple .key.enter-key,
+.t-red    .key.accent,.t-red    .key.enter-key,
+.t-green  .key.accent,.t-green  .key.enter-key,
+.t-pink   .key.accent,.t-pink   .key.enter-key,
+.t-brown  .key.accent,.t-brown  .key.enter-key,
+.t-cyan   .key.accent,.t-white   .key.accent,.t-cyan   .key.enter-key,.t-white   .key.enter-key,
+.t-dark   .key.accent,.t-dark   .key.enter-key{
+  background:linear-gradient(180deg,var(--ac),var(--acd));
+  box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.t-orange .key.func,.t-blue .key.func,.t-purple .key.func,
+.t-red .key.func,.t-green .key.func,.t-pink .key.func,
+.t-brown .key.func,.t-cyan .key.func,.t-white .key.func{
+  background:linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.12));
+  box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.t-dark .key.func{
+  background:linear-gradient(180deg,rgba(255,220,80,0.06),rgba(255,200,0,0.02));
+  box-shadow:0 1px 3px rgba(0,0,0,0.6)}
+.t-orange .num-key:not(.accent),
+.t-blue   .num-key:not(.accent),
+.t-purple .num-key:not(.accent),
+.t-red    .num-key:not(.accent),
+.t-green  .num-key:not(.accent),
+.t-pink   .num-key:not(.accent),
+.t-brown  .num-key:not(.accent),
+.t-cyan   .num-key:not(.accent),.t-white   .num-key:not(.accent),
+.t-dark   .num-key:not(.accent){
+  background:linear-gradient(180deg,var(--kbg1),var(--kbg2));
+  box-shadow:0 2px 4px rgba(0,0,0,0.15),inset 0 1px rgba(255,255,255,0.8)}
+.t-dark .num-key:not(.accent){
+  box-shadow:0 3px 5px rgba(0,0,0,0.8),inset 0 1px rgba(255,215,60,0.7)}
+.t-orange .num-key:not(.accent) .km,
+.t-blue   .num-key:not(.accent) .km,
+.t-purple .num-key:not(.accent) .km,
+.t-red    .num-key:not(.accent) .km,
+.t-green  .num-key:not(.accent) .km,
+.t-pink   .num-key:not(.accent) .km,
+.t-brown  .num-key:not(.accent) .km,
+.t-cyan   .num-key:not(.accent) .km,.t-white   .num-key:not(.accent) .km,
+.t-dark   .num-key:not(.accent) .km{color:var(--ktxt)}
+.t-orange .num-key.accent,.t-blue .num-key.accent,.t-purple .num-key.accent,
+.t-red .num-key.accent,.t-green .num-key.accent,.t-pink .num-key.accent,
+.t-brown .num-key.accent,.t-cyan .num-key.accent,.t-white .num-key.accent,.t-dark .num-key.accent{
+  background:linear-gradient(180deg,var(--ac),var(--acd));
+  box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.t-orange .num-key.accent .km,.t-blue .num-key.accent .km,.t-purple .num-key.accent .km,
+.t-red .num-key.accent .km,.t-green .num-key.accent .km,.t-pink .num-key.accent .km,
+.t-brown .num-key.accent .km,.t-cyan .num-key.accent .km,.t-white .num-key.accent .km,.t-dark .num-key.accent .km{
+  color:#fff;font-weight:600}
+.t-orange .keyboard,.t-blue .keyboard,.t-purple .keyboard,
+.t-red .keyboard,.t-green .keyboard,.t-pink .keyboard,
+.t-brown .keyboard,.t-cyan .keyboard,.t-white .keyboard,.t-dark .keyboard{
+  background:linear-gradient(150deg,var(--bg1),var(--bg2))}
+.t-orange .cand-bar,.t-orange .btn-bar,
+.t-blue   .cand-bar,.t-blue   .btn-bar,
+.t-purple .cand-bar,.t-purple .btn-bar,
+.t-red    .cand-bar,.t-red    .btn-bar,
+.t-green  .cand-bar,.t-green  .btn-bar,
+.t-pink   .cand-bar,.t-pink   .btn-bar,
+.t-brown  .cand-bar,.t-brown  .btn-bar,
+.t-cyan   .cand-bar,.t-white   .cand-bar,.t-cyan   .btn-bar,.t-white   .btn-bar,
+.t-dark   .cand-bar,.t-dark   .btn-bar{background:linear-gradient(180deg,var(--kbg1),var(--kbg2))}
+.t-orange .code-bar,.t-blue .code-bar,.t-purple .code-bar,
+.t-red .code-bar,.t-green .code-bar,.t-pink .code-bar,
+.t-brown .code-bar,.t-cyan .code-bar,.t-white .code-bar,.t-dark .code-bar{
+  background:linear-gradient(180deg,var(--cbar,rgba(0,0,0,0.04)),transparent 62%),
+             linear-gradient(180deg,var(--kbg2),var(--kbg1))}
+.t-orange .code-text,.t-orange .mode-tag,
+.t-blue   .code-text,.t-blue   .mode-tag,
+.t-purple .code-text,.t-purple .mode-tag,
+.t-red    .code-text,.t-red    .mode-tag,
+.t-green  .code-text,.t-green  .mode-tag,
+.t-pink   .code-text,.t-pink   .mode-tag,
+.t-brown  .code-text,.t-brown  .mode-tag,
+.t-cyan   .code-text,.t-white   .code-text,.t-cyan   .mode-tag,.t-white   .mode-tag,
+.t-dark   .code-text,.t-dark   .mode-tag{color:var(--ac)}
+.t-orange .mode-tag,.t-blue .mode-tag,.t-purple .mode-tag,
+.t-red .mode-tag,.t-green .mode-tag,.t-pink .mode-tag,
+.t-brown .mode-tag,.t-cyan .mode-tag,.t-white .mode-tag{background:rgba(0,0,0,0.07)}
+.t-dark .mode-tag{background:rgba(255,255,255,0.1)}
+.t-orange .panel,.t-blue .panel,.t-purple .panel,
+.t-red .panel,.t-green .panel,.t-pink .panel,
+.t-brown .panel,.t-cyan .panel,.t-white .panel,.t-dark .panel{background:var(--panel)}
+.t-orange .pi,.t-blue .pi,.t-purple .pi,
+.t-red .pi,.t-green .pi,.t-pink .pi,
+.t-brown .pi,.t-cyan .pi,.t-white .pi,.t-dark .pi{color:var(--ktxt)}
+.t-orange .pager-box,.t-blue .pager-box,.t-purple .pager-box,
+.t-red .pager-box,.t-green .pager-box,.t-pink .pager-box,
+.t-brown .pager-box,.t-cyan .pager-box,.t-white .pager-box,.t-dark .pager-box{background:var(--panel)}
+.t-orange .trackpad,.t-blue .trackpad,.t-purple .trackpad,
+.t-red .trackpad,.t-green .trackpad,.t-pink .trackpad,
+.t-brown .trackpad,.t-cyan .trackpad,.t-white .trackpad{
+  background:linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.08));
+  border-color:rgba(0,0,0,0.1);color:#a2a2a2}
+.t-dark .trackpad{
+  background:linear-gradient(180deg,rgba(255,255,255,0.10),rgba(255,255,255,0.03));
+  border-color:rgba(255,255,255,0.28);color:#a8a8a8;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12)}   /* 黑主题：亮边框+微亮底，边际清晰可见 */
+/* 剪贴隔离激活 → 触控条箭头联动主题色(默认灰色) */
+.trackpad.iso{color:var(--ac)!important}
+/* 防截屏激活：触控条戴主题色"光环"——改内沿圈际(inset)：白金夹环+主色描边+内圈柔光呼吸，
+   全部收在触控条内侧，不再外包围；关闭即恢复默认 */
+.trackpad.sec{border-color:transparent!important;
+  animation:secRing 2.6s ease-in-out infinite}
+@keyframes secRing{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.80),inset 0 0 0 2px var(--ac,#c75f33),inset 0 0 6px 1px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
+  50%{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.80),inset 0 0 0 2px var(--ac,#c75f33),inset 0 0 10px 2px var(--acl,#eb976f),0 1px 3px rgba(0,0,0,0.16)}
+}
+
+/* 分类切换滑入动画（纯CSS驱动，真机稳定） */
+.panel-swap-r{animation:panelSwapR .23s cubic-bezier(.2,.7,.3,1)}
+.panel-swap-l{animation:panelSwapL .23s cubic-bezier(.2,.7,.3,1)}
+@keyframes panelSwapR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes panelSwapL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+.hidden{display:none!important}
+</style>
