@@ -741,7 +741,7 @@ const PWStore = {
         const s = AndroidPW.loadAppData('pwgen'); // 返回明文 JSON 字符串(Java 端已解密)
         return s ? JSON.parse(s) : [];
       }
-      return JSON.parse(localStorage.getItem('pwgen_history') || '[]');
+      return JSON.parse(localStorage.getItem('pwgen_history') || '[]');   /* 浏览器调试回退 */
     } catch (e) {
       return [];
     }
@@ -753,7 +753,7 @@ const PWStore = {
         AndroidPW.saveAppData('pwgen', s);
         return;
       }
-      localStorage.setItem('pwgen_history', s);
+      localStorage.setItem('pwgen_history', s);   /* 浏览器调试回退 */
     } catch (e) {}
   },
   // 复制到系统剪贴板：优先 Java 桥(IME WebView 的 navigator.clipboard 常被限),回退 navigator
@@ -1358,27 +1358,49 @@ function App() {
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
 <script>
-// #16 车厢重命名联动：同源共享 localStorage，读 kbAppNames['pwgen']。
-//   车厢改为"01车" → 内部标题联动"01车 · 密码生成器"。React 渲染后按 id 改写，聚焦时刷新。
+// #16 车厢重命名联动：读 KV(kbprefs) 的 kbAppNames['pwgen']。
+// #9 原名闪现根治：旧版等 React 首渲后 300ms 定时器改标题——原名"密码生成器"会先闪一瞬。
+//   现在：① 标题节点未定名前 CSS 级隐藏(visibility)；② MutationObserver 捕捉 #pwTitle 挂载的
+//   第一帧立即改名并显形——自定义名之外的任何文字从头到尾不上屏。
 (function(){
-  function applyAppLabel(){
+  try{
+    const st=document.createElement('style');
+    st.textContent='#pwTitle{visibility:hidden}#pwTitle.named{visibility:visible}';
+    (document.head||document.documentElement).appendChild(st);
+  }catch(e){}
+  let _label=null;
+  function readLabel(){
+    if(_label!==null) return _label;
     try{
       let raw='{}';
       if(typeof AndroidPW!=='undefined' && AndroidPW.loadAppData){
         const s=AndroidPW.loadAppData('kbprefs');
         if(s){ const kv=JSON.parse(s)||{}; raw=kv['kbAppNames']||'{}'; }
-      } else { raw=localStorage.getItem('kbAppNames')||'{}'; }
+      } else { raw=localStorage.getItem('kbAppNames')||'{}'; }   /* 浏览器调试回退 */
       const n=JSON.parse(raw);
       const custom=(n['pwgen']&&String(n['pwgen']).trim())||'';
-      const label=custom||'密码生成器';   // #2 重命名后应用内直接改显自定义名，整体替换"密码生成器"
-      const el=document.getElementById('pwTitle'); if(el&&el.textContent!==label) el.textContent=label;
+      _label=custom||'密码生成器';
+    }catch(e){ _label='密码生成器'; }
+    return _label;
+  }
+  function applyAppLabel(fresh){
+    try{
+      if(fresh) _label=null;   // 聚焦回来重读(改名后即时跟随)
+      const label=readLabel();
+      const el=document.getElementById('pwTitle');
+      if(el){ if(el.textContent!==label) el.textContent=label; el.classList.add('named'); }
       if(document.title!==label) document.title=label;
     }catch(e){}
   }
-  window.addEventListener('focus',applyAppLabel);
-  document.addEventListener('visibilitychange',function(){ if(!document.hidden) applyAppLabel(); });
-  setTimeout(applyAppLabel,300); setTimeout(applyAppLabel,1200);   // 等 React 首渲
-  setInterval(applyAppLabel,4000);   // 轻量兜底：重渲覆盖后自动纠回
+  // React 挂载第一帧即接管
+  try{
+    const mo=new MutationObserver(()=>{ const el=document.getElementById('pwTitle'); if(el && !el.classList.contains('named')) applyAppLabel(false); });
+    mo.observe(document.documentElement,{childList:true,subtree:true});
+  }catch(e){}
+  window.addEventListener('focus',()=>applyAppLabel(true));
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) applyAppLabel(true); });
+  setTimeout(applyAppLabel,300); setTimeout(applyAppLabel,1200);   // 兜底
+  setInterval(()=>applyAppLabel(false),4000);   // 轻量兜底：重渲覆盖后自动纠回(隐藏+改名原子完成，无闪)
 })();
 </script>
 </body>
