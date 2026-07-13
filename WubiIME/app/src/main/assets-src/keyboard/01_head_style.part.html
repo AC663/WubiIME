@@ -12,5 +12,5 @@ body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans S
    字体集时回退到低质单色字形导致的"粗糙/发暗"。若机型 WebView 太旧不支持 COLRv1，
    会静默回退到系统 emoji(与改动前一致，不会更糟)。 */
 @font-face{font-family:'KBEmoji';
-  /* #表情细腻根治：内嵌 Noto Color Emoji(CBDT 彩色位图)子集 base64——不再依赖装机后不存在的外链 ttf(回退系统字体=水彩糊)。
-     覆盖全 emoji Unicode 区块，补类后也不缺字。 */
+  /* #表情细腻根治：内嵌 Noto Color Emoji(COLRv1 矢量)子集 base64——矢量任意尺寸不糊，且不依赖装机后不存在的外链 ttf(回退系统字体=水彩糊)。
+     子集保留 GSUB 连字(国旗/keycap/ZWJ 组合)+全类基座字形，补类后也不缺字、不再拆崩。 */
