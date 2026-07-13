@@ -40,9 +40,13 @@ a{ color:var(--ac); text-decoration:none; }
 .screen{ position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
   padding:18px 18px 90px; display:none; animation:fadeUp .22s cubic-bezier(.22,1,.36,1); }
 .screen.on{ display:block; }
-#webwrap{ position:absolute; inset:0; display:none; background:#fff; }
+/* #浏览器 网页由底层原生 WebView(Java netView)呈现。UI 只需在网页态让出内容区(透明),
+   并保留顶栏/底栏浮于其上。#webwrap 仅承载"加载中/错误"覆盖提示。 */
+#webwrap{ position:absolute; inset:0; display:none; background:transparent; pointer-events:none; }
 #webwrap.on{ display:block; }
-#webframe{ width:100%; height:100%; border:none; background:#fff; }
+#netmsg{ position:absolute; left:0; right:0; top:0; bottom:0; display:none; align-items:center; justify-content:center; background:var(--bg); pointer-events:auto; }
+#netmsg.on{ display:flex; }
+#progress{ position:absolute; left:0; top:0; height:2.5px; width:0; background:var(--ac); z-index:100; transition:width .2s ease, opacity .3s ease; box-shadow:0 0 6px var(--ac); opacity:0; }
 /* 起始页 */
 .wordmark{ text-align:center; margin:34px 0 8px; font-weight:800; letter-spacing:12px; font-size:26px; color:var(--tx); }
 .wordsub{ text-align:center; letter-spacing:6px; font-size:11px; color:var(--sub); margin-bottom:22px; }
@@ -116,6 +120,7 @@ a{ color:var(--ac); text-decoration:none; }
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3FE0A8" stroke-width="2.4"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
       <input id="url" placeholder="搜索或输入网址" autocomplete="off" spellcheck="false">
     </div>
+    <div class="tbtn" id="btnReload" style="display:none;">↻</div>
     <div class="tbtn" id="btnShield">◈<span id="shield-n">0</span></div>
     <div class="tbtn" id="btnClose">✕</div>
   </div>
@@ -124,7 +129,8 @@ a{ color:var(--ac); text-decoration:none; }
     <div class="screen on" id="scr-home"></div>
     <div class="screen" id="scr-tabs"></div>
     <div class="screen" id="scr-set"></div>
-    <div id="webwrap"><iframe id="webframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>
+    <div id="progress"></div>
+    <div id="webwrap"><div id="netmsg"></div></div>
     <div id="scrim"></div>
     <div id="privacy"></div>
     <div id="toast"></div>
@@ -188,11 +194,20 @@ $('btnClose').addEventListener('click',()=>{ try{ if(typeof AndroidPW!=='undefin
 $('btnBack').addEventListener('click',()=>{
   if($('privacy').classList.contains('on')){ togglePrivacy(false); return; }
   if($('webwrap').classList.contains('on')){
-    if(S.hi>0){ S.hi--; navigate(S.hist[S.hi],true); }
-    else { showWeb(false); nav('home'); }
+    // 网页态：优先让 Java netView 后退(真实历史);到头→回起始页
+    if(HAS_NET){
+      try{ if(AndroidPW.browserCanGoBack()){ AndroidPW.browserBack(); return; } }catch(e){}
+      showWeb(false); nav('home'); return;
+    }
+    if(S.hi>0){ S.hi--; navigate(S.hist[S.hi],true); } else { showWeb(false); nav('home'); }
     return;
   }
   nav('home');
+});
+// 刷新键(网页态)
+document.getElementById('btnReload').addEventListener('click',()=>{
+  try{ if(HAS_NET) AndroidPW.browserReload(); }catch(e){}
+  setProgress(10);
 });
 $('btnShield').addEventListener('click',()=>togglePrivacy());
 $('scrim').addEventListener('click',()=>togglePrivacy(false));
@@ -201,6 +216,7 @@ $('url').addEventListener('keydown',e=>{ if(e.key==='Enter'){ go($('url').value)
 function nav(v){
   S.view=v;
   showWeb(false); togglePrivacy(false);
+  setProgress(0); hideNetMsg();
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
   $('scr-'+v).classList.add('on');
   document.querySelectorAll('.nbtn').forEach(b=>b.classList.toggle('on', b.dataset.nav===v));
@@ -229,6 +245,7 @@ function fakeBlocked(u){
   $('shield-n').textContent=String(tot);
   persist();
 }
+const HAS_NET = (typeof AndroidPW!=='undefined' && AndroidPW.browserLoad);
 function go(q){
   const u=normUrl(q); if(!u) return;
   S.hist=S.hist.slice(0,S.hi+1); S.hist.push(u); S.hi=S.hist.length-1;
@@ -237,7 +254,6 @@ function go(q){
 function navigate(u,isBack){
   $('url').value=u;
   fakeBlocked(u);
-  // 标签页登记(无痕模式不落盘)
   if(!isBack){
     const d=domainOf(u);
     const t={t:d, u:u, c: S.mode==='ghost'?'无痕':'个人'};
@@ -247,30 +263,55 @@ function navigate(u,isBack){
     S.cur=0; persist();
   }
   showWeb(true);
-  const f=$('webframe');
-  let settled=false;
-  f.onload=()=>{ settled=true; };
-  try{ f.src=u; }catch(e){}
-  // 受限站点(X-Frame-Options 拒绝内嵌)降级：3.5s 未着陆 → 呈现降级卡
-  clearTimeout(navigate._t);
-  navigate._t=setTimeout(()=>{ if(!settled) showBlockedCard(u); },3500);
+  hideNetMsg();
+  setProgress(8);
+  if(HAS_NET){
+    try{ AndroidPW.browserSetIncognito(S.mode==='ghost'); }catch(e){}
+    try{ AndroidPW.browserLoad(u); }catch(e){ showNetMsg('无法启动网页视图','⚠',u); }
+  } else {
+    // 浏览器/回退预览(无 Java netView)：桌面预览无法承载真实网页,给出说明
+    setProgress(0);
+    showNetMsg('真实网页加载需在 App 内运行','🌐',u);
+  }
 }
 function showWeb(on){
   $('webwrap').classList.toggle('on',!!on);
+  $('btnReload').style.display = on?'flex':'none';
   if(on){ document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
     document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('on')); }
+  else { try{ if(HAS_NET) AndroidPW.browserHide(); }catch(e){} }
 }
-function showBlockedCard(u){
-  showWeb(false);
-  const h=$('scr-home');
-  h.classList.add('on');
-  h.innerHTML='<div class="blockcard"><div class="bi">◈</div>'
-    +'<div style="font-size:15px;font-weight:700;margin-bottom:6px;">该站点拒绝内嵌呈现</div>'
-    +'<div style="font-size:12px;color:var(--sub);line-height:1.7;">'+esc(domainOf(u))+' 通过 X-Frame-Options 阻止了容器内加载。<br>这是站点侧策略，与隐私防护无关。</div>'
-    +'<div class="bbtn pri" id="bc-copy">复制链接</div><div class="bbtn sec" id="bc-back">返回起始页</div></div>';
-  $('bc-copy').addEventListener('click',()=>{ try{ if(typeof AndroidPW!=='undefined'&&AndroidPW.copyToClipboard){ AndroidPW.copyToClipboard(u); toast('链接已存入私有剪贴板'); return; } }catch(e){} toast('已尝试复制'); });
-  $('bc-back').addEventListener('click',()=>nav('home'));
+function setProgress(p){
+  const el=$('progress'); if(!el) return;
+  if(p<=0){ el.style.opacity='0'; el.style.width='0'; return; }
+  el.style.opacity='1'; el.style.width=Math.min(100,p)+'%';
+  if(p>=100){ setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>{el.style.width='0';},300); },250); }
 }
+function showNetMsg(title,icon,u){
+  const m=$('netmsg'); if(!m) return;
+  try{ if(HAS_NET) AndroidPW.browserHide(); }catch(e){}
+  m.classList.add('on');
+  m.innerHTML='<div class="blockcard"><div class="bi">'+icon+'</div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:6px;">'+esc(title)+'</div>'
+    +'<div style="font-size:12px;color:var(--sub);line-height:1.7;">'+esc(domainOf(u||''))+'</div>'
+    +'<div class="bbtn pri" id="nm-retry">重试</div><div class="bbtn sec" id="nm-back">返回起始页</div></div>';
+  const r=$('nm-retry'), b=$('nm-back');
+  if(r) r.addEventListener('click',()=>{ hideNetMsg(); if(u) navigate(u,false); });
+  if(b) b.addEventListener('click',()=>nav('home'));
+}
+function hideNetMsg(){ const m=$('netmsg'); if(m){ m.classList.remove('on'); } }
+// ===== 来自 Java netView 的回调 =====
+window.__onNetProgress=function(p){ setProgress(p); };
+window.__onNetStart=function(u){ setProgress(20); hideNetMsg(); if(u) $('url').value=u; };
+window.__onNetFinish=function(u,title,canBack,canFwd){
+  setProgress(100);
+  if(u) $('url').value=u;
+  if(title){ const d=domainOf(u); const t=S.tabs.find(x=>domainOf(x.u)===d); if(t) t.t=title||t.t; persist(); }
+};
+window.__onNetTitle=function(t){ if(t){ const d=domainOf($('url').value); const tab=S.tabs.find(x=>domainOf(x.u)===d); if(tab){ tab.t=t; persist(); } } };
+window.__onNetError=function(u){ setProgress(0); showNetMsg('网页加载失败','⚠',u); };
+window.__onNetGone=function(){ showNetMsg('网页进程已重启','↻',$('url').value); };
+window.__onNetClosed=function(){ nav('home'); };   // Java 返回键网页到头→回起始页
 /* ===== 起始页 ===== */
 function renderHome(){
   const h=$('scr-home');
