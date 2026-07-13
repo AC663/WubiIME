@@ -105,7 +105,8 @@ function showClipDetail(txt, idx){
   body.style.cssText='flex:1;overflow-y:auto;font-size:14px;line-height:1.65;word-break:break-all;white-space:pre-wrap;'+
     'padding:12px 13px;background:'+SC.bg+';color:'+SC.fg+';'+
     'border:1.5px solid '+SC.bd+';box-shadow:3px 3px 0 '+SC.sh+';-webkit-overflow-scrolling:touch';
-  body._sharp=true;
+  // #3 详情门=阅读区：走柔和滚动回弹(非锐利硬弹),上下惯性顺滑,到底再拉不生硬
+  attachRubberBand(body);
   body.textContent=txt;
   // 底部上屏(锐利实心钮：主题墨色填充)
   const putBtn=document.createElement('div');

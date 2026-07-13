@@ -1,102 +1,9 @@
-// ===== #2 打字音预渲染管线：连打电流声/卡顿根治 =====
-//   旧路径每次按键实时新建振荡器+随机噪声缓冲(2~4节点/press)——快速连打堆叠数十条指数尾巴，
-//   CPU尖峰+GC抖动=电流杂音+编码卡顿。现在同一音色只离线渲染一次成 AudioBuffer，
-//   之后每按=1个 BufferSource 回放(近零CPU、零分配、零尾端不归零问题)。
-let _clkBuf=null,_clkRend=0,_cryBuf=null,_cryRend=0;
-function _offline(dur,build){
-  try{
-    const OC=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!OC) return null;
-    const sr=44100, oc=new OC(1,Math.ceil(sr*dur),sr);
-    build(oc,oc.destination);
-    return oc.startRendering();
-  }catch(e){ return null; }
-}
-function _buildClick(oc,dst){
-  const t=0;
-  const osc=oc.createOscillator(), g=oc.createGain();
-  osc.type='triangle';
-  osc.frequency.setValueAtTime(190,t);
-  osc.frequency.exponentialRampToValueAtTime(95,t+0.05);
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.exponentialRampToValueAtTime(0.10,t+0.004);
-  g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
-  g.gain.linearRampToValueAtTime(0,t+0.075);
-  osc.connect(g); g.connect(dst); osc.start(t); osc.stop(t+0.078);
-  const N=Math.floor(oc.sampleRate*0.012), buf=oc.createBuffer(1,N,oc.sampleRate), d=buf.getChannelData(0);
-  let seed=1234567; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff*2-1; };
-  for(let i=0;i<N;i++){ d[i]=rnd()*Math.pow(1-i/N,2.5); }
-  const src=oc.createBufferSource(); src.buffer=buf;
-  const ng=oc.createGain(); ng.gain.value=0.05;
-  src.connect(ng); ng.connect(dst); src.start(t);
-}
-function _buildCrystal(oc,dst){
-  const t=0, f=_midiF(72+12), v=0.20;
-  const car=oc.createOscillator(), cg=oc.createGain();
-  const mod=oc.createOscillator(), mg=oc.createGain();
-  car.type='sine'; car.frequency.value=f;
-  mod.type='sine'; mod.frequency.value=f*3.53;
-  mg.gain.setValueAtTime(f*2.4,t); mg.gain.exponentialRampToValueAtTime(f*0.05,t+0.55);
-  mod.connect(mg); mg.connect(car.frequency);
-  cg.gain.setValueAtTime(0.0001,t);
-  cg.gain.exponentialRampToValueAtTime(v,t+0.004);
-  cg.gain.exponentialRampToValueAtTime(0.0001,t+1.38);
-  cg.gain.linearRampToValueAtTime(0,t+1.42);
-  car.connect(cg); cg.connect(dst);
-  const sp=oc.createOscillator(), sg=oc.createGain();
-  sp.type='sine'; sp.frequency.value=f*2.0;
-  sg.gain.setValueAtTime(0.0001,t);
-  sg.gain.exponentialRampToValueAtTime(v*0.28,t+0.004);
-  sg.gain.exponentialRampToValueAtTime(0.0001,t+0.48);
-  sg.gain.linearRampToValueAtTime(0,t+0.52);
-  sp.connect(sg); sg.connect(dst);
-  car.start(t); mod.start(t); sp.start(t);
-  car.stop(t+1.45); mod.stop(t+1.45); sp.stop(t+0.55);
-}
-function _playBuf(buf,rate,vol){
-  const ac=_ensureAudio(); if(!ac||!buf) return false;
-  try{
-    const src=ac.createBufferSource(); src.buffer=buf;
-    if(rate&&rate!==1) src.playbackRate.value=rate;
-    if(vol!=null&&vol!==1){ const g=ac.createGain(); g.gain.value=vol; src.connect(g); g.connect(ac.destination); }
-    else src.connect(ac.destination);
-    src.onended=()=>{ try{ src.disconnect(); }catch(_){} };
-    src.start();
-    return true;
-  }catch(e){ return false; }
-}
-function playClick() {
-  if(!soundOn) return;
-  const ac=_ensureAudio(); if(!ac) return;
-  if(_clkBuf){ _playBuf(_clkBuf,1,1); return; }
-  if(!_clkRend){ _clkRend=1; const p=_offline(0.10,_buildClick); if(p&&p.then) p.then(b=>{_clkBuf=b;}); }
-  try {
-    const t=ac.currentTime;
-    // 1) 低频"thock"主体：三角波 ~180Hz 快速下滑，模拟黑轴落底
-    const osc=ac.createOscillator(), g=ac.createGain();
-    osc.type='triangle';
-    osc.frequency.setValueAtTime(190,t);
-    osc.frequency.exponentialRampToValueAtTime(95,t+0.05);
-    g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.10,t+0.004);   // 极快起音
-    g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);  // 快速衰减
-    osc.connect(g); g.connect(ac.destination);
-    osc.start(t); osc.stop(t+0.07);
-    // 2) 短噪声"咔"层：模拟按键机械接触
-    const N=Math.floor(ac.sampleRate*0.012);
-    const buf=ac.createBuffer(1,N,ac.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<N;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/N,2.5); }
-    const src=ac.createBufferSource(); src.buffer=buf;
-    const ng=ac.createGain(); ng.gain.value=0.05;
-    src.connect(ng); ng.connect(ac.destination); src.start(t);
-  } catch(e) {}
-}
 // ===== #9 音效体系 v2：音效主题(默认/钢琴/水晶)进编码栏轨道；钢琴引擎全重写 =====
 //   钢琴：6分音失谐加性+双振荡合唱+带通琴槌瞬态+压限总线——明亮通透不再闷；
 //   音区整体上移(第1行=C5起亮音区、第2行=C4中音区)；和弦低根音+中声部四音配置更饱满；
 //   按住不放=音符持续鸣响(绵音)，抬指柔性释放——真实钢琴踏板质感。
-let sndTheme='click';   // 'click'默认机械 | 'piano'钢琴 | 'crystal'水晶
-try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click') sndTheme=st; }catch(e){}
+let sndTheme='click';   // 'click'键盘机械 | 'piano'钢琴 | 'crystal'水晶 | 'bell'风铃
+try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click'||st==='bell') sndTheme=st; }catch(e){}
 function saveSndTheme(){ try{ KV.set('kbSndTheme',sndTheme); mirrorPrefs(); }catch(e){} }
 const _midiF=(m)=>440*Math.pow(2,(m-69)/12);
 // 总线：柔性压限器——多音齐鸣不破音，整体响度可以放心提上去
@@ -337,9 +244,62 @@ function pianoUp(k){
   clearTimeout(h.t);
   try{ h.v.release(); }catch(e){}
 }
+function bellDown(k, midi){
+  pianoUp(k);
+  const vc=playBell(midi, 0.22, true);
+  if(vc){ _heldVoices[k]={v:vc, t:setTimeout(()=>pianoUp(k), 4000)}; }   // #风铃 长按延音,4s安全网
+}
 function releaseAllHeld(){ Object.keys(_heldVoices).forEach(pianoUp); }
 document.addEventListener('touchend',  ()=>setTimeout(releaseAllHeld,30), {passive:true});
 document.addEventListener('touchcancel',()=>releaseAllHeld(), {passive:true});
+// #风铃 真实风铃音：金属管谐振——基频 + 非谐部分音(2.76/5.40/8.93 比,铝管风铃实测比)，
+//   琴槌瞬态噪声 + 长指数余韵，sustain=按住延续。预渲染回放不适用(需变调+延音),故实时合成但节点精简(3振荡+1噪声瞬态)。
+function playBell(midi, vel, sustain){
+  if(!soundOn) return;
+  const ac=_ensureAudio(); if(!ac) return; const bus=_sndBus(); if(!bus) return;
+  try{
+    const t=ac.currentTime, f=_midiF(midi+12), v=(vel==null?0.22:vel);
+    const partials=[[1,1.0],[2.76,0.62],[5.40,0.36],[8.93,0.18]];   // 金属风铃非谐部分音
+    const out=ac.createGain(); out.gain.value=1; out.connect(bus);
+    const voices=[];
+    partials.forEach(([ratio,amp],idx)=>{
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.type='sine'; o.frequency.value=f*ratio;
+      const tail=sustain?4.2:(2.6-idx*0.35);   // 高部分音衰减更快=金属亮泽渐隐
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(v*amp,t+0.006);
+      if(!sustain){
+        g.gain.exponentialRampToValueAtTime(0.0001,t+tail);
+        g.gain.linearRampToValueAtTime(0,t+tail+0.04);
+      }
+      o.connect(g); g.connect(out);
+      o.start(t); if(!sustain) o.stop(t+tail+0.06);
+      voices.push({o,g});
+    });
+    // 琴槌瞬态：极短金属噪声(6ms),给"叮"的起音质感
+    const N=Math.floor(ac.sampleRate*0.006), nb=ac.createBuffer(1,N,ac.sampleRate), d=nb.getChannelData(0);
+    for(let i=0;i<N;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/N,3);
+    const ns=ac.createBufferSource(); ns.buffer=nb;
+    const nbp=ac.createBiquadFilter(); nbp.type='bandpass'; nbp.frequency.value=f*3.2; nbp.Q.value=2.2;
+    const ng=ac.createGain(); ng.gain.value=v*0.5;
+    ns.connect(nbp); nbp.connect(ng); ng.connect(out); ns.start(t);
+    return {
+      release(){
+        try{ const rt=ac.currentTime;
+          voices.forEach(({o,g})=>{ g.gain.cancelScheduledValues(rt);
+            g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||0.0001),rt);
+            g.gain.exponentialRampToValueAtTime(0.0001,rt+0.9);
+            g.gain.linearRampToValueAtTime(0,rt+0.94);
+            try{ o.stop(rt+0.96); }catch(_){} });
+        }catch(e){}
+      }
+    };
+  }catch(e){ return null; }
+}
+function playBellChord(midis){
+  if(!soundOn) return;
+  midis.forEach((m,i)=>setTimeout(()=>playBell(m,0.16),i*26));
+}
 // 键位→发声(按下)：随音效主题分发；修饰层一律回落机械click
 function keySound(k){
   if(!soundOn) return;
@@ -350,16 +310,19 @@ function keySound(k){
     } else if(sndTheme==='crystal'){
       if(_PIANO_KEYMAP[k]!=null){ playCrystal(_PIANO_KEYMAP[k]); return; }
       if(_CHORDS[k]){ playCrystalChord(_CHORDS[k]); return; }
+    } else if(sndTheme==='bell'){
+      if(_PIANO_KEYMAP[k]!=null){ bellDown(k,_PIANO_KEYMAP[k]); return; }   // #风铃 长按延音
+      if(_CHORDS[k]){ playBellChord(_CHORDS[k]); return; }
     }
   }
   playClick();
 }
-// 键位抬指：释放持续音(仅钢琴主题有持续段)
+// 键位抬指：释放持续音(钢琴/风铃主题有持续段)
 function keySoundUp(k){ pianoUp(k); }
 // 长按连发时的每拍声：音乐主题下音符已在绵延，不再逐拍点击；默认主题保持机械连击声
 function keySoundRep(k){
   if(!soundOn) return;
-  const musical = !ctrl && !ctrlLock && !alt && sndTheme!=='click' && (_PIANO_KEYMAP[k]!=null||_CHORDS[k]);
+  const musical = !ctrl && !ctrlLock && !alt && sndTheme!=='click' && (_PIANO_KEYMAP[k]!=null||_CHORDS[k]);   // 钢琴/水晶/风铃：长按靠延音,不逐拍
   if(musical) return;
   playClick();
 }
@@ -375,6 +338,10 @@ function t9Sound(k){
     if(_T9_NOTES[k]!=null){ playCrystal(_T9_NOTES[k]); return; }
     if(k==='1'){ playCrystalChord([60,64,67]); return; }
     if(k==='0'){ playCrystalChord([55,59,62]); return; }
+  } else if(sndTheme==='bell'){
+    if(_T9_NOTES[k]!=null){ bellDown('t9'+k,_T9_NOTES[k]); return; }
+    if(k==='1'){ playBellChord([60,64,67]); return; }
+    if(k==='0'){ playBellChord([55,59,62]); return; }
   }
   playClick();
 }
@@ -386,10 +353,10 @@ function toggleSound(){
   buildKb();                 // 重建以刷新 Ctrl 模式 L 键静音图标态
 }
 // ===== #9 音效轨道：Ctrl+音效 → 编码栏轨道排开 静音/默认/钢琴/水晶 直选 =====
-const SND_OPTS=[{n:'静音',v:null},{n:'默认',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'}];
+const SND_OPTS=[{n:'静音',v:null},{n:'键盘',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'},{n:'风铃',v:'bell'}];
 function curSndIdx(){
   if(!soundOn) return 0;
-  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : 1;
+  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : sndTheme==='bell'?4 : 1;
 }
 function applySndOpt(i){
   const o=SND_OPTS[i]; if(!o) return;
@@ -401,6 +368,7 @@ function applySndOpt(i){
     // 试听反馈：选中即闻其声
     if(o.v==='piano'){ _loadPianoSamples(); playChord([48,60,64,67]); }
     else if(o.v==='crystal') playCrystal(72);
+    else if(o.v==='bell') playBellChord([72,76,79]);   // #风铃 试听:清越三连
     else playClick();
   }
   if(wasMute!==(!soundOn)) setTimeout(buildKb,0);   // 静音态翻转→刷新 L 键图标
@@ -460,5 +428,3 @@ function togglePyGrid(){
    跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
    释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
    非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
-// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
-function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }

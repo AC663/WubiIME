@@ -13,13 +13,14 @@ window.commit = function(txt) {
   }
   if (_wmActive) { wmInput(txt); return; }   // 造词模式：上屏内容进入"词"缓冲，不发往宿主
   if (isAndroid) {
+    const _out = (txt === '\n') ? txt : toTrad(txt);   // #4 简繁：非换行文本经映射转换
     if (_routeNote()) {
       if (txt === '\n') { _postNote({src:'wubi',type:'enter'}); }
-      else { _postNote({src:'wubi',type:'commit',text:txt}); }
+      else { _postNote({src:'wubi',type:'commit',text:_out}); }
       code = ''; revMode = false; updateCode(); showCands([]); return;
     }
     if (txt === '\n') { Android.commitEnter(); return; }
-    Android.commitText(txt);
+    Android.commitText(_out);
     // 清除编码状态
     code = ''; revMode = false; updateCode(); showCands([]);
   } else {

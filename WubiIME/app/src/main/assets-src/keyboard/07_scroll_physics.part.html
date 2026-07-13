@@ -1,3 +1,5 @@
+// #7 顶级弹簧回位：欠阻尼谐振子采样为连续关键帧——过冲→反弹→微震→归零，全程连续可导，绝无"硬着陆"
+function _springCancel(el){ if(el._sprAnim){ try{ el._sprAnim.cancel(); }catch(e){} el._sprAnim=null; } }
 // #5 锐利边缘印线：撞边瞬间在边缘压出一道 2px 主题色实线，200ms 干脆淡出——版画"压印"反馈
 function _edgeStamp(el, isY, atStart){
   try{
@@ -18,8 +20,8 @@ function _springHome(el, isY, fromPx){
   _springCancel(el);
   try{
     const SHARP=!!el._sharp;
-    const w=2*Math.PI/(SHARP?0.22:0.42), z=SHARP?0.72:0.30, wd=w*Math.sqrt(1-z*z);   // 锐利=短周期高阻尼：一次干脆回弹即收；常规=Q弹两拍
-    const D=SHARP?0.34:0.72, N=SHARP?16:30, frames=[];
+    const w=2*Math.PI/(SHARP?0.22:0.38), z=SHARP?0.72:0.52, wd=w*Math.sqrt(1-z*z);   // #3 常规档提阻尼(0.30→0.52):跟手回位不来回震荡,更顺滑
+    const D=SHARP?0.34:0.52, N=SHARP?16:30, frames=[];
     if(SHARP) _edgeStamp(el, isY, fromPx>0);
     for(let i=0;i<=N;i++){
       const t=D*i/N;
@@ -27,7 +29,7 @@ function _springHome(el, isY, fromPx){
       frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
     }
     el.style.transform='';
-    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'cubic-bezier(.33,.9,.42,1)'});
     el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; };
   }catch(e){
     el.style.transition='transform .55s cubic-bezier(.22,1.9,.36,.94)';
@@ -42,8 +44,10 @@ function _springKick(el, isY, amp, onDone){
   try{
     const SHARP=!!el._sharp;
     if(SHARP){ amp=Math.max(-30,Math.min(30,amp)); _edgeStamp(el, isY, amp>0); }   // 锐利=小幅硬弹+压印
-    const w=2*Math.PI/(SHARP?0.26:0.50), z=SHARP?0.66:0.28, wd=w*Math.sqrt(1-z*z);
-    const D=SHARP?0.40:0.85, N=SHARP?18:34;
+    // #3 惯性柔化：非锐利档提高阻尼比(0.28→0.46)+缩短周期,过冲只一次、快速收敛不来回甩;
+    //   逐帧改用平滑采样(细分翻倍)+WAAPI easing 收尾,消除"生硬惯性"。
+    const w=2*Math.PI/(SHARP?0.26:0.44), z=SHARP?0.66:0.46, wd=w*Math.sqrt(1-z*z);
+    const D=SHARP?0.40:0.62, N=SHARP?18:44;
     let peak=0;
     for(let i=1;i<=N;i++){ const t=D*i/N; const x=Math.exp(-z*w*t)*Math.sin(wd*t); if(Math.abs(x)>peak) peak=Math.abs(x); }
     const frames=[];
@@ -53,7 +57,7 @@ function _springKick(el, isY, amp, onDone){
       frames.push({transform:prop+'('+x.toFixed(2)+'px) translateZ(0)'});
     }
     el.style.willChange='transform';
-    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'linear'});
+    el._sprAnim=el.animate(frames,{duration:D*1000,easing:'cubic-bezier(.33,.9,.42,1)'});
     el._sprAnim.onfinish=()=>{ el._sprAnim=null; el.style.willChange=''; if(onDone) onDone(); };
     return true;
   }catch(e){ if(onDone) onDone(); return false; }

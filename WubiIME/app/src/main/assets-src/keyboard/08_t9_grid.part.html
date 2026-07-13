@@ -397,6 +397,18 @@ function buildRow(id, keys) {
         div.classList.add('arrow-active');
         div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
       }
+      // #4 S 键 → 简繁切换；D 键 → 简/繁状态灯(当前态高亮)
+      if(k==='S'){
+        div.classList.add('arrow-active');
+        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">s</span><span class="ks" style="font-size:8px">简繁</span>`;
+      }
+      if(k==='D'){
+        div.classList.add('arrow-active');
+        const jian = tradMode ? 'opacity:.32' : 'color:var(--ac);font-weight:800';
+        const fan  = tradMode ? 'color:var(--ac);font-weight:800' : 'opacity:.32';
+        div.innerHTML=`<span class="km" style="font-size:15px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">d</span>`
+          +`<span class="ks" style="font-size:8px"><b style="${jian}">简</b><span style="opacity:.4">/</span><b style="${fan}">繁</b></span>`;
+      }
       // L 键 → 音效开关
       if(k==='L'){
         div.classList.add('arrow-active');

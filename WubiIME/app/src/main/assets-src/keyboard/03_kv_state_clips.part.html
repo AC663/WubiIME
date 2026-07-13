@@ -102,9 +102,9 @@ function scheduleClipSync(){ setTimeout(()=>syncPrivClips(true),160); setTimeout
 let calcMode=false, calcExpr='', calcResult=null;
 let calcPrepend=false, calcPrefixBuf='', calcSealed=false;   // 前置插入态/前缀缓冲/=已结算标志
 let calcFromGrid=false;   // 计算器是否由九宫格进入：EXIT 时据此退回九宫格而非数字键盘
-const THEMES=['t-orange','t-blue','t-purple','t-red','t-green','t-pink','t-brown','t-cyan','t-dark','t-white'];
-const TNAMES=['orange','blue','purple','red','green','pink','brown','cyan','dark','white'];
-const ACCS=['#e86030','#2878d0','#9030e0','#d02020','#1a9040','#d8409a','#8b5020','#0898b8','#7090ff'];
+const THEMES=['t-orange','t-blue','t-purple','t-red','t-green','t-pink','t-brown','t-cyan','t-dark','t-white','t-yellow'];
+const TNAMES=['orange','blue','purple','red','green','pink','brown','cyan','dark','white','yellow'];
+const ACCS=['#e86030','#2878d0','#9030e0','#d02020','#1a9040','#d8409a','#8b5020','#0898b8','#7090ff','#f5b301'];
 const ROOTS={Q:'金',W:'人',E:'月',R:'白',T:'禾',Y:'言',U:'立',I:'水',O:'火',P:'之',
   A:'工',S:'木',D:'大',F:'土',G:'王',H:'目',J:'日',K:'口',L:'田',M:'山',
   X:'幺',C:'又',V:'女',B:'子',N:'已'};
