@@ -254,9 +254,7 @@ function onIMEBlur(){
     }
   }catch(e){}
 }
-</script>
-</body>
-</html>
+
 // ===== 缺陷#4 表情渲染取证探针 =====
 //   目的：一次性判定"内嵌 KBEmoji(COLRv1矢量) 在本机 WebView 是否真正生效"，
 //   为下一轮根治(糊/ZWJ退化)提供设备端事实依据。结果存 KV kbEmojiProbe 并 toast 一次。
@@ -283,3 +281,6 @@ setTimeout(function(){
     if(document.fonts&&document.fonts.ready) document.fonts.ready.then(run); else run();
   }catch(e){}
 }, 2500);
+</script>
+</body>
+</html>
