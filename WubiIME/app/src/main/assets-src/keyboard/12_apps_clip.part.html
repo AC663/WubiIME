@@ -96,6 +96,13 @@ function showClipDetail(txt, idx){
   const back=document.createElement('div');
   back.innerHTML='‹ 返回';
   back.style.cssText=_btnCss(false);
+  // 缺陷#7：按压反馈——按下缩放+加深，抬起回弹（与全键盘按键手感一致）
+  const _bkDown=()=>{ back.style.transform='scale(0.94)'; back.style.filter='brightness(0.92)'; };
+  const _bkUp=()=>{ back.style.transform=''; back.style.filter=''; };
+  back.addEventListener('touchstart',_bkDown,{passive:true});
+  ['touchend','touchcancel'].forEach(ev=>back.addEventListener(ev,_bkUp,{passive:true}));
+  back.addEventListener('mousedown',_bkDown);
+  ['mouseup','mouseleave'].forEach(ev=>back.addEventListener(ev,_bkUp));
   const delBtn=document.createElement('div');
   delBtn.textContent='删除';
   delBtn.style.cssText=_btnCss(true);
@@ -256,7 +263,9 @@ function exitTrainEdit(){ if(!_trainEdit) return; _trainEdit=false; clearTimeout
   '@keyframes carWob{0%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}100%{transform:rotate(-1.5deg)}}'
  +'.cat-strip.editing .cat-chip.car{animation:carWob .34s ease-in-out infinite}'
  +'.cat-strip.editing .cat-chip.car.dragging{animation:none;z-index:6;box-shadow:0 5px 16px rgba(0,0,0,.35);opacity:.96}'
- +'.car-edit-badge{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--ac,#e86030);color:#fff;font-size:10px;line-height:17px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:2}';
+ +'.car-edit-badge{position:absolute;top:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:var(--ac,#e86030);color:#fff;font-size:12px;line-height:22px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:2}'
++'.car-edit-badge:active{transform:scale(0.86)}'
++'.clip-back-btn:active,[data-clip-back]:active{transform:scale(0.92);opacity:.75;transition:transform .08s}';
   document.head.appendChild(st); }catch(e){} })();
 function buildClipStrip(){
   const tabs=document.getElementById('catStrip');

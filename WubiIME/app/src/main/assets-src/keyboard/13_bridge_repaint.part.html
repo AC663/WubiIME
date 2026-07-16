@@ -218,10 +218,13 @@ function imeRepaint(force){
 //   残留的 Ctrl/Alt/Shift(非caps) 状态一律释放，避免"回来后键盘还停在功能层"的混乱。
 function releaseModifiers(){
   try{
-    if(ctrl||ctrlLock||alt||shift){
-      ctrl=false; ctrlLock=false; alt=false; shift=false;
-      if(typeof buildKb==='function') buildKb();
-    }
+    let dirty=false;
+    if(ctrl||ctrlLock||alt||shift){ ctrl=false; ctrlLock=false; alt=false; shift=false; dirty=true; }
+    // 状态留持一轮制：切走/中断后回来，数字键盘收回主键盘、编码栏模式轨道收回——
+    //   再调出时直接见输入区与功能分类，不被上次状态"抢镜"。
+    if(typeof num!=='undefined' && num && typeof calcMode!=='undefined' && !calcMode){ num=false; dirty=true; }
+    if(typeof _activePanel!=='undefined' && _activePanel==='mode' && typeof restoreCatStrip==='function'){ restoreCatStrip(); }
+    if(dirty && typeof buildKb==='function') buildKb();
   }catch(e){}
 }
 const _imeRepaintCore=imeRepaint;   // 固定原函数引用——顶层函数声明与window属性同绑定，直接内调会自递归
@@ -260,10 +263,10 @@ function onIMEBlur(){
 //   为下一轮根治(糊/ZWJ退化)提供设备端事实依据。结果存 KV kbEmojiProbe 并 toast 一次。
 setTimeout(function(){
   try{
-    if(KV.get('kbEmojiProbeV1')) return;   // 每版本只取证一次
+    if(KV.get('kbEmojiProbeV2')) return;   // 每版本只取证一次
     var res={loaded:null, zwj:null, ua:navigator.userAgent.slice(0,140)};
     var fin=function(){
-      try{ KV.set('kbEmojiProbe', JSON.stringify(res)); KV.set('kbEmojiProbeV1','1'); mirrorPrefs(); }catch(e){}
+      try{ KV.set('kbEmojiProbe', JSON.stringify(res)); KV.set('kbEmojiProbeV2','1'); mirrorPrefs(); }catch(e){}
       try{ wmToast('表情探针: 字体'+(res.loaded?'已生效':'未生效')+' · ZWJ'+(res.zwj?'合成':'退化')); }catch(e){}
     };
     var run=function(){

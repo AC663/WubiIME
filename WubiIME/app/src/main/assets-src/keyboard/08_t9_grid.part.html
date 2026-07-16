@@ -395,15 +395,15 @@ function buildRow(id, keys) {
       const editMap={A:'全选',F:'造词',Z:'撤销',X:'剪切',C:'复制',V:'粘贴'};
       if(editMap[k]){
         div.classList.add('arrow-active');
-        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
+        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1;display:block;height:18px">${k.toLowerCase()}</span><span class="ks" style="font-size:11px;letter-spacing:.3px">${editMap[k]}</span>`;
       }
       // 缺陷#8：Ctrl+D=简繁切换+状态灯功效同体(点击即切换,自身高亮当前态)；Ctrl+S 功能字样已取消
       if(k==='D'){
         div.classList.add('arrow-active');
         const jian = tradMode ? 'opacity:.32' : 'color:var(--ac);font-weight:800';
         const fan  = tradMode ? 'color:var(--ac);font-weight:800' : 'opacity:.32';
-        div.innerHTML=`<span class="km" style="font-size:15px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">d</span>`
-          +`<span class="ks" style="font-size:8px"><b style="${jian}">简</b><span style="opacity:.4">/</span><b style="${fan}">繁</b></span>`;
+        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">d</span>`
+          +`<span class="ks" style="font-size:14px;letter-spacing:.3px"><b style="${jian}">简</b><span style="opacity:.4">/</span><b style="${fan}">繁</b></span>`;
       }
       // L 键 → 音效开关
       if(k==='L'){
@@ -411,28 +411,28 @@ function buildRow(id, keys) {
         const icon = soundOn
           ? `<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>`
           : `<svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>`;
-        div.innerHTML=`<span class="km">${icon}</span><span class="ks" style="font-size:8px">${soundOn?'音效':'静音'}</span>`;
+        div.innerHTML=`<span class="km">${icon}</span><span class="ks" style="font-size:11px">${soundOn?'音效':'静音'}</span>`;
       }
       // G 键 → 九宫格切换（仅拼音模式）
       if(k==='G' && mode==='pinyin'){
         div.classList.add('arrow-active');
-        div.innerHTML=`<span class="km">⊞</span><span class="ks" style="font-size:8px">九宫格</span>`;
+        div.innerHTML=`<span class="km">⊞</span><span class="ks" style="font-size:11px">九宫格</span>`;
       }
     }
     if((alt||ctrl||ctrlLock)&&['J','B','N','M'].includes(k)){
       div.classList.add('arrow-active');
       const arrowMap={J:'↑',B:'←',N:'↓',M:'→'};
       const subMap=(ctrl||ctrlLock)?{J:'文首',B:'行首',N:'文末',M:'行尾'}:{J:'选上行',B:'左',N:'选下行',M:'右'};
-      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:8px">${subMap[k]}</span>`:''}`;
+      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:11px">${subMap[k]}</span>`:''}`;
     }
     // Alt 模式：q=Tab(下一段)、e=Tab(下一项)；a 恢复字母原状
     if(alt && k==='Q'){
       div.classList.add('arrow-active');
-      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:8px">下一段</span>`;
+      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:11px">下一段</span>`;
     }
     if(alt && k==='E'){
       div.classList.add('arrow-active');
-      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:8px">下一项</span>`;
+      div.innerHTML=`<span class="km">Tab</span><span class="ks" style="font-size:11px">下一项</span>`;
     }
     // 纯输入态：字母键按下(touchstart)即时出码，像固件键盘瞬时响应、快打不丢码；
     // 修饰层(alt/ctrl/锁定)下是方向/Tab功能键，保持 touchend 防连触误选。
@@ -450,7 +450,7 @@ function buildRow3() {
     // Ctrl 层：Shift 键面换"输入法"图标(地球) —— Ctrl+Shift = 切换至设备下一个输入法
     sh.classList.add('arrow-active');
     const _icoIME=`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 1 0 18a14.5 14.5 0 0 1 0-18"/></svg>`;
-    sh.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:8px">输入法</span>`;
+    sh.innerHTML=`<span class="km">${_icoIME}</span><span class="ks" style="font-size:11px">输入法</span>`;
   } else {
     setKeyContent(sh,'⇧','Shift');
   }
@@ -472,13 +472,13 @@ function buildRow3() {
     if((ctrl||ctrlLock) && ['Z','X','C','V'].includes(k)){
       const editMap={Z:'撤销',X:'剪切',C:'复制',V:'粘贴'};
       div.classList.add('arrow-active');
-      div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
+      div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1;display:block;height:18px">${k.toLowerCase()}</span><span class="ks" style="font-size:11px;letter-spacing:.3px">${editMap[k]}</span>`;
     }
     if((alt||ctrl||ctrlLock)&&['J','B','N','M'].includes(k)){
       div.classList.add('arrow-active');
       const arrowMap={J:'↑',B:'←',N:'↓',M:'→'};
       const subMap=(ctrl||ctrlLock)?{J:'文首',B:'行首',N:'文末',M:'行尾'}:{J:'选上行',B:'左',N:'选下行',M:'右'};
-      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:8px">${subMap[k]}</span>`:''}`;
+      div.innerHTML=`<span class="km">${arrowMap[k]}</span>${subMap[k]?`<span class="ks" style="font-size:11px">${subMap[k]}</span>`:''}`;
     }
     div._snd=()=>keySound(k);   // #11 第3行=百搭和弦
     div._sndUp=()=>keySoundUp(k); div._sndRep=()=>keySoundRep(k);   // #9 绵音释放/连发拍音
@@ -510,7 +510,7 @@ function buildRow4() {
   // Ctrl（含 Ctrl+Shift 切换语言）
   const ctrlDiv=makeKey('CTRL','func ctrl-key'+(ctrl?' held':'')+(ctrlLock?' locked':''));
   // Ctrl 字样：颜色/字重与 Alt 标签一致(km 主字色)；锁定时附"锁定"小字
-  ctrlDiv.innerHTML=`<span class="km" style="font-size:13px">Ctrl</span>${ctrlLock?'<span class="ks" style="font-size:8px">锁定</span>':''}`;
+  ctrlDiv.innerHTML=`<span class="km" style="font-size:13px">Ctrl</span>${ctrlLock?'<span class="ks" style="font-size:11px">锁定</span>':''}`;
   let _ctrlTouched=false;
   const _ctrlToggle = () => {
     playClick();

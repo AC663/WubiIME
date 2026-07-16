@@ -546,4 +546,7 @@
 @keyframes panelSwapR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
 @keyframes panelSwapL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
 .hidden{display:none!important}
+
+/* 缺陷#7：剪贴展开区可点元素按压反馈(返回/关闭/上屏等) */
+#clipPanel .cat-chip:active,#clipPanel button:active,#clipPanel .clip-item:active,#catStrip .cat-chip:active{transform:scale(0.93);transition:transform .07s ease}
 </style>
