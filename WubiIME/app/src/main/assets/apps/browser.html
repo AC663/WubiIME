@@ -304,6 +304,8 @@ function showNetMsg(title,icon,u){
   if(r) r.addEventListener('click',()=>{ hideNetMsg(); if(u) navigate(u,false); });
   if(b) b.addEventListener('click',()=>nav('home'));
 }
+let _pbT=null;
+function _persistBlocked(){ if(_pbT) return; _pbT=setTimeout(()=>{ _pbT=null; try{ KV.set('blockedTotal',S.blockedTotal); }catch(e){} },2000); }
 function hideNetMsg(){ const m=$('netmsg'); if(m){ m.classList.remove('on'); } }
 // ===== 来自 Java netView 的回调 =====
 window.__onNetProgress=function(p){ setProgress(p); };
@@ -314,15 +316,38 @@ window.__onAdBlocked=function(n,host){
   $('shield-n').textContent=String(n);
   if(host){ const e=S.pageBlocked.find(x=>x.domain===host); if(e){ e.count++; } else { S.pageBlocked.push({domain:host,count:1}); } }
   const prev=S._lastPageN||0;
-  if(n>prev) S.blockedTotal+=(n-prev);   // 仅正增量累加真实拦截
+  if(n>prev){ S.blockedTotal+=(n-prev); _persistBlocked(); }   // 仅正增量累加真实拦截+节流落盘(修复:重启归零)
   S._lastPageN=n;
   if(n===0){ S.pageBlocked=[]; }          // Java 每次导航发 0=重置
   persist();
 };
 // #浏览器 证书错误:Java 已 cancel(绝不静默 proceed),此处只呈现错误卡
-window.__onNetSslError=function(u){ setProgress(0); showNetMsg('证书无效，已阻止访问','⚠',u); };
+window.__onNetSslError=function(u){
+  setProgress(0);
+  // 专业浏览器范式：不静默放行、不粗暴掐断——警告+用户明示决策。
+  //   部分国产ROM WebView 证书链补全弱，主流站(hao123等)会被误判，"仍要访问"即放行本次握手。
+  const m=$('netmsg'); if(!m){ return; }
+  try{ if(HAS_NET) AndroidPW.browserHide(); }catch(e){}
+  m.classList.add('on');
+  m.innerHTML='<div class="blockcard"><div class="bi">🔒</div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:6px;">证书校验未通过</div>'
+    +'<div style="font-size:12px;color:var(--sub);line-height:1.7;">'+esc(domainOf(u||''))
+    +'<br>可能是站点证书问题，也可能是本机 WebView 证书链不全的误判</div>'
+    +'<div class="bbtn pri" id="nm-ssl-go">仍要访问（本次）</div>'
+    +'<div class="bbtn sec" id="nm-ssl-http">改用 HTTP 试试</div>'
+    +'<div class="bbtn sec" id="nm-back">返回起始页</div></div>';
+  const g=$('nm-ssl-go'), h=$('nm-ssl-http'), b=$('nm-back');
+  if(g) g.addEventListener('click',()=>{ hideNetMsg(); try{ AndroidPW.browserSslProceed(); AndroidPW.browserShow&&AndroidPW.browserShow(); }catch(e){} });
+  if(h) h.addEventListener('click',()=>{ try{ AndroidPW.browserSslCancel(); }catch(e){} hideNetMsg();
+    if(u&&u.indexOf('https://')===0) navigate('http://'+u.slice(8),false); });
+  if(b) b.addEventListener('click',()=>{ try{ AndroidPW.browserSslCancel(); }catch(e){} nav('home'); });
+};
 // #浏览器 下载请求:隐私浏览器不落盘,给提示并把链接放入地址栏供复制
-window.__onNetDownload=function(u){ if(u){ $('url').value=u; } toast('隐私浏览器暂不落盘 · 链接已置入地址栏'); };
+window.__onNetDownload=function(u){
+  // Java 侧已交系统 DownloadManager：文件落「内部存储/Download(下载)」文件夹，状态栏有进度通知。
+  if(u){ try{ const h=KV.get('dlHistory',[]); h.unshift({u:u,t:Date.now()}); KV.set('dlHistory',h.slice(0,20)); }catch(e){} }
+  toast('已开始下载 · 保存至手机「下载」文件夹 · 进度看状态栏通知');
+};
 window.__clearRetry=function(u){ try{ const h=new URL(u).host; delete _retriedHttp[h]; }catch(e){} };
 window.__onNetFinish=function(u,title,canBack,canFwd){
   setProgress(100);
