@@ -172,7 +172,8 @@ h1 svg{width:20px;height:20px;fill:var(--purple)}
 </style>
 </head>
 <body>
-<div id="exit-btn" onclick="try{AndroidPW.closeApp()}catch(e){}" style="display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;width:34px;height:34px;z-index:9999;border-radius:10px;background:rgba(20,20,28,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:16px;font-weight:600;line-height:34px;text-align:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.25);user-select:none">✕</div>
+<div id="boot-splash" style="position:fixed;inset:0;z-index:99998;background:#faf9f5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-family:-apple-system,sans-serif;transition:opacity .25s"><div style="font-size:34px">♪</div><div style="font-size:14px;color:#666">音频剪辑器 · 加载中…</div></div>
+<div id="exit-btn" onclick="try{AndroidPW.closeApp()}catch(e){}" style="display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;width:36px;height:36px;z-index:9999;border-radius:12px;background:rgba(20,20,28,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.25);user-select:none;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2 L12 12 M12 2 L2 12" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
 <div id="app">
   <h1>
     <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
@@ -643,7 +644,11 @@ function resizeCanvas(){
   initCanvas(rc,canvasW,24);
   if(oc) initCanvas(oc,canvasW,34);
 }
-if(typeof AndroidPW!=='undefined'&&AndroidPW.closeApp){ try{ document.getElementById('exit-btn').style.display=''; }catch(e){} }
+if(typeof AndroidPW!=='undefined'&&AndroidPW.closeApp){ try{
+  document.getElementById('exit-btn').style.display='flex';
+  var __h1=document.querySelector('h1'); if(__h1) __h1.style.paddingRight='52px';   // 标题行为✕留白
+  var __fi=document.getElementById('file-info'); if(__fi) __fi.style.paddingRight='50px';   // 信息行(+追加/重新加载)同样让位，不与✕拥挤
+}catch(e){} }
 window.addEventListener('resize',()=>{ resizeCanvas(); if(audioBuffer) drawAll(); });
 try{ window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{ if(audioBuffer) drawAll(); }); }catch(e){}
 
@@ -1237,13 +1242,14 @@ function tickPlayhead(){
   document.getElementById('cursor-time').textContent=fmtTime(currentTime);
 
   const vd=duration/zoom;
-  if(currentTime>scrollOffset+vd*0.88){
+  const maxScroll=Math.max(0,duration-vd);
+  // 修复：滚动到底后旧逻辑每帧走 drawAll 分支、再也不更新 DOM 播放头 → 指针冻在88%处。
+  //   现在滚动只在还有滚动余量时发生，播放头每帧无条件更新，可一路指到最后。
+  if(currentTime>scrollOffset+vd*0.88 && scrollOffset<maxScroll-1e-6){
     scrollOffset=clampScroll(currentTime-vd*0.1);
     drawAll();
-  } else {
-    // Only redraw playhead, not full waveform (performance)
-    updatePlayhead(currentTime);
   }
+  updatePlayhead(currentTime);
   rafId=requestAnimationFrame(tickPlayhead);
 }
 
@@ -2136,6 +2142,9 @@ document.addEventListener('keydown',e=>{
     }
   }
 });
+
+window.addEventListener('load',function(){ var b=document.getElementById('boot-splash'); if(b){ b.style.opacity='0'; setTimeout(function(){ try{b.remove()}catch(e){} },260); } });
+setTimeout(function(){ var b=document.getElementById('boot-splash'); if(b){ try{b.remove()}catch(e){} } },4000);
 </script>
 </body>
 </html>
