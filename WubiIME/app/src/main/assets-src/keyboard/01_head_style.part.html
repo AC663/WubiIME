@@ -8,9 +8,10 @@
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
 body{background:transparent;display:block;font-family:"PingFang SC","Noto Sans SC","Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif;padding:0;overflow:hidden}
-/* 内置彩色 emoji 字体(COLRv1 矢量，离线打包进 assets/fonts/)：根治安卓机型缺彩色 emoji
+/* 内置彩色 emoji 字体(COLRv1 矢量，直接内联 base64 进 CSS)：根治安卓机型缺彩色 emoji
    字体集时回退到低质单色字形导致的"粗糙/发暗"。若机型 WebView 太旧不支持 COLRv1，
    会静默回退到系统 emoji(与改动前一致，不会更糟)。 */
 @font-face{font-family:'KBEmoji';
-  /* #表情细腻根治：内嵌 Noto Color Emoji(COLRv1 矢量)子集 base64——矢量任意尺寸不糊，且不依赖装机后不存在的外链 ttf(回退系统字体=水彩糊)。
-     子集保留 GSUB 连字(国旗/keycap/ZWJ 组合)+全类基座字形，补类后也不缺字、不再拆崩。 */
+  /* #表情细腻根治：内嵌 Noto Color Emoji(COLRv1 彩色矢量)子集 base64——不再依赖装机后不存在的外链 ttf(回退系统字体=水彩糊)。
+     矢量轮廓任意字号锐利(根治高DPI下位图被放大发糊)；含 ccmp 特性,ZWJ 组合emoji(如😮‍💨😶‍🌫️)正常合成；覆盖全 emoji 区块不缺字。
+     需 WebView Chromium≥98(现代安卓均满足)；过旧内核静默回退系统字体(不更糟)。 */

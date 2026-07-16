@@ -266,6 +266,7 @@ function switchNum() {
   updateBtnStates();
 }
 // 工具栏右上角按钮：主键盘=收起(双线下滑SVG:横线+下箭头)，数字键盘=删除键(单击删除·长按连删)
+function _afterModeChange(){ setTimeout(()=>{ try{ symSmartJump(); }catch(e){} },0); }
 function cycleMode() {
   if(num){ num=false; switchNum(); }   // 切输入法时若处于数字键盘→重置收起，优先呈现主键盘输入区
   const ms=['wubi','pinyin','english'];
@@ -273,6 +274,7 @@ function cycleMode() {
   try{ KV.set('kbMode',mode); mirrorPrefs(); }catch(e){}   // 持久：下次唤起以最后一次模式呈现
   if(typeof t9code!=='undefined') t9code='';
   clearCode(); updateDisplay();
+  _afterModeChange();   // 缺陷#7
 }
 function setThemeIdx(i){
   if(i<0||i>=THEMES.length) return;
@@ -338,6 +340,7 @@ function applyModeOpt(i){
   if(pyGrid!==o.g){ pyGrid=o.g; try{ KV.set('pyGrid', pyGrid?'1':'0'); }catch(e){} }
   try{ KV.set('kbMode',mode); mirrorPrefs(); }catch(e){}
   clearCode(); updateDisplay();
+  _afterModeChange();   // 缺陷#7
 }
 function toggleModeStrip(){
   if(_activePanel==='mode'){ restoreCatStrip(); return; }   // #3 收回轨道→恢复原分类条
@@ -367,12 +370,37 @@ function _panelIn(el){
       {duration:170,easing:'cubic-bezier(.22,1,.36,1)'});
   }catch(e){}
 }
+// 缺陷#7/#6：智能符号类别——英文模式→"英文"类、五笔/拼音→"中文"类、网址输入框→"网址"类。
+//   仅在符号面板已展开时静默跳类；唯 URI 输入框(#6)按需求主动展开面板并切至网址。
+window.__edHint='text';   // Java onStartInputView 依 EditorInfo.inputType 注入 'uri'|'text'
+function symSmartJump(){
+  try{
+    const p=document.getElementById('symPanel');
+    if(!p||p.classList.contains('hidden')||_activePanel!=='sym') return;
+    const want=(window.__edHint==='uri')?'网址':(mode==='english'?'英文':'中文');
+    const ci=SYMBOL_CATS.findIndex(c=>c.name===want);
+    if(ci>=0&&ci!==_symCat&&typeof _catSelectFn==='function') _catSelectFn(ci);
+  }catch(e){}
+}
+window.__setEdHint=function(h){
+  const prev=window.__edHint; window.__edHint=(h==='uri')?'uri':'text';
+  try{
+    const p=document.getElementById('symPanel');
+    if(window.__edHint==='uri'){
+      // #6：进入网址输入框——未开则展开符号面板，并切至"网址"类
+      if(p&&p.classList.contains('hidden')) toggleSym();
+      symSmartJump();
+    } else if(prev==='uri' && p && !p.classList.contains('hidden')){
+      symSmartJump();   // 离开网址框回到普通文本→回到中/英对应类
+    }
+  }catch(e){}
+};
 function toggleSym(){
   closeApp();   // 切到符号面板=离开剪贴板内的应用，关掉 overlay 释放 iframe
   const p=document.getElementById('symPanel');
   ['emjPanel','clipPanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   p.classList.toggle('hidden');
-  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); _panelIn(p); }   // 打开→编码栏显示符号分类
+  if(!p.classList.contains('hidden')){ _activePanel='sym'; buildPunct(); _panelIn(p); setTimeout(symSmartJump,0); }   // 打开→编码栏显示符号分类+智能定位类别(缺陷#7)
   else { clearCatStrip(); }                                                   // 关闭→恢复编码栏
   updateBtnStates();
 }

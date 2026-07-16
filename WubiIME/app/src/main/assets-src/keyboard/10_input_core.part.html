@@ -49,7 +49,7 @@ function pressKey(k) {
     if(l==='c'){ handleCtrl('c'); return; }   // 复制
     if(l==='v'){ handleCtrl('v'); return; }   // 粘贴
     if(l==='l'){ toggleSoundStrip(); return; }                               // #9 音效轨道
-    if(l==='s'){ toggleTrad(); return; }                                     // #4 Ctrl+S 简繁切换(锁定层保持)
+    if(l==='d'){ toggleTrad(); return; }                                     // 缺陷#8 Ctrl+D 简繁切换(锁定层保持,状态灯同体)
     if(l==='g'&&mode==='pinyin'){ togglePyGrid(); return; }                  // 九宫格
     // 其余键在锁定层无动作，忽略
     return;
@@ -67,7 +67,7 @@ function pressKey(k) {
       const numMap={q:'1',w:'2',e:'3',r:'4',t:'5',y:'6',u:'7',i:'8',o:'9',p:'0'};
       if(numMap[l]){ ctrl=false; commit(numMap[l]); setTimeout(buildKb,0); return; }   // 第一排数字
       if(l==='l'){ ctrl=false; toggleSoundStrip(); setTimeout(buildKb,0); return; }       // #9 Ctrl+L：音效轨道
-      if(l==='s'){ ctrl=false; toggleTrad(); setTimeout(buildKb,0); return; }             // #4 Ctrl+S：简繁切换
+      if(l==='d'){ ctrl=false; toggleTrad(); setTimeout(buildKb,0); return; }             // 缺陷#8 Ctrl+D：简繁切换(状态灯同体)
       if(l==='f'){ ctrl=false; openWordMaker(); setTimeout(buildKb,0); return; }          // Ctrl+F：造词
       if(l==='g'&&mode==='pinyin'){ ctrl=false; togglePyGrid(); return; }               // Ctrl+G：拼音九宫格
     }

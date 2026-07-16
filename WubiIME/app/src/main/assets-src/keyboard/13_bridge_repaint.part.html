@@ -214,9 +214,20 @@ function imeRepaint(force){
     requestAnimationFrame(()=>{ ime.style.opacity='0.999'; requestAnimationFrame(()=>{ ime.style.opacity=''; }); });
   });
 }
-window.imeRepaint=imeRepaint;            // 暴露给 Java：onStartInputView 里 evaluateJavascript("imeRepaint()")
+// 缺陷#11：修饰键激活态只对单次会话有效——切至其它应用/中断后再次调出输入法时，
+//   残留的 Ctrl/Alt/Shift(非caps) 状态一律释放，避免"回来后键盘还停在功能层"的混乱。
+function releaseModifiers(){
+  try{
+    if(ctrl||ctrlLock||alt||shift){
+      ctrl=false; ctrlLock=false; alt=false; shift=false;
+      if(typeof buildKb==='function') buildKb();
+    }
+  }catch(e){}
+}
+const _imeRepaintCore=imeRepaint;   // 固定原函数引用——顶层函数声明与window属性同绑定，直接内调会自递归
+window.imeRepaint=function(x){ releaseModifiers(); return _imeRepaintCore(x); };            // 暴露给 Java：onStartInputView 里 evaluateJavascript("imeRepaint()")
 // 监听一切「重新回到前台/重新可见」的浏览器侧时机
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) imeRepaint(true); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ releaseModifiers(); imeRepaint(true); } });
 window.addEventListener('pageshow',()=>imeRepaint(true));
 window.addEventListener('focus',imeRepaint);
 window.addEventListener('resume',imeRepaint);      // 部分 WebView 容器会派发
@@ -246,3 +257,29 @@ function onIMEBlur(){
 </script>
 </body>
 </html>
+// ===== 缺陷#4 表情渲染取证探针 =====
+//   目的：一次性判定"内嵌 KBEmoji(COLRv1矢量) 在本机 WebView 是否真正生效"，
+//   为下一轮根治(糊/ZWJ退化)提供设备端事实依据。结果存 KV kbEmojiProbe 并 toast 一次。
+setTimeout(function(){
+  try{
+    if(KV.get('kbEmojiProbeV1')) return;   // 每版本只取证一次
+    var res={loaded:null, zwj:null, ua:navigator.userAgent.slice(0,140)};
+    var fin=function(){
+      try{ KV.set('kbEmojiProbe', JSON.stringify(res)); KV.set('kbEmojiProbeV1','1'); mirrorPrefs(); }catch(e){}
+      try{ wmToast('表情探针: 字体'+(res.loaded?'已生效':'未生效')+' · ZWJ'+(res.zwj?'合成':'退化')); }catch(e){}
+    };
+    var run=function(){
+      try{ res.loaded=document.fonts.check('16px KBEmoji','😀'); }catch(e){ res.loaded=false; }
+      try{
+        // ZWJ 合成判定：🧟‍♂️ 若合成为单字形，其宽度≈单个🧟；退化则≈🧟+♂两枚宽
+        var c=document.createElement('canvas').getContext('2d');
+        c.font='32px KBEmoji,system-ui';
+        var wZ=c.measureText('\u{1F9DF}').width;
+        var wZM=c.measureText('\u{1F9DF}\u200D\u2642\uFE0F').width;
+        res.zwj=(wZM < wZ*1.5);
+      }catch(e){}
+      fin();
+    };
+    if(document.fonts&&document.fonts.ready) document.fonts.ready.then(run); else run();
+  }catch(e){}
+}, 2500);

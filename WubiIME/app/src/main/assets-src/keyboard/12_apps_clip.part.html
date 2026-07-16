@@ -134,6 +134,7 @@ const CLIP_APPS=[
   {id:'pwgen', label:'密码生成器', type:'app'},
   {id:'note',  label:'笔记本',    type:'app'},
   {id:'browser',label:'浏览器',   type:'app'},
+  {id:'audio',  label:'音频剪辑',  type:'app'},
   {id:'iso',   label:'剪贴隔离',   type:'toggle'}   // 开=复制只进私有剪贴板；关=跨App粘贴不受影响
 ];
 function kbSecureOn(){ try{ return KV.get('kbFlagSecure')==='1'; }catch(e){ return false; } }
@@ -236,30 +237,92 @@ function toggleClipIsolation(){
   try{ syncSecureUI(); }catch(e){}
   try{ const tp=document.getElementById('tp'); if(tp) tp.classList.toggle('iso',clipIsoOn()); }catch(e){}   // 开机同步触控条隔离色
 })();
+// 缺陷#5：车厢自定义顺序(车头secure/车尾iso固定，中段可排)——KV持久化
+function appOrder(){ try{ return JSON.parse(KV.get('kbAppOrder')||'[]'); }catch(e){ return []; } }
+function setAppOrder(ids){ try{ KV.set('kbAppOrder',JSON.stringify(ids)); mirrorPrefs(); }catch(e){} }
+function clipAppsOrdered(){
+  const mid=CLIP_APPS.slice(1,-1);
+  const saved=appOrder().filter(id=>mid.some(a=>a.id===id));
+  const ordered=saved.map(id=>mid.find(a=>a.id===id)).concat(mid.filter(a=>!saved.includes(a.id)));
+  return [CLIP_APPS[0]].concat(ordered,[CLIP_APPS[CLIP_APPS.length-1]]);
+}
+// 编组模式(iOS jiggle 范式)：长按任意车厢进入——中段车厢可拖拽换位(邻位FLIP滑移动效)，
+//   每节车厢右上✎角标=重命名(与排序并存不打架)；点车身/6s无操作退出。
+let _trainEdit=false,_teTimer=null;
+function _teIdle(){ clearTimeout(_teTimer); _teTimer=setTimeout(()=>exitTrainEdit(),6000); }
+function enterTrainEdit(){ if(_trainEdit) return; _trainEdit=true; try{playPop();}catch(e){} buildClipStrip(); _teIdle(); }
+function exitTrainEdit(){ if(!_trainEdit) return; _trainEdit=false; clearTimeout(_teTimer); _teTimer=null; buildClipStrip(); }
+(function(){ try{ const st=document.createElement('style'); st.textContent=
+  '@keyframes carWob{0%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}100%{transform:rotate(-1.5deg)}}'
+ +'.cat-strip.editing .cat-chip.car{animation:carWob .34s ease-in-out infinite}'
+ +'.cat-strip.editing .cat-chip.car.dragging{animation:none;z-index:6;box-shadow:0 5px 16px rgba(0,0,0,.35);opacity:.96}'
+ +'.car-edit-badge{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--ac,#e86030);color:#fff;font-size:10px;line-height:17px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:2}';
+  document.head.appendChild(st); }catch(e){} })();
 function buildClipStrip(){
   const tabs=document.getElementById('catStrip');
-  tabs.innerHTML=''; tabs.className='cat-strip train';
-  CLIP_APPS.forEach((a,i)=>{
+  tabs.innerHTML=''; tabs.className='cat-strip train'+(_trainEdit?' editing':'');
+  const APPS=clipAppsOrdered();
+  APPS.forEach((a,i)=>{
     const t=document.createElement('div');
-    t.className='cat-chip car'+(i===0?' car-head':(i===CLIP_APPS.length-1?' car-tail':''));
+    t.className='cat-chip car'+(i===0?' car-head':(i===APPS.length-1?' car-tail':''));
+    const isMid=(i>0&&i<APPS.length-1);
+    if(isMid) t.setAttribute('data-mid',a.id);
     t.setAttribute('data-tab-idx',i);
     if(i>0) t.setAttribute('data-coupler','1');   // 首节车头无联轴器
     if(a.type==='toggle' && a.id==='secure'){ t.id='secChip'; applySecChip(t); }
     else if(a.type==='toggle' && a.id==='iso'){ t.id='isoChip'; applyIsoChip(t); }
     else { t.textContent=appLabel(a); _dressCar(t); }
-    // 长按任意车厢 → 重命名(500ms，移动取消)
-    (function(app){
-      let _lt=null,_lx=0,_ly=0;
-      t.addEventListener('touchstart',e=>{ const p=e.touches[0]; _lx=p.clientX; _ly=p.clientY;
-        _lt=setTimeout(()=>{ _lt=null; openRename(app); },500); },{passive:true});
-      t.addEventListener('touchmove',e=>{ const p=e.touches[0];
-        if(Math.abs(p.clientX-_lx)>12||Math.abs(p.clientY-_ly)>12){ clearTimeout(_lt); _lt=null; } },{passive:true});
-      ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{ clearTimeout(_lt); _lt=null; },{passive:true}));
-    })(a);
+    // 缺陷#5：普通态长按450ms→进入编组模式；编组态：✎角标=重命名、中段拖拽=换位
+    if(!_trainEdit){
+      (function(app){
+        let _lt=null,_lx=0,_ly=0;
+        t.addEventListener('touchstart',e=>{ const p=e.touches[0]; _lx=p.clientX; _ly=p.clientY;
+          _lt=setTimeout(()=>{ _lt=null; enterTrainEdit(); },450); },{passive:true});
+        t.addEventListener('touchmove',e=>{ const p=e.touches[0];
+          if(Math.abs(p.clientX-_lx)>12||Math.abs(p.clientY-_ly)>12){ clearTimeout(_lt); _lt=null; } },{passive:true});
+        ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{ clearTimeout(_lt); _lt=null; },{passive:true}));
+      })(a);
+    } else {
+      t.style.position='relative';
+      // ✎ 重命名角标（所有车厢均可，与排序并存）
+      (function(app){
+        const b=document.createElement('span');
+        b.className='car-edit-badge'; b.textContent='✎';
+        b.addEventListener('touchstart',e=>{ e.stopPropagation(); e.preventDefault(); _teIdle(); openRename(app); },{passive:false});
+        t.appendChild(b);
+      })(a);
+      // 中段车厢：单指拖拽换位（跨过邻居中线即交换，邻居 FLIP 滑移 160ms）
+      if(isMid){
+        (function(){
+          let dragging=false, sx=0;
+          const flip=(el,fromX)=>{ try{ el.animate([{transform:'translateX('+fromX+'px)'},{transform:'none'}],{duration:160,easing:'cubic-bezier(.22,1,.36,1)'}); }catch(e){} };
+          t.addEventListener('touchstart',e=>{ if(!_trainEdit) return; dragging=true; sx=e.touches[0].clientX; t.classList.add('dragging'); _teIdle(); },{passive:true});
+          t.addEventListener('touchmove',e=>{
+            if(!dragging) return; e.preventDefault();
+            const x=e.touches[0].clientX, dx=x-sx;
+            t.style.transform='translateX('+dx+'px) scale(1.05)';
+            const r=t.getBoundingClientRect(), cx=r.left+r.width/2;
+            let sib=t.previousElementSibling;
+            if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
+              if(cx<sr.left+sr.width/2){ tabs.insertBefore(t,sib); sx=x; t.style.transform='scale(1.05)'; flip(sib,-r.width); return; } }
+            sib=t.nextElementSibling;
+            if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
+              if(cx>sr.left+sr.width/2){ tabs.insertBefore(sib,t); sx=x; t.style.transform='scale(1.05)'; flip(sib,r.width); } }
+          },{passive:false});
+          ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{
+            if(!dragging) return; dragging=false;
+            t.classList.remove('dragging'); t.style.transform='';
+            const ids=Array.from(tabs.querySelectorAll('[data-mid]')).map(el=>el.getAttribute('data-mid'));
+            setAppOrder(ids); _teIdle();
+          },{passive:true}));
+        })();
+      }
+    }
     tabs.appendChild(t);
   });
   _catSelectFn=(i)=>{
-    const a=CLIP_APPS[i]; if(!a) return;
+    if(_trainEdit){ exitTrainEdit(); return; }   // 缺陷#5：编组态点车身=收起编组
+    const a=APPS[i]; if(!a) return;
     if(a.type==='app'){ playClick(); openApp(a.id); return; }
     if(a.type==='toggle'){ if(a.id==='secure') toggleSecureFlag(); else toggleClipIsolation(); return; }
   };

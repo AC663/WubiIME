@@ -104,10 +104,12 @@ function dragAutoScroll(scroller, y){
   const loop=()=>{
     _dasRaf=0;
     if(!_dasEl) return;
-    const r=_dasEl.getBoundingClientRect(), Z=40;
+    const r=_dasEl.getBoundingClientRect(), Z=34;   // 缺陷#2a：热区40→34
     let v=0;
-    if(_dasY<r.top+Z) v=-(4+12*Math.min(1,(r.top+Z-_dasY)/Z));
-    else if(_dasY>r.bottom-Z) v=(4+12*Math.min(1,(_dasY-(r.bottom-Z))/Z));
+    // 缺陷#2a：4+12线性(峰值16px/帧)过快难定位→1.5+4·d²二次缓速(峰值5.5px/帧)，
+    //   浅入热区几乎不动，贴死边缘才逐渐提速，可精确停在目标位。
+    if(_dasY<r.top+Z){ const d=Math.min(1,(r.top+Z-_dasY)/Z); v=-(1.5+4*d*d); }
+    else if(_dasY>r.bottom-Z){ const d=Math.min(1,(_dasY-(r.bottom-Z))/Z); v=(1.5+4*d*d); }
     if(v){ _dasEl.scrollTop+=v; _dasRaf=requestAnimationFrame(loop); }
   };
   _dasRaf=requestAnimationFrame(loop);

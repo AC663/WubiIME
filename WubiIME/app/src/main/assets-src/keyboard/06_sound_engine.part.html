@@ -5,6 +5,20 @@
 let sndTheme='click';   // 'click'键盘机械 | 'piano'钢琴 | 'crystal'水晶 | 'bell'风铃
 try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click'||st==='bell') sndTheme=st; }catch(e){}
 function saveSndTheme(){ try{ KV.set('kbSndTheme',sndTheme); mirrorPrefs(); }catch(e){} }
+// 缺陷#10：压限器冷启动预热——首个真实声部到来前，压限尚未建立增益衰减，
+//   全电平直出=极大声。喂一枚30ms、-40dB的粉噪让reduction先"咬合"，并给总线80ms淡入。
+function _warmBus(ac, bus){
+  try{
+    bus.gain.setValueAtTime(0.0001, ac.currentTime);
+    bus.gain.exponentialRampToValueAtTime(1.0, ac.currentTime+0.08);
+    const n=Math.floor(ac.sampleRate*0.03), buf=ac.createBuffer(1,n,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*0.01;
+    const src=ac.createBufferSource(), g=ac.createGain();
+    g.gain.value=1; src.buffer=buf; src.connect(g); g.connect(bus);
+    src.start(); src.onended=()=>{ try{src.disconnect();g.disconnect();}catch(_){}};
+  }catch(e){}
+}
 const _midiF=(m)=>440*Math.pow(2,(m-69)/12);
 // 总线：柔性压限器——多音齐鸣不破音，整体响度可以放心提上去
 let _sndBusNode=null;
@@ -18,6 +32,7 @@ function _sndBus(){
       const g=ac.createGain(); g.gain.value=1.0;
       g.connect(comp); comp.connect(ac.destination);
       _sndBusNode=g;
+      _warmBus(ac, g);   // 缺陷#10：压限器冷启动预热
     }catch(e){ _sndBusNode=null; return null; }
   }
   return _sndBusNode;
@@ -76,44 +91,72 @@ function _nearestSample(midi){
   for(const m of _SAMPLE_MIDIS){ if(_pianoBuf[m]){ const d=Math.abs(m-midi); if(d<bd){ bd=d; best=m; } } }
   return best;
 }
-function _samplePianoVoice(midi, vel){
+function _samplePianoVoice(midi, vel, sustain){
   const ac=_ensureAudio(); const bus=_sndBus(); if(!ac||!bus) return null;
   const sm=_nearestSample(midi); if(sm==null) return null;
   try{
-    const t=ac.currentTime, v=Math.min(1.15,(vel==null?0.30:vel)*3.2);
+    const t=ac.currentTime+0.003, v=Math.min(1.15,(vel==null?0.30:vel)*3.2);   // t 加 3ms 余量:主线程忙时起点不过期
     const src=ac.createBufferSource(); src.buffer=_pianoBuf[sm];
     src.playbackRate.value=Math.pow(2,(midi-sm)/12);
-    const g=ac.createGain(); g.gain.setValueAtTime(v,t);
+    const g=ac.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t+0.004);                 // 4ms 起音斜坡:消除满幅起点的咔哒
     src.connect(g); g.connect(bus);
+    if(!sustain){                                                // tap:自然衰减 + 生命周期封顶,连打不堆积数秒长采样
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0001,v*0.30), t+0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+2.4);
+      g.gain.linearRampToValueAtTime(0, t+2.45);                // 归真0:停前拉真0防停点咔哒
+      try{ src.stop(t+2.5); }catch(_){}
+    }
     src.start(t);
-    src.onended=()=>{ try{ src.disconnect(); g.disconnect(); }catch(_){} };   // 播毕即拆链，图零残留
-    return {
-      release(){   // 抬指=制音器落弦：线性收到真 0 再停(指数收不到0=尾端咔哒/电流感的元凶之一)
+    const vc={
+      src,
+      release(){   // 抬指=制音器落弦:线性收到真0再停
         try{
           const rt=ac.currentTime;
           g.gain.cancelScheduledValues(rt);
           g.gain.setValueAtTime(Math.max(0.0001,g.gain.value||v), rt);
-          g.gain.linearRampToValueAtTime(0, rt+0.32);
-          src.stop(rt+0.36);
+          g.gain.linearRampToValueAtTime(0, rt+0.28);
+          src.stop(rt+0.32);
         }catch(e){}
       }
     };
+    src.onended=()=>{ try{ src.disconnect(); g.disconnect(); }catch(_){} if(vc.__drop) vc.__drop(); };   // 播毕拆链+出池
+    return vc;
   }catch(e){ return null; }
 }
-// 复音上限：同时鸣响的合成声部>10 时偷走最老的(采样不占额度——BufferSource 近零成本)
-const _synthPool=[];
-function _synthPoolAdd(vc){
-  _synthPool.push(vc);
-  while(_synthPool.length>10){ const old=_synthPool.shift(); try{ old.release(); }catch(_){} }
+// 复音上限：同时鸣响声部(采样+合成+风铃)>_POLY_MAX 时偷走最老的——release() 柔性收0再停,杜绝瞬断咔哒。
+//   采样并非零成本:数十枚数秒长 BufferSource + 共享总线并发→音频线程欠载=电流爆音;统一入池封顶并发是根治。
+const _POLY_MAX=12;
+const _voicePool=[];
+function _poolAdd(vc,note){
+  if(!vc) return vc;   // 加固：采样与合成路径双双失败(极端环境)时不崩
+  // 缺陷#1：连续快速按同一键——同音高旧声部先柔性收掉再起新声部，
+  //   杜绝多枚同相位声部叠加的建设性干涉爆音(刺耳电流声)。
+  if(note!=null){
+    vc.__note=note;
+    for(let i=_voicePool.length-1;i>=0;i--){
+      if(_voicePool[i].__note===note){ const o=_voicePool.splice(i,1)[0]; try{ o.release(); }catch(_){} }
+    }
+  }
+  return _poolAddRaw(vc);
 }
-function _synthPoolDrop(vc){ const i=_synthPool.indexOf(vc); if(i>=0) _synthPool.splice(i,1); }
-// 分发器：采样可用走采样(真钢琴)；否则合成 v3 兜底
+function _poolAddRaw(vc){
+  if(!vc) return vc;
+  _voicePool.push(vc);
+  while(_voicePool.length>_POLY_MAX){ const old=_voicePool.shift(); try{ old.release(); }catch(_){} }
+  vc.__drop=()=>{ const i=_voicePool.indexOf(vc); if(i>=0) _voicePool.splice(i,1); };
+  const rel=vc.release; vc.release=()=>{ if(vc.__drop) vc.__drop(); try{ rel(); }catch(_){} };
+  return vc;
+}
+function _poolActive(){ return _voicePool.length; }
+// 分发器：采样可用走采样(真钢琴)；否则合成 v3 兜底。二者统一入池封顶并发。
 function _pianoVoice(midi, vel, sustain){
   if(_pianoLoadState===0) _loadPianoSamples();
-  if(_pianoLoadState===2){ const s=_samplePianoVoice(midi, vel); if(s) return s; }
-  const vc=_pianoVoiceSynth(midi, vel, sustain);
-  if(vc){ _synthPoolAdd(vc); const rel=vc.release; vc.release=()=>{ _synthPoolDrop(vc); rel(); }; }
-  return vc;
+  let vc=null;
+  if(_pianoLoadState===2){ vc=_samplePianoVoice(midi, vel, sustain); }
+  if(!vc) vc=_pianoVoiceSynth(midi, vel, sustain);
+  return _poolAdd(vc, midi);
 }
 // 钢琴合成发声核 v3(回退用)：物理不谐和分音 + 三弦失谐合唱 + 双段衰减 + 音板混响。
 function _pianoVoiceSynth(midi, vel, sustain){
@@ -129,7 +172,7 @@ function _pianoVoiceSynth(midi, vel, sustain){
     lp.frequency.exponentialRampToValueAtTime(Math.min(9500, Math.max(2000, f*4.5)), t+1.1);
     lp.Q.value=0.35;
     out.connect(lp); lp.connect(bus);
-    const wet=_pianoVerb(); if(wet){ try{ lp.connect(wet); }catch(_e){} }
+    const wet=_pianoVerb(); if(wet && _poolActive()<=6){ try{ lp.connect(wet); }catch(_e){} }   // 活跃声部>6:旁路混响卷积,降音频线程负载
     const stops=[], gains=[];
     // 物理不谐和：f_n = f·n·√(1+B·n²)。B 随音区走(高音弦更硬更"闪")
     const B = midi<52 ? 0.00012 : midi<76 ? 0.00035 : 0.0007;
@@ -283,7 +326,7 @@ function playBell(midi, vel, sustain){
     const nbp=ac.createBiquadFilter(); nbp.type='bandpass'; nbp.frequency.value=f*3.2; nbp.Q.value=2.2;
     const ng=ac.createGain(); ng.gain.value=v*0.5;
     ns.connect(nbp); nbp.connect(ng); ng.connect(out); ns.start(t);
-    return {
+    const vc={
       release(){
         try{ const rt=ac.currentTime;
           voices.forEach(({o,g})=>{ g.gain.cancelScheduledValues(rt);
@@ -294,6 +337,8 @@ function playBell(midi, vel, sustain){
         }catch(e){}
       }
     };
+    if(voices[0]) voices[0].o.onended=()=>{ if(vc.__drop) vc.__drop(); };   // 自然结束→出池
+    return _poolAdd(vc, m);   // 风铃声部(含长按)统一入池封顶并发+同音防爆
   }catch(e){ return null; }
 }
 function playBellChord(midis){
@@ -365,6 +410,7 @@ function applySndOpt(i){
   else{
     if(!soundOn){ soundOn=true; try{ KV.set('kbSound','1'); mirrorPrefs(); }catch(e){} }
     sndTheme=o.v; saveSndTheme();
+    try{ const ac=_ensureAudio(), b=_sndBus(); if(ac&&b) _warmBus(ac,b); }catch(e){}   // 缺陷#10
     // 试听反馈：选中即闻其声
     if(o.v==='piano'){ _loadPianoSamples(); playChord([48,60,64,67]); }
     else if(o.v==='crystal') playCrystal(72);
@@ -428,3 +474,16 @@ function togglePyGrid(){
    跟手阶段——手指在边缘继续拉，内容按 0.34 阻尼实时跟随(rAF 节流，纯 transform 不触发布局)；
    释放阶段——弹簧曲线回位(轻微过冲)。监听全 passive，绝不抢原生滚动：
    非边缘/反向滑动立即交还，transform 清零。上一版"一次性 CSS 踢动"太愣，本版全程跟手。 */
+
+// 缺陷#1b：首次调出输入法首键卡顿根治——键盘初始化后的空闲期预热音频全链路：
+//   AudioContext 创建/resume + 压限总线 + (钢琴主题时)采样预取解码，
+//   把原本落在"第一次按键"上的一次性成本前移到无感知的空闲帧。
+setTimeout(function _sndWarmup(){
+  try{
+    if(!soundOn) return;
+    const ac=_ensureAudio(); if(!ac) return;
+    const b=_sndBus();
+    if(ac&&b) _warmBus(ac,b);
+    if(sndTheme==='piano' && typeof _loadPianoSamples==='function' && _pianoLoadState===0) _loadPianoSamples();
+  }catch(e){}
+}, 700);

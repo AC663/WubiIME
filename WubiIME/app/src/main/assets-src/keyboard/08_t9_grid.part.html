@@ -38,7 +38,7 @@ function buildPyGridKb(){
     d.style.flexGrow=(grow==null?1:grow);
     d.style.flexBasis='0';
     if(sub){
-      d.innerHTML=`<span class="km" style="font-size:18px;line-height:1.05">${label}</span><span class="ks" style="font-size:11px;letter-spacing:.5px;opacity:.85;font-weight:500">${sub}</span>`;
+      d.innerHTML=`<span class="km" style="font-size:18px;line-height:1.05">${label}</span><span class="ks" style="letter-spacing:.5px;opacity:.85;font-weight:500">${sub}</span>`;
     }else{
       d.innerHTML=`<span class="km" style="font-size:16px">${label}</span>`;
     }
@@ -275,8 +275,8 @@ let _t9QueryTimer=null;
 function t9press(d){
   if(t9Ctrl||t9Alt) return;             // 功能层激活中：数字键已另有职责，绝不进拼音编码(防残留)
   if(t9NumMode){ commit(d); return; }   // Num 灯亮：直接上屏纯数字
-  // 灯灭(拼音模式)：1 无字母不参与拼音组合（按1是主键盘切换，已在按键处理）
-  if(d==='1'){ return; }
+  // 灯灭(拼音模式)：1/0 无字母不参与拼音组合（1=主键盘切换；0 无对应字母，直接忽略，防污染 t9code 致整串被拒）
+  if(d==='1'||d==='0'){ return; }
   // 关键：计码即时累加，绝不丢码；候选查询去抖合并，避免连打时每键同步字典查询阻塞主线程。
   t9code+=d;
   if(_t9QueryTimer){ clearTimeout(_t9QueryTimer); _t9QueryTimer=null; }
@@ -397,11 +397,7 @@ function buildRow(id, keys) {
         div.classList.add('arrow-active');
         div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">${k.toLowerCase()}</span><span class="ks" style="font-size:8px">${editMap[k]}</span>`;
       }
-      // #4 S 键 → 简繁切换；D 键 → 简/繁状态灯(当前态高亮)
-      if(k==='S'){
-        div.classList.add('arrow-active');
-        div.innerHTML=`<span class="km" style="font-size:17px!important;color:var(--ktxt)!important;font-weight:400!important;line-height:1">s</span><span class="ks" style="font-size:8px">简繁</span>`;
-      }
+      // 缺陷#8：Ctrl+D=简繁切换+状态灯功效同体(点击即切换,自身高亮当前态)；Ctrl+S 功能字样已取消
       if(k==='D'){
         div.classList.add('arrow-active');
         const jian = tradMode ? 'opacity:.32' : 'color:var(--ac);font-weight:800';
