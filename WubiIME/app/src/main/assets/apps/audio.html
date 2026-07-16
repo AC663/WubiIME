@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>音频剪辑器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#ffffff;--bg2:#f5f5f7;--bg3:#ebebed;
+  --text:#1a1a1a;--text2:#666;--text3:#999;
+  --border:#e0e0e0;--border2:#c8c8c8;
+  --purple:#534AB7;--purple2:#3C3489;
+  --green:#0F6E56;--red:#A32D2D;--blue:#185FA5;
+  --seg1:#534AB7;--seg2:#0F6E56;--seg3:#993C1D;
+  --seg4:#185FA5;--seg5:#639922;--seg6:#854F0B;--seg7:#993356;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+    --text:#f2f2f7;--text2:#aeaeb2;--text3:#636366;
+    --border:#38383a;--border2:#48484a;
+    --purple:#7B72D9;--purple2:#9990E8;
+  }
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;font-size:15px;overflow-x:hidden}
+#app{max-width:960px;margin:0 auto;padding:12px}
+h1{font-size:18px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+h1 svg{width:20px;height:20px;fill:var(--purple)}
+
+/* Drop zone */
+#drop-zone{border:2px dashed var(--border2);border-radius:14px;padding:32px 16px;text-align:center;cursor:default;transition:background 0.15s,border-color 0.15s;margin-bottom:14px}
+#file-input{display:none}
+#pick-btn{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:9px 20px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;-webkit-appearance:none}
+#drop-zone:hover,#drop-zone.drag{background:var(--bg2);border-color:var(--purple)}
+#drop-zone .icon{font-size:36px;margin-bottom:8px;display:block}
+#drop-zone .title{font-size:15px;font-weight:600;margin-bottom:4px}
+#drop-zone .sub{font-size:12px;color:var(--text2)}
+#drop-zone .reload{font-size:12px;color:var(--purple);margin-top:8px;display:none;cursor:pointer;text-decoration:underline}
+
+/* Progress */
+#progress-wrap{height:4px;background:var(--bg3);border-radius:2px;margin-bottom:10px;display:none}
+#progress-bar{height:4px;background:var(--purple);border-radius:2px;width:0;transition:width 0.15s}
+#progress-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:none}
+
+/* Editor */
+#editor{display:none}
+#file-info{font-size:12px;color:var(--text2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+#file-info .name{font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+#reload-btn{font-size:12px;color:var(--purple);cursor:pointer;flex-shrink:0}
+
+/* Time ruler */
+#ruler-wrap{background:var(--bg2);border-top-left-radius:8px;border-top-right-radius:8px;overflow:hidden;height:24px;position:relative;border-bottom:1px solid var(--border)}
+#ruler-canvas{display:block;width:100%;height:24px}
+
+/* Waveform */
+#waveform-wrap{position:relative;background:var(--bg2);overflow:hidden;cursor:crosshair;touch-action:pan-y;border-bottom-left-radius:8px;border-bottom-right-radius:8px;margin-bottom:10px}
+#waveform-canvas{display:block;width:100%}
+#playhead{position:absolute;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#FF6B6A,#E24B4A);box-shadow:0 0 6px rgba(226,75,74,0.75),0 0 14px rgba(226,75,74,0.35);pointer-events:auto;display:none;will-change:left;cursor:ew-resize;touch-action:none;border-radius:1.5px}
+#ph-handle{position:absolute;top:0;left:-6px;width:15px;height:14px;background:#E24B4A;border-radius:3px 3px 0 0;cursor:ew-resize;box-shadow:0 1px 4px rgba(226,75,74,0.5)}
+#ph-handle::after{content:'';position:absolute;top:14px;left:0;border-left:7.5px solid transparent;border-right:7.5px solid transparent;border-top:7px solid #E24B4A}
+#ph-time{position:absolute;top:22px;font-size:10px;color:#E24B4A;background:var(--bg);padding:0 3px;border:1px solid #E24B4A;border-radius:3px;pointer-events:none;display:none;white-space:nowrap;z-index:10}
+
+/* Zoom */
+#waveform-canvas,#overview-canvas{touch-action:none}
+#append-btn{color:var(--purple);font-size:12px;cursor:pointer;text-decoration:underline;margin-left:8px;white-space:nowrap}
+#zoom-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#zoom-row label{font-size:12px;color:var(--text2);white-space:nowrap}
+#zoom-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:var(--bg3);outline:none}
+#zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--purple);cursor:pointer}
+#zoom-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--purple);border:none;cursor:pointer}
+#zoom-val{font-size:12px;color:var(--text2);min-width:28px;text-align:right}
+#cursor-time{font-size:12px;font-family:monospace;color:var(--text2);min-width:76px;text-align:right}
+
+/* Transport controls */
+.ctrl-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;cursor:pointer;white-space:nowrap;transition:background 0.1s,transform 0.08s;-webkit-user-select:none;user-select:none}
+.btn:hover{background:var(--bg2)}
+.btn:active{transform:scale(0.96)}
+.btn:disabled{opacity:0.35;pointer-events:none}
+.btn.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.btn.primary:hover{background:var(--purple2)}
+.btn.danger{border-color:#A32D2D;color:#A32D2D}
+.btn.active-play{background:#0F6E56;border-color:#0F6E56;color:#fff}
+.btn svg{width:14px;height:14px;fill:currentColor;flex-shrink:0}
+
+/* Status */
+#status{font-size:12px;color:var(--text2);min-height:18px;margin-bottom:8px;padding:0 2px}
+#status.err{color:#A32D2D}
+#status.ok{color:#0F6E56}
+
+/* Segments */
+#seg-header{font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#seg-count{font-size:11px;color:var(--text3);font-weight:400}
+#naming-row{display:flex;align-items:center;gap:4px;margin-left:auto}
+#seg-prefix-input{width:54px;padding:3px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text);font-size:12px}
+#seg-start-input{width:44px;padding:3px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--bg2);color:var(--text);font-size:12px;text-align:center}
+#seg-num-select{padding:3px 18px 3px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--bg2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23888'/%3E%3C/svg%3E") no-repeat right 5px center;-webkit-appearance:none;appearance:none;color:var(--text);font-size:12px;cursor:pointer}
+/* 连接器 */
+.seg-connector{display:none;align-items:center;justify-content:center;height:22px;margin:0 10px;cursor:pointer;user-select:none}
+.seg-connector.visible{display:flex}
+.connector-track{width:100%;height:6px;border-radius:3px;position:relative;transition:background 0.2s}
+.connector-track.on{background:linear-gradient(90deg,#534AB7,#7B72D9)}
+.connector-track.off{background:var(--bg3)}
+.connector-knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;transform:translateY(-50%);transition:left 0.2s,background 0.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.connector-track.on .connector-knob{right:0;left:auto;background:#534AB7}
+.connector-track.off .connector-knob{left:0;background:var(--text3)}
+.connector-label{font-size:10px;margin-left:8px;white-space:nowrap;transition:color 0.2s}
+.connector-label.on{color:var(--purple)}
+.connector-label.off{color:var(--text3)}
+/* 拖拽 */
+.drag-handle{display:none;padding:4px 6px;color:var(--text3);cursor:grab;font-size:14px;flex-shrink:0;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+.seg-item.drag-active{opacity:0.4}
+.seg-item.drag-over{border-color:var(--purple);background:var(--bg2)}
+#seg-empty{font-size:13px;color:var(--text3);text-align:center;padding:16px;border:1px dashed var(--border);border-radius:8px}
+.seg-item{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap}
+.seg-main{display:flex;align-items:center;gap:6px;width:100%}
+.seg-vol-row{display:flex;align-items:center;gap:6px;width:100%;padding-top:5px;margin-top:3px;border-top:1px solid var(--border)}
+.seg-vol-row label{font-size:11px;color:var(--text3);flex-shrink:0}
+.seg-vol-slider{flex:1;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:var(--bg3);outline:none;cursor:pointer}
+.seg-vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--purple);cursor:pointer}
+.seg-vol-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--purple);border:none}
+.seg-vol-val{font-size:11px;color:var(--text2);min-width:38px;text-align:right;font-family:monospace}
+.seg-fade-row{display:flex;align-items:center;gap:8px;width:100%;padding-top:5px;margin-top:3px;border-top:1px solid var(--border)}
+.seg-fade-row label{font-size:11px;color:var(--text3);white-space:nowrap}
+.fade-input{width:48px;padding:2px 4px;border:1px solid var(--border2);border-radius:5px;background:var(--bg2);color:var(--text);font-size:12px;text-align:center;font-family:monospace}
+.fade-unit{font-size:11px;color:var(--text3)}
+#overview-wrap{height:34px;background:var(--bg2);border-radius:6px;overflow:hidden;margin-bottom:8px;cursor:pointer;position:relative;border:1px solid var(--border)}
+#overview-canvas{display:block;width:100%;height:34px}
+.export-tabs{display:flex;border:1px solid var(--border2);border-radius:7px;overflow:hidden;flex-shrink:0}
+.export-tab{padding:5px 11px;font-size:12px;cursor:pointer;background:var(--bg);color:var(--text2);border:none;transition:background 0.1s}
+.export-tab.active{background:var(--purple);color:#fff}
+#merge-opts{display:none;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+#merge-gap{width:44px;padding:3px 5px;border:1px solid var(--border2);border-radius:5px;background:var(--bg2);color:var(--text);font-size:12px;text-align:center}
+#fx-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0;padding:6px 8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;font-size:12px}
+#fx-row .fx-band{display:flex;align-items:center;gap:3px}
+#fx-row input[type=range]{width:56px;height:18px}
+#fx-row b{min-width:20px;text-align:right;font-variant-numeric:tabular-nums;color:var(--purple)}
+#fx-row label{display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer}
+#kbd-hint{font-size:10px;color:var(--text3);padding:3px 0;display:none}
+@media(hover:hover){#kbd-hint{display:block}}
+#fmt-select{-webkit-appearance:none;appearance:none;padding:5px 24px 5px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E") no-repeat right 8px center;color:var(--text);font-size:13px;cursor:pointer;min-width:130px}
+.seg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.seg-label{font-size:13px;font-weight:500;min-width:44px}
+.seg-times{flex:1;font-size:11px;font-family:monospace;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg-dur{color:var(--text3)}
+.seg-btns{display:flex;gap:4px;flex-shrink:0}
+.seg-btn{padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);cursor:pointer;font-size:12px;color:var(--text);transition:background 0.1s}
+.seg-btn:hover{background:var(--bg3)}
+.seg-btn.dl{border-color:#185FA5;color:#185FA5}
+.seg-btn.del{border-color:#A32D2D;color:#A32D2D}
+
+/* Export options */
+#export-opts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.fmt-btn{padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--bg);font-size:12px;cursor:pointer;color:var(--text2)}
+.fmt-btn.active{border-color:var(--purple);color:var(--purple);background:var(--bg2)}
+
+/* Warning */
+#size-warn{display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;font-size:12px;color:#856404;margin-bottom:8px}
+@media(prefers-color-scheme:dark){#size-warn{background:#3d2f00;border-color:#664d00;color:#ffd166}}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.btn.busy{position:relative;pointer-events:none;opacity:0.75}
+.btn.busy::after{content:'';width:11px;height:11px;border:2px solid rgba(128,128,160,0.35);border-top-color:var(--purple);border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;margin-left:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>
+    <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+    音频剪辑器
+  </h1>
+
+  <input type="file" id="file-input" accept="audio/*,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave,audio/aac,audio/x-aac,audio/mp4,audio/x-m4a,audio/ogg,audio/flac,audio/x-flac,audio/aiff,audio/x-aiff,audio/webm,.mp3,.wav,.aac,.m4a,.ogg,.flac,.aiff,.aif,.opus,.weba">
+  <div id="drop-zone">
+    <span class="icon">🎵</span>
+    <div class="title">选择或拖入音频文件</div>
+    <div class="sub">MP3 · WAV · AAC · FLAC · OGG · M4A · AIFF</div>
+    <div class="sub" style="margin-top:4px">安全上限约 200MB</div>
+    <button id="pick-btn" onclick="document.getElementById('file-input').click()">选择文件</button>
+  </div>
+
+  <div id="size-warn">⚠ 文件较大，解码可能需要较长时间，低内存设备请耐心等待</div>
+  <div id="progress-wrap"><div id="progress-bar"></div></div>
+  <div id="progress-label"></div>
+
+  <div id="editor">
+    <div id="file-info">
+      <span class="name" id="fname"></span>
+      <span id="fmeta"></span>
+      <span id="exit-btn" onclick="try{AndroidPW.closeApp()}catch(e){}" style="display:none;color:#E24B4A;font-size:12px;cursor:pointer;text-decoration:underline;margin-right:8px;white-space:nowrap">退出</span><span id="append-btn" onclick="document.getElementById('append-input').click()">＋追加</span>
+      <span id="reload-btn" onclick="resetAll()">重新加载</span>
+      <input type="file" id="append-input" accept="audio/*,.mp3,.wav,.aac,.m4a,.ogg,.flac,.aiff,.aif,.opus,.weba" style="display:none">
+    </div>
+
+    <div id="ruler-wrap"><canvas id="ruler-canvas" height="24"></canvas></div>
+    <div id="waveform-wrap">
+      <canvas id="waveform-canvas"></canvas>
+      <div id="playhead"><div id="ph-handle"></div></div>
+      <div id="ph-time"></div>
+    </div>
+    <div id="overview-wrap"><canvas id="overview-canvas" height="34"></canvas></div>
+
+    <div id="zoom-row">
+      <label>缩放</label>
+      <input type="range" id="zoom-slider" min="0" max="100" step="1" value="0">
+      <span id="zoom-val">1×</span>
+      <button class="btn" id="btn-view" style="padding:3px 10px;font-size:12px" onclick="toggleView()">频谱</button>
+      <span id="cursor-time">00:00.000</span>
+    </div>
+    <div id="kbd-hint">Space 播放/暂停 · I 入点 · O 出点 · Enter 添加 · ← → 微移 · +/- 缩放</div>
+
+    <div id="fx-row">
+      <label><input type="checkbox" onchange="fx.eqOn=this.checked;fxLive()">EQ</label>
+      <span class="fx-band">低<input type="range" min="-12" max="12" step="1" value="0" oninput="fx.low=+this.value;fxLbl(this,'fx-lo')" onchange="fxLive()"><b id="fx-lo">0</b></span>
+      <span class="fx-band">中<input type="range" min="-12" max="12" step="1" value="0" oninput="fx.mid=+this.value;fxLbl(this,'fx-mi')" onchange="fxLive()"><b id="fx-mi">0</b></span>
+      <span class="fx-band">高<input type="range" min="-12" max="12" step="1" value="0" oninput="fx.high=+this.value;fxLbl(this,'fx-hi')" onchange="fxLive()"><b id="fx-hi">0</b></span>
+      <label><input type="checkbox" onchange="fx.compOn=this.checked;fxLive()">压缩</label>
+    </div>
+
+    <div class="ctrl-row">
+      <button class="btn" id="btn-play" onclick="togglePlay()">
+        <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span id="play-label">播放</span>
+      </button>
+      <button class="btn" id="btn-stop" onclick="stopPlay(true)" disabled>
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>
+        停止
+      </button>
+      <button class="btn" id="btn-in" onclick="markIn()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        入点
+      </button>
+      <button class="btn" id="btn-out" onclick="markOut()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M18 6h-2v12h2zM14.5 12 6 6v12z"/></svg>
+        出点
+      </button>
+      <button class="btn danger" id="btn-clear" onclick="clearMarks()" style="display:none">清除</button>
+    </div>
+
+    <div class="ctrl-row">
+      <button class="btn primary" id="btn-add" onclick="addSegment()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+        添加片段
+      </button>
+      <button class="btn" id="btn-undo" onclick="undoOp()" disabled title="撤销 (Ctrl+Z)">↩</button>
+      <button class="btn" id="btn-redo" onclick="redoOp()" disabled title="重做 (Ctrl+Shift+Z)">↪</button>
+      <div class="export-tabs">
+        <button class="export-tab active" id="tab-individual" onclick="setExportMode('individual',this)">逐段</button>
+        <button class="export-tab" id="tab-merge" onclick="setExportMode('merge',this)">合成</button>
+      </div>
+      <div id="merge-opts">
+        间隔<input type="number" id="merge-gap" value="0" min="0" max="5000" step="10">ms
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div id="export-opts">
+        <span style="font-size:12px;color:var(--text2)">格式</span>
+        <select id="fmt-select">
+          <optgroup label="WAV 无损">
+            <option value="wav-16">WAV 16bit（标准）</option>
+            <option value="wav-24">WAV 24bit（高精度）</option>
+            <option value="wav-32f">WAV 32bit Float</option>
+          </optgroup>
+          <optgroup label="MP3 有损">
+            <option value="mp3-128">MP3 128kbps</option>
+            <option value="mp3-192">MP3 192kbps</option>
+            <option value="mp3-320">MP3 320kbps</option>
+          </optgroup>
+        </select>
+      </div>
+      <button class="btn" id="btn-export-all" onclick="exportAll()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        <span id="export-all-label">全部导出</span>
+      </button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="seg-header">
+      <span style="font-weight:600">片段列表</span> <span id="seg-count"></span>
+      <span style="flex:1"></span>
+      <button class="btn" id="btn-normalize" style="padding:4px 10px;font-size:12px" onclick="normalizeLoudness()">响度对齐</button>
+      <button class="btn" id="btn-denoise" style="padding:4px 10px;font-size:12px" onclick="denoiseAudio()">降噪</button>
+      <button class="btn" id="restore-btn" style="padding:4px 10px;font-size:12px;display:none" onclick="restoreAudio()">还原</button>
+      <div id="naming-row">
+        <input id="seg-prefix-input" value="片段" maxlength="12" oninput="onPrefixChange(this.value)" title="前缀">
+        <input id="seg-start-input" inputmode="numeric" placeholder="起始" maxlength="6" oninput="onStartChange(this)" title="起始序号：如输入07则按07,08,09…；输入007则按007,008…；留空按右侧策略">
+        <select id="seg-num-select" onchange="onNumStyleChange(this.value)" title="序号策略">
+          <optgroup label="数字">
+            <option value="1">1, 2, 3…</option>
+            <option value="01">01, 02…</option>
+            <option value="001">001, 002…</option>
+          </optgroup>
+          <optgroup label="字母">
+            <option value="a">a, b, c…</option>
+            <option value="A">A, B, C…</option>
+          </optgroup>
+          <optgroup label="汉字">
+            <option value="zh">一, 二, 三…</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div id="seg-empty">标记入点和出点后，点击"添加片段"</div>
+    <div id="seg-list"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ─── State ───────────────────────────────────────────────────────────
+const SEG_COLORS=['#534AB7','#0F6E56','#993C1D','#185FA5','#639922','#854F0B','#993356'];
+let audioCtx=null, audioBuffer=null, duration=0;
+let zoom=1, scrollOffset=0;
+let pendingIn=null, pendingOut=null;
+let segments=[];
+let isPlaying=false, sourceNode=null, playStartCtxTime=0, playStartOffset=0;
+let currentTime=0, rafId=null;
+let exportFmt='wav-16';
+let exportMode='individual';
+let segPrefix='片段';   // 前缀
+let segNumStyle='1';   // 序号策略
+let canvasW=0, canvasH=100;
+let lameReady=false, zipReady=false;
+let playGen=0, peakCache=null;
+let segStartStr='';
+let viewMode='wave';
+let mp3Worker=null, mp3JobId=0;
+const mp3Jobs={};
+let specCanvas=null, zoomAnimId=null;
+const fx={eqOn:false, low:0, mid:0, high:0, compOn:false};
+let origBackup=null;
+let histStack=[], redoStack=[];
+const HIST_MAX=50;
+const PEAK_BLOCK=256, MAX_ZOOM=500;
+
+// ─── Init ─────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    lameReady = typeof lamejs !== 'undefined';
+    zipReady  = typeof JSZip  !== 'undefined';
+  },600);
+  resizeCanvas();
+});
+
+// ─── Format helpers ───────────────────────────────────────────────────
+function escapeHtml(x){ return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function safeFilename(x){ const r=String(x).replace(/[\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,''); return (r||'audio').slice(0,80); }
+function fmtTime(s){
+  if(!isFinite(s)||s<0)s=0;
+  const m=Math.floor(s/60);
+  const ss=s%60;
+  return String(m).padStart(2,'0')+':'+ss.toFixed(3).padStart(6,'0');
+}
+function fmtDur(s){
+  if(s<60)return s.toFixed(3)+'s';
+  return fmtTime(s);
+}
+function setStatus(msg,type=''){
+  const el=document.getElementById('status');
+  el.textContent=msg;el.className=type;
+}
+function setProgress(pct,label=''){
+  const pw=document.getElementById('progress-wrap');
+  const pb=document.getElementById('progress-bar');
+  const pl=document.getElementById('progress-label');
+  pw.style.display=pct>0?'block':'none';
+  pb.style.width=pct+'%';
+  pl.style.display=label?'block':'none';
+  pl.textContent=label;
+}
+
+// ─── File load ────────────────────────────────────────────────────────
+const fileInput=document.getElementById('file-input');
+const dropZone=document.getElementById('drop-zone');
+
+fileInput.addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+dropZone.addEventListener('dragover',e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+async function loadFile(file){
+  const MB=file.size/1024/1024;
+  document.getElementById('size-warn').style.display = MB>150 ? 'block' : 'none';
+  setProgress(10,'读取文件…');
+  setStatus('');
+
+  // Close old context
+  if(audioCtx){
+    try{ audioCtx.close(); }catch(e){}
+    audioCtx=null; audioBuffer=null;
+  }
+
+  try{
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:undefined});
+    // iOS: resume on first gesture
+    if(audioCtx.state==='suspended') await audioCtx.resume();
+  }catch(e){ setStatus('AudioContext 创建失败：'+e.message,'err'); setProgress(0); return; }
+
+  setProgress(30,'解码音频…');
+  let arrayBuf;
+  try{
+    arrayBuf = await file.arrayBuffer();
+  }catch(e){ setStatus('文件读取失败：'+e.message,'err'); setProgress(0); return; }
+
+  setProgress(60,'解析波形…');
+  try{
+    audioBuffer = await new Promise((res,rej)=>{
+      audioCtx.decodeAudioData(arrayBuf, res, rej);
+    });
+  }catch(e){
+    setStatus('解码失败（格式不支持或文件损坏）','err'); setProgress(0); return;
+  }
+
+  duration=audioBuffer.duration;
+  zoom=1; scrollOffset=0; currentTime=0;
+  pendingIn=null; pendingOut=null; segments=[];
+  setProgress(80,'构建波形缓存…');
+  buildPeakCache();
+  syncZoomUI();
+  histStack=[]; redoStack=[]; updateHistBtns();
+  origBackup=null;
+  const rbL=document.getElementById('restore-btn'); if(rbL) rbL.style.display='none';
+
+  setProgress(100);
+  setTimeout(()=>setProgress(0),400);
+
+  document.getElementById('drop-zone').style.display='none';
+  document.getElementById('editor').style.display='block';
+
+  const sr=audioBuffer.sampleRate;
+  const ch=audioBuffer.numberOfChannels;
+  document.getElementById('fname').textContent=file.name;
+  document.getElementById('fmeta').textContent=
+    `${fmtTime(duration)} · ${sr}Hz · ${ch}ch · ${MB.toFixed(1)}MB`;
+
+  resizeCanvas();
+  drawAll();
+  enableControls();
+  renderSegList();
+  setStatus(`已加载：${file.name}`,'ok');
+}
+
+function resetAll(){
+  if(isPlaying) stopPlay(true);
+  if(audioCtx){ try{audioCtx.close();}catch(e){} audioCtx=null; }
+  audioBuffer=null; duration=0; segments=[]; pendingIn=null; pendingOut=null;
+  zoom=1; scrollOffset=0; currentTime=0; peakCache=null;
+  histStack=[]; redoStack=[]; updateHistBtns();
+  origBackup=null;
+  const rb0=document.getElementById('restore-btn'); if(rb0) rb0.style.display='none';
+  syncZoomUI();
+  document.getElementById('editor').style.display='none';
+  document.getElementById('drop-zone').style.display='block';
+  document.getElementById('size-warn').style.display='none';
+  document.getElementById('file-input').value='';
+  renderSegList();
+}
+
+// ─── 等功率淡化调度（sin/cos曲线，替代线性ramp） ─────────────────────
+const FADE_STEPS=64;
+function applyFade(gn, g, st, dur, fi, fo){
+  if(fi>0.001){
+    const c1=new Float32Array(FADE_STEPS+1);
+    for(let k=0;k<=FADE_STEPS;k++) c1[k]=g*Math.sin(k/FADE_STEPS*Math.PI/2);
+    gn.gain.setValueCurveAtTime(c1, st, fi);
+  } else {
+    gn.gain.setValueAtTime(g, st);
+  }
+  if(fo>0.001){
+    const c2=new Float32Array(FADE_STEPS+1);
+    for(let k=0;k<=FADE_STEPS;k++) c2[k]=g*Math.cos(k/FADE_STEPS*Math.PI/2);
+    gn.gain.setValueCurveAtTime(c2, st+Math.max(fi,dur-fo), fo);
+  }
+}
+
+// ─── Peak cache（波形峰值金字塔，大文件绘制加速） ─────────────────────
+function buildPeakCache(){
+  peakCache=null;
+  if(!audioBuffer) return;
+  const chN=Math.min(2,audioBuffer.numberOfChannels);
+  const total=audioBuffer.length;
+  const nb=Math.ceil(total/PEAK_BLOCK);
+  const cache=[];
+  for(let c=0;c<chN;c++){
+    const data=audioBuffer.getChannelData(c);
+    const mn=new Float32Array(nb), mx=new Float32Array(nb);
+    for(let b=0;b<nb;b++){
+      const i0=b*PEAK_BLOCK, i1=Math.min(total,i0+PEAK_BLOCK);
+      let lo=0, hi=0;
+      for(let i=i0;i<i1;i++){ const v=data[i]; if(v<lo)lo=v; if(v>hi)hi=v; }
+      mn[b]=lo; mx[b]=hi;
+    }
+    cache.push({mn,mx});
+  }
+  peakCache=cache;
+}
+function rangePeak(chIdx,i0,i1){
+  const data=audioBuffer.getChannelData(chIdx);
+  let mn=0,mx=0;
+  if(peakCache&&peakCache[chIdx]&&(i1-i0)>=PEAK_BLOCK*2){
+    const pc=peakCache[chIdx];
+    const b0=Math.ceil(i0/PEAK_BLOCK), b1=Math.floor(i1/PEAK_BLOCK);
+    for(let i=i0;i<Math.min(i1,b0*PEAK_BLOCK);i++){ const v=data[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+    for(let b=b0;b<b1;b++){ if(pc.mn[b]<mn)mn=pc.mn[b]; if(pc.mx[b]>mx)mx=pc.mx[b]; }
+    for(let i=Math.max(i0,b1*PEAK_BLOCK);i<i1;i++){ const v=data[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+  } else {
+    for(let i=i0;i<i1;i++){ const v=data[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+  }
+  return {mn,mx};
+}
+
+// ─── Spectrogram（FFT-1024 Hann窗，对数频轴热力图） ───────────────────
+const FFT_N=1024, FFT_BITS=10;
+let fftRe=null, fftIm=null, fftHann=null, fftRev=null;
+function fftInit(){
+  if(fftHann) return;
+  fftRe=new Float32Array(FFT_N); fftIm=new Float32Array(FFT_N);
+  fftHann=new Float32Array(FFT_N);
+  for(let i=0;i<FFT_N;i++) fftHann[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT_N-1));
+  fftRev=new Uint16Array(FFT_N);
+  for(let i=0;i<FFT_N;i++){ let r=0; for(let b=0;b<FFT_BITS;b++) r=(r<<1)|((i>>b)&1); fftRev[i]=r; }
+}
+function fftMag(data,start,out){
+  fftInit();
+  for(let i=0;i<FFT_N;i++){
+    const idx=start+i;
+    const v=(idx>=0&&idx<data.length)?data[idx]*fftHann[i]:0;
+    fftRe[fftRev[i]]=v; fftIm[fftRev[i]]=0;
+  }
+  for(let size=2;size<=FFT_N;size<<=1){
+    const half=size>>1, step=Math.PI*2/size;
+    for(let i=0;i<FFT_N;i+=size){
+      for(let j=0;j<half;j++){
+        const ang=-step*j, wr=Math.cos(ang), wi=Math.sin(ang);
+        const a=i+j, b=a+half;
+        const tr=fftRe[b]*wr-fftIm[b]*wi;
+        const ti=fftRe[b]*wi+fftIm[b]*wr;
+        fftRe[b]=fftRe[a]-tr; fftIm[b]=fftIm[a]-ti;
+        fftRe[a]+=tr; fftIm[a]+=ti;
+      }
+    }
+  }
+  for(let k=0;k<FFT_N/2;k++) out[k]=Math.hypot(fftRe[k],fftIm[k]);
+  return out;
+}
+function fftInPlace(re,im,inv){
+  const N=re.length;
+  for(let i=1,j=0;i<N;i++){
+    let bit=N>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j|=bit;
+    if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; }
+  }
+  for(let size=2;size<=N;size<<=1){
+    const half=size>>1, ang0=(inv?1:-1)*2*Math.PI/size;
+    for(let i=0;i<N;i+=size){
+      for(let j=0;j<half;j++){
+        const ang=ang0*j, wr=Math.cos(ang), wi=Math.sin(ang);
+        const a=i+j, b=a+half;
+        const tr=re[b]*wr-im[b]*wi, ti=re[b]*wi+im[b]*wr;
+        re[b]=re[a]-tr; im[b]=im[a]-ti;
+        re[a]+=tr; im[a]+=ti;
+      }
+    }
+  }
+  if(inv){ for(let i=0;i<N;i++){ re[i]/=N; im[i]/=N; } }
+}
+const SPEC_STOPS=[[0,0,4],[81,18,124],[183,55,121],[252,137,97],[252,255,164]];
+function specColor(v){
+  v=Math.max(0,Math.min(1,v));
+  const p=v*(SPEC_STOPS.length-1), i=Math.min(SPEC_STOPS.length-2,Math.floor(p)), f=p-i;
+  const a=SPEC_STOPS[i], b=SPEC_STOPS[i+1];
+  return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+}
+function toggleView(){
+  viewMode=viewMode==='wave'?'spec':'wave';
+  const b=document.getElementById('btn-view');
+  if(b) b.textContent=viewMode==='wave'?'频谱':'波形';
+  drawAll();
+}
+function drawSpectrogram(c,W,H){
+  const data=audioBuffer.getChannelData(0), total=data.length, sr=audioBuffer.sampleRate;
+  const vd=duration/zoom;
+  const s0=Math.floor((scrollOffset/duration)*total);
+  const spp=Math.max(1,(vd/duration)*total/W);
+  if(!specCanvas) specCanvas=document.createElement('canvas');
+  specCanvas.width=W; specCanvas.height=H;
+  const sc=specCanvas.getContext('2d');
+  const img=sc.createImageData(W,H);
+  const px=img.data;
+  const mags=new Float32Array(FFT_N/2);
+  // 行→bin映射（对数频轴 40Hz~Nyquist）
+  const fnyq=sr/2, lmin=Math.log(40), lmax=Math.log(fnyq);
+  const rowBin=new Uint16Array(H);
+  for(let y=0;y<H;y++){
+    const f=Math.exp(lmin+(1-y/(H-1))*(lmax-lmin));
+    rowBin[y]=Math.min(FFT_N/2-1,Math.max(1,Math.round(f/fnyq*(FFT_N/2))));
+  }
+  for(let x=0;x<W;x++){
+    const cs=Math.floor(s0+x*spp+spp/2);
+    fftMag(data, cs-FFT_N/2, mags);
+    for(let y=0;y<H;y++){
+      const db=20*Math.log10(mags[rowBin[y]]/256+1e-7);
+      const col=specColor((db+80)/80);
+      const o=(y*W+x)*4;
+      px[o]=col[0]; px[o+1]=col[1]; px[o+2]=col[2]; px[o+3]=255;
+    }
+  }
+  sc.putImageData(img,0,0);
+  c.drawImage(specCanvas,0,0,W,H);
+}
+
+// ─── Canvas / Drawing ────────────────────────────────────────────────
+let dpr=1;
+function resizeCanvas(){
+  dpr=Math.min(window.devicePixelRatio||1, 3); // 最高3x，防止超大内存
+  const wrap=document.getElementById('waveform-wrap');
+  canvasW=wrap.clientWidth||window.innerWidth-24;
+  canvasH=Math.min(200,Math.max(140,Math.round(window.innerHeight*0.28)));
+  function initCanvas(el,cssW,cssH){
+    el.width=Math.round(cssW*dpr);
+    el.height=Math.round(cssH*dpr);
+    el.style.width=cssW+'px';
+    el.style.height=cssH+'px';
+  }
+  const wc=document.getElementById('waveform-canvas');
+  const rc=document.getElementById('ruler-canvas');
+  const oc=document.getElementById('overview-canvas');
+  initCanvas(wc,canvasW,canvasH);
+  initCanvas(rc,canvasW,24);
+  if(oc) initCanvas(oc,canvasW,34);
+}
+if(typeof AndroidPW!=='undefined'&&AndroidPW.closeApp){ try{ document.getElementById('exit-btn').style.display=''; }catch(e){} }
+window.addEventListener('resize',()=>{ resizeCanvas(); if(audioBuffer) drawAll(); });
+try{ window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{ if(audioBuffer) drawAll(); }); }catch(e){}
+
+function drawAll(){ drawWaveform(); drawRuler(); drawOverview(); }
+
+function timeToX(t){
+  const vd=duration/zoom;
+  return ((t-scrollOffset)/vd)*canvasW;
+}
+function xToTime(x){
+  const vd=duration/zoom;
+  return clampTime(scrollOffset+(x/canvasW)*vd);
+}
+function clampTime(t){ return Math.max(0,Math.min(duration,t)); }
+function clampScroll(s){
+  const vd=duration/zoom;
+  return Math.max(0,Math.min(Math.max(0,duration-vd),s));
+}
+
+function drawWaveform(){
+  const canvas=document.getElementById('waveform-canvas');
+  const c=canvas.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0); // HiDPI
+  const W=canvasW, H=canvasH;
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  c.fillStyle=isDark?'#2c2c2e':'#f5f5f7';
+  c.fillRect(0,0,W,H);
+
+  if(!audioBuffer) return;
+
+  const data=audioBuffer.getChannelData(0);
+  const total=data.length;
+  const vd=duration/zoom;
+  const s0=Math.floor((scrollOffset/duration)*total);
+  const s1=Math.min(total, s0+Math.ceil((vd/duration)*total)+1);
+  const spp=Math.max(1,(s1-s0)/W);
+
+  if(viewMode==='spec'){
+    drawSpectrogram(c,W,H);
+    drawSegOverlays(c,W,H);
+    return;
+  }
+
+  // Compute peak gain for visible region (normalize to fill height)
+  const pk0=rangePeak(0,s0,s1);
+  const peak=Math.max(Math.abs(pk0.mn),Math.abs(pk0.mx));
+  const gain = peak < 0.001 ? 1 : 0.92 / peak;
+
+  // Draw segment regions first (behind waveform)
+  segments.forEach((seg,i)=>{
+    const x0=Math.round(timeToX(seg.in));
+    const x1=Math.round(timeToX(seg.out));
+    const col=SEG_COLORS[i%SEG_COLORS.length];
+    c.fillStyle=col+'22';
+    c.fillRect(x0,0,x1-x0,H);
+  });
+
+  // Waveform ch0 (left) — 垂直渐变
+  const grad=c.createLinearGradient(0,0,0,H);
+  if(isDark){ grad.addColorStop(0,'#8880DA'); grad.addColorStop(0.5,'#B4ADF5'); grad.addColorStop(1,'#8880DA'); }
+  else { grad.addColorStop(0,'#9C95E5'); grad.addColorStop(0.5,'#C4BEF4'); grad.addColorStop(1,'#9C95E5'); }
+  c.fillStyle=grad;
+  for(let x=0;x<W;x++){
+    const si0=Math.floor(s0+x*spp);
+    const si1=Math.min(total,Math.ceil(si0+spp));
+    const r=rangePeak(0,si0,si1);
+    const y0=H/2*(1-r.mx*gain);
+    const y1=H/2*(1-r.mn*gain);
+    c.fillRect(x,Math.round(y0),1,Math.max(1,Math.round(y1-y0)));
+  }
+
+  // Waveform ch1 (right) — stereo overlay
+  if(audioBuffer.numberOfChannels>1){
+    const pk1=rangePeak(1,s0,s1);
+    const peak2=Math.max(Math.abs(pk1.mn),Math.abs(pk1.mx));
+    const gain2=peak2<0.001?1:0.92/peak2;
+    c.fillStyle=isDark?'rgba(69,165,120,0.45)':'rgba(15,110,86,0.35)';
+    for(let x=0;x<W;x++){
+      const si0=Math.floor(s0+x*spp);
+      const si1=Math.min(total,Math.ceil(si0+spp));
+      const r=rangePeak(1,si0,si1);
+      const y0=H/2*(1-r.mx*gain2);
+      const y1=H/2*(1-r.mn*gain2);
+      c.fillRect(x,Math.round(y0),1,Math.max(1,Math.round(y1-y0)));
+    }
+  }
+
+  // 中线高光
+  c.fillStyle=isDark?'rgba(255,255,255,0.22)':'rgba(83,74,183,0.30)';
+  c.fillRect(0,Math.round(H/2),W,1);
+
+  drawSegOverlays(c,W,H);
+}
+
+// ─── 片段覆盖层（边界/手柄/胸牌/待定标记），波形与频谱共用 ────────────
+function drawSegOverlays(c,W,H){
+  // Segment borders + labels
+  segments.forEach((seg,i)=>{
+    const x0=Math.round(timeToX(seg.in));
+    const x1=Math.round(timeToX(seg.out));
+    const col=SEG_COLORS[i%SEG_COLORS.length];
+    c.fillStyle=col;
+    if(x0>=0&&x0<=W){ c.fillRect(x0,0,2,H); }
+    if(x1>=0&&x1<=W){ c.fillRect(x1-1,0,2,H); }
+    // 可拖动手柄
+    const gy=H/2-10;
+    [x0,x1].forEach(ex=>{
+      if(ex>=-4&&ex<=W+4){
+        c.fillStyle=col;
+        c.beginPath();
+        if(c.roundRect) c.roundRect(ex-3,gy,6,20,3); else c.rect(ex-3,gy,6,20);
+        c.fill();
+        c.fillStyle='rgba(255,255,255,0.85)';
+        c.fillRect(ex-0.5,gy+5,1,10);
+      }
+    });
+    // 圆角胸牌标签
+    const lx=Math.max(x0+4, 4);
+    if(lx<W-26){
+      const txt='S'+(i+1);
+      c.font='bold 9px -apple-system,sans-serif';
+      const tw=c.measureText(txt).width;
+      c.fillStyle=col;
+      c.beginPath();
+      if(c.roundRect) c.roundRect(lx,4,tw+10,14,7); else c.rect(lx,4,tw+10,14);
+      c.fill();
+      c.fillStyle='#fff';
+      c.fillText(txt,lx+5,14);
+    }
+  });
+
+  // Pending markers
+  if(pendingIn!=null){
+    const x=Math.round(timeToX(pendingIn));
+    if(x>=0&&x<=W){
+      c.fillStyle='#1D9E75'; c.fillRect(x,0,2,H);
+      c.beginPath(); c.moveTo(x,0); c.lineTo(x+10,0); c.lineTo(x,14); c.closePath(); c.fill();
+    }
+  }
+  if(pendingOut!=null){
+    const x=Math.round(timeToX(pendingOut));
+    if(x>=0&&x<=W){
+      c.fillStyle='#D85A30'; c.fillRect(x-1,0,2,H);
+      c.beginPath(); c.moveTo(x,0); c.lineTo(x-10,0); c.lineTo(x,14); c.closePath(); c.fill();
+    }
+  }
+}
+
+function drawRuler(){
+  const canvas=document.getElementById('ruler-canvas');
+  const c=canvas.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0); // HiDPI
+  const W=canvasW, H=24;
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  c.fillStyle=isDark?'#3a3a3c':'#ebebed';
+  c.fillRect(0,0,W,H);
+  c.fillStyle=isDark?'#aeaeb2':'#555';
+  c.strokeStyle=isDark?'#636366':'#bbb';
+
+  const vd=duration/zoom;
+  const step=pickStep(vd);
+  const start=Math.ceil(scrollOffset/step)*step;
+
+  c.font='9px -apple-system,monospace';
+  // 次级刻度（主刻度的1/5，间距过密时跳过）
+  const minor=step/5;
+  if((minor/vd)*W>=4){
+    c.lineWidth=0.5;
+    const mStart=Math.ceil(scrollOffset/minor)*minor;
+    for(let t=mStart-minor; t<=scrollOffset+vd+minor; t=+(t+minor).toFixed(10)){
+      const x=Math.round(timeToX(t));
+      if(x<0||x>W) continue;
+      c.beginPath(); c.moveTo(x,H); c.lineTo(x,H-3); c.stroke();
+    }
+  }
+  // 主刻度
+  c.lineWidth=1;
+  let lastLabelX=-99;
+  for(let t=start-step; t<=scrollOffset+vd+step; t=+(t+step).toFixed(10)){
+    const x=Math.round(timeToX(t));
+    if(x<0||x>W) continue;
+    c.beginPath(); c.moveTo(x,H); c.lineTo(x,H-6); c.stroke();
+    const label=fmtRuler(t,step);
+    const lw=c.measureText(label).width;
+    if(x-lastLabelX > lw+6){
+      c.fillText(label, x+2, H-8);
+      lastLabelX=x;
+    }
+  }
+}
+
+function fmtRuler(t,step){
+  if(t<0) t=0;
+  if(step>=60){ const m=Math.floor(t/60),s=Math.round(t%60); return m+'m'+(s?s+'s':''); }
+  if(step>=1){ const m=Math.floor(t/60),s=Math.round(t%60); return m>0?m+':'+String(s).padStart(2,'0'):s+'s'; }
+  if(step>=0.1){ const m=Math.floor(t/60),s=(t%60).toFixed(1); return m>0?m+':'+s:s+'s'; }
+  const m=Math.floor(t/60),s=(t%60).toFixed(3); return m>0?m+':'+s:s+'s';
+}
+
+function pickStep(vd){
+  const steps=[0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,15,30,60,120,300,600];
+  for(const s of steps) if(vd/s<10) return s;
+  return 1200;
+}
+
+// ─── Overview navigator ───────────────────────────────────────────────
+function drawOverview(){
+  const canvas=document.getElementById('overview-canvas');
+  if(!canvas) return;
+  const c=canvas.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0); // HiDPI
+  const W=canvasW, H=34;
+  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  c.fillStyle=isDark?'#252527':'#eaeaec';
+  c.fillRect(0,0,W,H);
+  if(!audioBuffer) return;
+
+  const data=audioBuffer.getChannelData(0);
+  const total=data.length;
+  const spp=total/W;
+
+  // Normalize to peak
+  const pk=rangePeak(0,0,total);
+  const peak=Math.max(Math.abs(pk.mn),Math.abs(pk.mx));
+  const gain=peak<0.001?1:0.82/peak;
+
+  c.fillStyle=isDark?'#6660B0':'#C0BCED';
+  for(let x=0;x<W;x++){
+    const si0=Math.floor(x*spp), si1=Math.min(total,Math.ceil((x+1)*spp));
+    const r=rangePeak(0,si0,si1);
+    const y0=H/2*(1-r.mx*gain), y1=H/2*(1-r.mn*gain);
+    c.fillRect(x,Math.round(y0),1,Math.max(1,Math.round(y1-y0)));
+  }
+
+  // Segment bands
+  segments.forEach((seg,i)=>{
+    const x0=Math.round(seg.in/duration*W), x1=Math.round(seg.out/duration*W);
+    const col=SEG_COLORS[i%SEG_COLORS.length];
+    c.fillStyle=col+'44'; c.fillRect(x0,0,x1-x0,H);
+    c.fillStyle=col; c.fillRect(x0,0,1,H); c.fillRect(x1,0,1,H);
+  });
+
+  // Viewport indicator
+  const vd=duration/zoom;
+  const vx0=Math.round(scrollOffset/duration*W);
+  const vx1=Math.round(Math.min(duration,scrollOffset+vd)/duration*W);
+  c.fillStyle='rgba(83,74,183,0.12)';
+  c.fillRect(vx0,0,vx1-vx0,H);
+  c.strokeStyle='#534AB7'; c.lineWidth=1.5;
+  c.strokeRect(vx0+0.75,0.75,Math.max(2,vx1-vx0-1.5),H-1.5);
+}
+
+(function(){
+  const ov=document.getElementById('overview-canvas');
+  if(!ov) return;
+  let ovDrag=false;
+
+  function ovSeek(clientX){
+    if(!duration) return;
+    const rect=ov.getBoundingClientRect();
+    const t=Math.max(0,Math.min(duration,(clientX-rect.left)/rect.width*duration));
+    const vd=duration/zoom;
+    scrollOffset=clampScroll(t-vd/2);
+    drawAll();
+  }
+  ov.addEventListener('mousedown',e=>{ ovDrag=true; ovSeek(e.clientX); });
+  ov.addEventListener('mousemove',e=>{ if(ovDrag) ovSeek(e.clientX); });
+  document.addEventListener('mouseup',()=>{ ovDrag=false; });
+  ov.addEventListener('touchstart',e=>{ ovSeek(e.touches[0].clientX); },{passive:true});
+  ov.addEventListener('touchmove',e=>{ ovSeek(e.touches[0].clientX); },{passive:true});
+})();
+
+// ─── Waveform interaction ─────────────────────────────────────────────
+const wcanvas=document.getElementById('waveform-canvas');
+
+function getCanvasX(clientX){
+  const rect=wcanvas.getBoundingClientRect();
+  return (clientX-rect.left)/rect.width*canvasW;
+}
+
+// ── 片段边缘拖动调整 ──
+let edgeDrag=null, suppressClick=false;
+function hitSegEdge(x,tolPx){
+  for(let i=segments.length-1;i>=0;i--){
+    const x0=timeToX(segments[i].in), x1=timeToX(segments[i].out);
+    if(Math.abs(x-x1)<=tolPx) return {i,side:'out'};
+    if(Math.abs(x-x0)<=tolPx) return {i,side:'in'};
+  }
+  return null;
+}
+function applyEdgeDrag(x){
+  const seg=segments[edgeDrag.i];
+  const t=xToTime(x);
+  if(edgeDrag.side==='in') seg.in=Math.max(0,Math.min(seg.out-0.01,t));
+  else seg.out=Math.min(duration,Math.max(seg.in+0.01,t));
+  drawWaveform(); drawOverview();
+}
+function endEdgeDrag(){
+  const seg=segments[edgeDrag.i];
+  if(edgeDrag.side==='in') seg.in=Math.min(seg.out-0.005,snapToZero(seg.in));
+  else seg.out=Math.max(seg.in+0.005,snapToZero(seg.out));
+  edgeDrag=null;
+  renderSegList(); drawWaveform(); drawOverview();
+  setStatus('已调整片段边界','ok');
+}
+wcanvas.addEventListener('mousedown',e=>{
+  if(!audioBuffer||!segments.length) return;
+  const hit=hitSegEdge(getCanvasX(e.clientX),8);
+  if(!hit) return;
+  e.preventDefault();
+  pushHistory();
+  edgeDrag=hit; suppressClick=true;
+  const onMove=ev=>{ if(edgeDrag) applyEdgeDrag(getCanvasX(ev.clientX)); };
+  const onUp=()=>{
+    if(edgeDrag) endEdgeDrag();
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    setTimeout(()=>{ suppressClick=false; },0);
+  };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+});
+wcanvas.addEventListener('mousemove',e=>{
+  if(!audioBuffer||edgeDrag) return;
+  const hit=segments.length?hitSegEdge(getCanvasX(e.clientX),8):null;
+  wcanvas.style.cursor=hit?'ew-resize':'';
+});
+
+wcanvas.addEventListener('click',e=>{
+  if(!audioBuffer||suppressClick) return;
+  const x=getCanvasX(e.clientX);
+  const t=xToTime(x);
+  seekTo(t);
+});
+
+// Touch support（单指平移 + 双指捏合缩放）
+let touchStartX=0, touchStartScroll=0, touchMoved=false;
+let pinching=false, pinchDist0=0, pinchZoom0=1, pinchCenterT=0;
+function touchDist(e){ return Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }
+wcanvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===2&&audioBuffer){
+    pinching=true; touchMoved=true;
+    pinchDist0=touchDist(e); pinchZoom0=zoom;
+    const midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    pinchCenterT=xToTime(getCanvasX(midX));
+    return;
+  }
+  const ex=getCanvasX(e.touches[0].clientX);
+  const hit=segments.length?hitSegEdge(ex,14):null;
+  if(hit){ pushHistory(); edgeDrag=hit; touchMoved=true; return; }
+  touchStartX=e.touches[0].clientX;
+  touchStartScroll=scrollOffset;
+  touchMoved=false;
+},{passive:true});
+wcanvas.addEventListener('touchmove',e=>{
+  if(!audioBuffer) return;
+  if(pinching&&e.touches.length===2){
+    e.preventDefault();
+    if(zoomAnimId){ cancelAnimationFrame(zoomAnimId); zoomAnimId=null; }
+    const d=touchDist(e);
+    if(d>0&&pinchDist0>0){
+      zoom=Math.max(1,Math.min(MAX_ZOOM,pinchZoom0*d/pinchDist0));
+      const vd=duration/zoom;
+      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const rect=wcanvas.getBoundingClientRect();
+      const fx=Math.max(0,Math.min(1,(midX-rect.left)/rect.width));
+      scrollOffset=clampScroll(pinchCenterT-fx*vd);
+      syncZoomUI(); drawAll();
+    }
+    return;
+  }
+  if(edgeDrag&&e.touches.length===1){
+    e.preventDefault();
+    applyEdgeDrag(getCanvasX(e.touches[0].clientX));
+    return;
+  }
+  if(e.touches.length!==1) return;
+  const dx=e.touches[0].clientX-touchStartX;
+  if(Math.abs(dx)>4){
+    touchMoved=true;
+    const vd=duration/zoom;
+    scrollOffset=clampScroll(touchStartScroll-dx/canvasW*vd);
+    drawAll();
+  }
+},{passive:false});
+wcanvas.addEventListener('touchend',e=>{
+  if(edgeDrag){ endEdgeDrag(); return; }
+  if(e.touches.length<2) pinching=false;
+  if(!touchMoved&&audioBuffer){
+    const x=getCanvasX(e.changedTouches[0].clientX);
+    seekTo(xToTime(x));
+  }});
+
+// Mouse wheel scroll
+wcanvas.addEventListener('wheel',e=>{
+  if(!audioBuffer) return;
+  e.preventDefault();
+  const vd=duration/zoom;
+  scrollOffset=clampScroll(scrollOffset+e.deltaY*vd*0.0008);
+  drawAll();
+},{passive:false});
+
+function seekTo(t){
+  currentTime=clampTime(t);
+  document.getElementById('cursor-time').textContent=fmtTime(currentTime);
+  updatePlayhead(currentTime);
+  if(isPlaying){ pausePlay(); startPlay(currentTime); }
+}
+
+// ─── Playhead drag ────────────────────────────────────────────────────
+(function(){
+  const ph=document.getElementById('playhead');
+  let dragging=false;
+
+  function onDragMove(clientX){
+    const wrap=document.getElementById('waveform-wrap');
+    const rect=wrap.getBoundingClientRect();
+    const x=(clientX-rect.left)/rect.width*canvasW;
+    seekTo(xToTime(x));
+  }
+
+  // Mouse
+  ph.addEventListener('mousedown',e=>{
+    e.preventDefault(); dragging=true;
+    document.addEventListener('mousemove',onMouseMove);
+    document.addEventListener('mouseup',onMouseUp);
+  });
+  function onMouseMove(e){ if(dragging) onDragMove(e.clientX); }
+  function onMouseUp(){ dragging=false; document.removeEventListener('mousemove',onMouseMove); document.removeEventListener('mouseup',onMouseUp); }
+
+  // Touch
+  ph.addEventListener('touchstart',e=>{
+    e.stopPropagation(); // 不触发canvas的touch
+    dragging=true;
+  },{passive:true});
+  ph.addEventListener('touchmove',e=>{
+    if(!dragging) return;
+    e.preventDefault();
+    onDragMove(e.touches[0].clientX);
+  },{passive:false});
+  ph.addEventListener('touchend',()=>{ dragging=false; },{passive:true});
+})();
+
+// ─── Zoom ─────────────────────────────────────────────────────────────
+function sliderToZoom(v){ return Math.pow(MAX_ZOOM, v/100); }
+function zoomToSlider(z){ return Math.max(0,Math.min(100, 100*Math.log(Math.max(1,z))/Math.log(MAX_ZOOM))); }
+function zoomLabel(z){ return (z>=10?Math.round(z):z.toFixed(1))+'×'; }
+function syncZoomUI(){
+  const zs=document.getElementById('zoom-slider');
+  if(!zs) return;
+  zs.value=zoomToSlider(zoom);
+  document.getElementById('zoom-val').textContent=zoomLabel(zoom);
+}
+function animateZoomTo(target){
+  if(zoomAnimId) cancelAnimationFrame(zoomAnimId);
+  const startZ=zoom, anchor=currentTime, D=120;
+  const t0=(typeof performance!=='undefined'?performance.now():Date.now());
+  function stepFn(ts){
+    const p=Math.min(1,(ts-t0)/D), e=1-Math.pow(1-p,3); // ease-out cubic
+    zoom=startZ+(target-startZ)*e;
+    document.getElementById('zoom-val').textContent=zoomLabel(zoom);
+    const vd=duration/zoom;
+    scrollOffset=clampScroll(anchor-vd/2);
+    drawAll();
+    zoomAnimId=p<1?requestAnimationFrame(stepFn):null;
+  }
+  zoomAnimId=requestAnimationFrame(stepFn);
+}
+document.getElementById('zoom-slider').addEventListener('input',function(){
+  animateZoomTo(sliderToZoom(parseFloat(this.value)));
+});
+
+// ─── Playhead ─────────────────────────────────────────────────────────
+function updatePlayhead(t){
+  const ph=document.getElementById('playhead');
+  const pht=document.getElementById('ph-time');
+  const x=timeToX(t);
+  if(x>=-2&&x<=canvasW+2){
+    ph.style.display='block';
+    ph.style.left=Math.round(x-1)+'px';
+    pht.style.display='block';
+    pht.textContent=fmtTime(t);
+    pht.style.left=Math.min(x+6,canvasW-72)+'px';
+  } else {
+    ph.style.display='none';
+    pht.style.display='none';
+  }
+}
+
+// ─── Transport ────────────────────────────────────────────────────────
+function enableControls(){
+  ['btn-play','btn-in','btn-out'].forEach(id=>document.getElementById(id).disabled=false);
+}
+
+function togglePlay(){
+  if(isPlaying) pausePlay();
+  else { if(currentTime>=duration-0.01) currentTime=0; startPlay(currentTime); }
+}
+
+function fxLbl(inp,id){ document.getElementById(id).textContent=(inp.value>0?'+':'')+inp.value; }
+function fxLive(){ if(isPlaying){ const t=currentTime; pausePlay(); startPlay(t); } }
+function buildFxChain(ctx){
+  if(!fx.eqOn&&!fx.compOn) return null;
+  let input=null, last=null;
+  const push=nd=>{ if(last) last.connect(nd); else input=nd; last=nd; };
+  if(fx.eqOn){
+    const lo=ctx.createBiquadFilter(); lo.type='lowshelf';  lo.frequency.value=200;  lo.gain.value=fx.low;
+    const mi=ctx.createBiquadFilter(); mi.type='peaking';   mi.frequency.value=1000; mi.Q.value=0.9; mi.gain.value=fx.mid;
+    const hi=ctx.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=5000; hi.gain.value=fx.high;
+    push(lo); push(mi); push(hi);
+  }
+  if(fx.compOn){
+    const cp=ctx.createDynamicsCompressor();
+    cp.threshold.value=-24; cp.knee.value=12; cp.ratio.value=3; cp.attack.value=0.01; cp.release.value=0.2;
+    push(cp);
+  }
+  return {input, output:last};
+}
+function timelineGainAt(t){
+  let g=1;
+  for(let i=0;i<segments.length;i++){
+    const seg=segments[i];
+    if(t>=seg.in&&t<=seg.out){
+      const gl=Math.pow(10,(seg.gainDb||0)/20);
+      const dur=seg.out-seg.in;
+      const fi=Math.min((seg.fadeIn||0)/1000,dur*0.45);
+      const fo=Math.min((seg.fadeOut||0)/1000,dur*0.45);
+      let f=1;
+      if(fi>0.001&&t-seg.in<fi) f=Math.sin((t-seg.in)/fi*Math.PI/2);
+      if(fo>0.001&&seg.out-t<fo) f=Math.min(f,Math.cos((1-(seg.out-t)/fo)*Math.PI/2));
+      g=gl*f; // 后添加的片段覆盖
+    }
+  }
+  return g;
+}
+function startPlay(from){
+  if(!audioBuffer||!audioCtx) return;
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(sourceNode){ sourceNode.onended=null; try{sourceNode.stop();}catch(e){} }
+  const gen=++playGen;
+  sourceNode=audioCtx.createBufferSource();
+  sourceNode.buffer=audioBuffer;
+  playStartOffset=Math.max(0,from);
+  playStartCtxTime=audioCtx.currentTime;
+  // 所见即所得：片段增益/淡化实时应用到主播放
+  const pg=audioCtx.createGain();
+  if(segments.length>0){
+    const remain=Math.max(0.01,duration-playStartOffset);
+    const res=Math.min(48000,Math.max(2,Math.ceil(remain*200)));
+    const curve=new Float32Array(res);
+    for(let k=0;k<res;k++) curve[k]=timelineGainAt(playStartOffset+remain*k/(res-1));
+    try{ pg.gain.setValueCurveAtTime(curve,playStartCtxTime,remain); }
+    catch(e){ pg.gain.value=1; }
+  }
+  sourceNode.connect(pg);
+  const fxc=buildFxChain(audioCtx);
+  if(fxc){ pg.connect(fxc.input); fxc.output.connect(audioCtx.destination); }
+  else pg.connect(audioCtx.destination);
+  sourceNode.start(0,playStartOffset);
+  isPlaying=true;
+  document.getElementById('btn-play').className='btn active-play';
+  document.getElementById('play-label').textContent='暂停';
+  document.getElementById('btn-stop').disabled=false;
+  sourceNode.onended=()=>{ if(gen===playGen&&isPlaying) stopPlay(false); };
+  rafId=requestAnimationFrame(tickPlayhead);
+}
+
+function pausePlay(){
+  if(!isPlaying) return;
+  if(sourceNode){ sourceNode.onended=null; try{sourceNode.stop();}catch(e){} }
+  cancelAnimationFrame(rafId);
+  isPlaying=false;
+  document.getElementById('btn-play').className='btn';
+  document.getElementById('play-label').textContent='播放';
+}
+
+function stopPlay(reset){
+  pausePlay();
+  document.getElementById('btn-stop').disabled=true;
+  if(reset){
+    currentTime=0; scrollOffset=0;
+    document.getElementById('cursor-time').textContent=fmtTime(0);
+    drawAll(); updatePlayhead(0);
+  }
+}
+
+function tickPlayhead(){
+  if(!isPlaying) return;
+  const elapsed=audioCtx.currentTime-playStartCtxTime;
+  currentTime=Math.min(duration, playStartOffset+elapsed);
+  document.getElementById('cursor-time').textContent=fmtTime(currentTime);
+
+  const vd=duration/zoom;
+  if(currentTime>scrollOffset+vd*0.88){
+    scrollOffset=clampScroll(currentTime-vd*0.1);
+    drawAll();
+  } else {
+    // Only redraw playhead, not full waveform (performance)
+    updatePlayhead(currentTime);
+  }
+  rafId=requestAnimationFrame(tickPlayhead);
+}
+
+// ─── Markers ──────────────────────────────────────────────────────────
+function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||8); }catch(e){} }
+function snapToZero(t){
+  if(!audioBuffer) return t;
+  const data=audioBuffer.getChannelData(0), sr=audioBuffer.sampleRate;
+  const c0=Math.round(t*sr), R=Math.floor(sr*0.005); // ±5ms内找最近过零点
+  for(let d=0;d<=R;d++){
+    const cand=[c0-d,c0+d];
+    for(let k=0;k<cand.length;k++){
+      const i=cand[k];
+      if(i>0&&i<data.length){
+        const a=data[i-1], b=data[i];
+        if((a<=0&&b>=0)||(a>=0&&b<=0)) return i/sr;
+      }
+    }
+  }
+  return t;
+}
+function markIn(){
+  haptic(8);
+  pendingIn=snapToZero(currentTime);
+  document.getElementById('btn-clear').style.display='';
+  checkAddReady();
+  drawWaveform();
+  setStatus('入点：'+fmtTime(pendingIn));
+}
+function markOut(){
+  haptic(8);
+  pendingOut=snapToZero(currentTime);
+  document.getElementById('btn-clear').style.display='';
+  checkAddReady();
+  drawWaveform();
+  setStatus('出点：'+fmtTime(pendingOut));
+}
+function clearMarks(){
+  pendingIn=null; pendingOut=null;
+  document.getElementById('btn-clear').style.display='none';
+  document.getElementById('btn-add').disabled=true;
+  drawWaveform();
+  setStatus('已清除标记');
+}
+function checkAddReady(){
+  const ok=pendingIn!=null&&pendingOut!=null&&pendingOut>pendingIn;
+  document.getElementById('btn-add').disabled=!ok;
+  if(pendingIn!=null&&pendingOut!=null&&pendingOut<=pendingIn){
+    setStatus('⚠ 出点须在入点之后','err');
+  } else if(pendingIn!=null&&pendingOut!=null){
+    const dur=pendingOut-pendingIn;
+    setStatus(`待添加：${fmtTime(pendingIn)} → ${fmtTime(pendingOut)}  时长 ${fmtDur(dur)}`);
+  }
+}
+
+// ─── Naming helpers ───────────────────────────────────────────────────
+const ZH_NUMS=['','一','二','三','四','五','六','七','八','九','十',
+  '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+  '二十一','二十二','二十三','二十四','二十五','二十六','二十七','二十八','二十九','三十',
+  '三十一','三十二','三十三','三十四','三十五','三十六','三十七','三十八','三十九','四十',
+  '四十一','四十二','四十三','四十四','四十五','四十六','四十七','四十八','四十九','五十',
+  '五十一','五十二','五十三','五十四','五十五','五十六','五十七','五十八','五十九','六十',
+  '六十一','六十二','六十三','六十四','六十五','六十六','六十七','六十八','六十九','七十',
+  '七十一','七十二','七十三','七十四','七十五','七十六','七十七','七十八','七十九','八十',
+  '八十一','八十二','八十三','八十四','八十五','八十六','八十七','八十八','八十九','九十',
+  '九十一','九十二','九十三','九十四','九十五','九十六','九十七','九十八','九十九'];
+
+function formatSegNum(idx){
+  if(/^\d+$/.test(segStartStr)){
+    const v=parseInt(segStartStr,10)+idx;
+    return String(v).padStart(segStartStr.length,'0');
+  }
+  const n=idx+1;
+  switch(segNumStyle){
+    case '01': return String(n).padStart(2,'0');
+    case '001': return String(n).padStart(3,'0');
+    case 'a': return n<=26?String.fromCharCode(96+n):'z'+String(n-26);
+    case 'A': return n<=26?String.fromCharCode(64+n):'Z'+String(n-26);
+    case 'zh': return n<ZH_NUMS.length?ZH_NUMS[n]:String(n);
+    default: return String(n);
+  }
+}
+function buildLabel(idx){ return segPrefix+formatSegNum(idx); }
+function refreshAllLabels(){
+  segments.forEach((s,j)=>{ s.label=buildLabel(j); });
+  renderSegList(); drawWaveform();
+}
+function onPrefixChange(v){ segPrefix=v; refreshAllLabels(); }
+function onNumStyleChange(v){ segNumStyle=v; refreshAllLabels(); }
+function onStartChange(inp){
+  const v=String(inp.value||'').replace(/\D/g,'').slice(0,6);
+  if(inp.value!==v) inp.value=v;
+  segStartStr=v;
+  refreshAllLabels();
+}
+
+// ─── History（撤销/重做） ─────────────────────────────────────────────
+function snapshotSegs(){ return segments.map(x=>({...x})); }
+function pushHistory(){
+  histStack.push(snapshotSegs());
+  if(histStack.length>HIST_MAX) histStack.shift();
+  redoStack.length=0;
+  updateHistBtns();
+}
+function restoreSegs(arr){
+  segments=arr.map(x=>({...x}));
+  segments.forEach((x,j)=>{ x.label=buildLabel(j); });
+  document.getElementById('btn-export-all').disabled=segments.length===0;
+  renderSegList(); drawWaveform(); drawOverview();
+}
+function undoOp(){
+  if(!histStack.length) return;
+  redoStack.push(snapshotSegs());
+  restoreSegs(histStack.pop());
+  updateHistBtns(); setStatus('已撤销');
+}
+function redoOp(){
+  if(!redoStack.length) return;
+  histStack.push(snapshotSegs());
+  restoreSegs(redoStack.pop());
+  updateHistBtns(); setStatus('已重做');
+}
+function updateHistBtns(){
+  const u=document.getElementById('btn-undo'), r=document.getElementById('btn-redo');
+  if(u) u.disabled=!histStack.length;
+  if(r) r.disabled=!redoStack.length;
+}
+
+// ─── 谱减降噪（以入/出点标记的纯噪声区为噪声样本） ───────────────────
+async function denoiseAudio(){
+  if(!audioBuffer) return;
+  if(pendingIn==null||pendingOut==null||pendingOut-pendingIn<0.1){
+    setStatus('请先用入/出点标记一段 ≥0.1s 的纯噪声区域，再点降噪','err');
+    return;
+  }
+  if(isPlaying) pausePlay();
+  const sr=audioBuffer.sampleRate, chN=audioBuffer.numberOfChannels;
+  // 一级音频备份（过大文件跳过备份，提示不可还原）
+  if(audioBuffer.length*chN<=50e6){
+    origBackup=[];
+    for(let c=0;c<chN;c++) origBackup.push(new Float32Array(audioBuffer.getChannelData(c)));
+    const rb=document.getElementById('restore-btn'); if(rb) rb.style.display='';
+  } else {
+    origBackup=null;
+    setStatus('文件过大，本次降噪不可还原','warn');
+  }
+  const N=1024, HOP=256;
+  const win=new Float32Array(N);
+  for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+  const n0=Math.max(0,Math.floor(pendingIn*sr)), n1=Math.min(audioBuffer.length,Math.floor(pendingOut*sr));
+  const ALPHA=1.6, FLOOR=0.06;
+  setStatus('降噪处理中…');
+  for(let c=0;c<chN;c++){
+    const data=audioBuffer.getChannelData(c);
+    const re=new Float32Array(N), im=new Float32Array(N);
+    // 1) 噪声区平均幅度谱
+    const noise=new Float32Array(N/2+1);
+    let frames=0;
+    for(let st=n0;st+N<=n1;st+=HOP){
+      for(let i=0;i<N;i++){ re[i]=data[st+i]*win[i]; im[i]=0; }
+      fftInPlace(re,im,false);
+      for(let k=0;k<=N/2;k++) noise[k]+=Math.hypot(re[k],im[k]);
+      frames++;
+    }
+    if(!frames){ setStatus('噪声区域太短，无法建立噪声谱','err'); return; }
+    for(let k=0;k<=N/2;k++) noise[k]/=frames;
+    // 2) 全轨谱减，Hann分析/合成窗 overlap-add
+    const L=data.length;
+    const out=new Float32Array(L), norm=new Float32Array(L);
+    let cnt=0;
+    for(let st=-N+HOP;st<L;st+=HOP){
+      for(let i=0;i<N;i++){ const idx=st+i; re[i]=(idx>=0&&idx<L?data[idx]:0)*win[i]; im[i]=0; }
+      fftInPlace(re,im,false);
+      for(let k=0;k<=N/2;k++){
+        const mag=Math.hypot(re[k],im[k]);
+        const g=mag>1e-12?Math.max(FLOOR,1-ALPHA*noise[k]/mag):FLOOR;
+        re[k]*=g; im[k]*=g;
+        if(k>0&&k<N/2){ re[N-k]=re[k]; im[N-k]=-im[k]; }
+      }
+      fftInPlace(re,im,true);
+      for(let i=0;i<N;i++){ const idx=st+i; if(idx>=0&&idx<L){ out[idx]+=re[i]*win[i]; norm[idx]+=win[i]*win[i]; } }
+      if(++cnt%400===0){
+        setProgress(Math.round((c*L+Math.max(0,st))/(chN*L)*100),`降噪：第${c+1}声道`);
+        await new Promise(r=>setTimeout(r,0));
+      }
+    }
+    for(let i=0;i<L;i++) data[i]=norm[i]>1e-6?out[i]/norm[i]:0;
+  }
+  setProgress(0);
+  buildPeakCache();
+  drawAll();
+  setStatus('降噪完成（谱减法）。可点「还原」撤销','ok');
+}
+function restoreAudio(){
+  if(!origBackup||!audioBuffer) return;
+  for(let c=0;c<Math.min(origBackup.length,audioBuffer.numberOfChannels);c++)
+    audioBuffer.getChannelData(c).set(origBackup[c]);
+  origBackup=null;
+  const rb=document.getElementById('restore-btn'); if(rb) rb.style.display='none';
+  buildPeakCache(); drawAll();
+  setStatus('已还原降噪前的音频','ok');
+}
+
+// ─── 追加导入：拼接到主音频末尾 ─────────────────────────────────────
+function concatInto(merged, a, b){
+  const chN=merged.numberOfChannels;
+  for(let c=0;c<chN;c++){
+    const dst=merged.getChannelData(c);
+    dst.set(a.getChannelData(Math.min(c,a.numberOfChannels-1)),0);
+    dst.set(b.getChannelData(Math.min(c,b.numberOfChannels-1)),a.length);
+  }
+}
+async function appendFile(file){
+  if(!file) return;
+  if(!audioBuffer||!audioCtx){ setStatus('请先加载主音频','err'); return; }
+  setStatus('追加解码中…');
+  try{
+    const ab=await file.arrayBuffer();
+    let nb=await audioCtx.decodeAudioData(ab);
+    const sr=audioBuffer.sampleRate;
+    if(nb.sampleRate!==sr){
+      setStatus('采样率不同，重采样中…');
+      const oac=new OfflineAudioContext(nb.numberOfChannels, Math.ceil(nb.duration*sr), sr);
+      const src=oac.createBufferSource(); src.buffer=nb; src.connect(oac.destination); src.start(0);
+      nb=await oac.startRendering();
+    }
+    const chN=Math.min(2,Math.max(audioBuffer.numberOfChannels,nb.numberOfChannels));
+    const merged=audioCtx.createBuffer(chN, audioBuffer.length+nb.length, sr);
+    concatInto(merged, audioBuffer, nb);
+    if(isPlaying) pausePlay();
+    audioBuffer=merged; duration=merged.duration;
+    origBackup=null;
+    const rb=document.getElementById('restore-btn'); if(rb) rb.style.display='none';
+    buildPeakCache();
+    document.getElementById('fmeta').textContent=
+      `${fmtTime(duration)} · ${sr}Hz · ${chN}ch（已追加）`;
+    drawAll();
+    setStatus('已追加到末尾：'+file.name,'ok');
+  }catch(e){ setStatus('追加失败：'+(e&&e.message||e),'err'); }
+  document.getElementById('append-input').value='';
+}
+document.getElementById('append-input').addEventListener('change',function(){ appendFile(this.files[0]); });
+
+// ─── 响度对齐（以最响片段RMS为基准，含削波保护） ──────────────────────
+function normalizeLoudness(){
+  if(!segments.length||!audioBuffer) return;
+  pushHistory();
+  const sr=audioBuffer.sampleRate;
+  const data=audioBuffer.getChannelData(0);
+  const stats=segments.map(seg=>{
+    const s0=Math.max(0,Math.floor(seg.in*sr)), s1=Math.min(data.length,Math.floor(seg.out*sr));
+    let sum=0, peak=0;
+    for(let i=s0;i<s1;i++){ const v=data[i]; sum+=v*v; const a=Math.abs(v); if(a>peak)peak=a; }
+    return { rms:Math.sqrt(sum/Math.max(1,s1-s0)), peak };
+  });
+  const rmsDb=stats.map(x=>20*Math.log10(Math.max(1e-6,x.rms)));
+  const target=Math.max(...rmsDb);
+  segments.forEach((seg,i)=>{
+    let g=target-rmsDb[i];
+    g=Math.min(g, 20*Math.log10(1/Math.max(1e-6,stats[i].peak))); // 削波保护
+    seg.gainDb=Math.max(-18,Math.min(18,Math.round(g*2)/2));
+  });
+  renderSegList();
+  setStatus('已按最响片段对齐响度（含削波保护）','ok');
+}
+
+// ─── Segments ─────────────────────────────────────────────────────────
+function addSegment(){
+  if(pendingIn==null||pendingOut==null||pendingOut<=pendingIn) return;
+  haptic(15);
+  pushHistory();
+  segments.push({in:pendingIn, out:pendingOut, label:buildLabel(segments.length),
+    gainDb:0, fadeIn:0, fadeOut:0, connectedToNext:true});
+  pendingIn=null; pendingOut=null;
+  document.getElementById('btn-clear').style.display='none';
+  document.getElementById('btn-add').disabled=true;
+  document.getElementById('btn-export-all').disabled=false;
+  renderSegList(); drawWaveform(); drawOverview();
+  setStatus(`已添加 ${segments[segments.length-1].label}`,'ok');
+}
+function removeSegment(i){
+  pushHistory();
+  segments.splice(i,1);
+  segments.forEach((s,j)=>{ s.label=buildLabel(j); });
+  document.getElementById('btn-export-all').disabled=segments.length===0;
+  renderSegList(); drawWaveform(); drawOverview();
+  setStatus(`已删除，剩余 ${segments.length} 段`);
+}
+function toggleConnector(i){
+  pushHistory();
+  segments[i].connectedToNext=!segments[i].connectedToNext;
+  renderSegList();
+}
+function previewSegment(i){
+  const seg=segments[i];
+  if(isPlaying) pausePlay();
+  if(!audioCtx||!audioBuffer) return;
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  const src=audioCtx.createBufferSource();
+  src.buffer=audioBuffer;
+  const gn=audioCtx.createGain();
+  const gainLinear=Math.pow(10,(seg.gainDb||0)/20);
+  const segDur=seg.out-seg.in;
+  const fadeInSec=Math.min((seg.fadeIn||0)/1000, segDur*0.45);
+  const fadeOutSec=Math.min((seg.fadeOut||0)/1000, segDur*0.45);
+  const now=audioCtx.currentTime;
+  applyFade(gn, gainLinear, now, segDur, fadeInSec, fadeOutSec);
+  src.connect(gn);
+  const fxc=buildFxChain(audioCtx);
+  if(fxc){ gn.connect(fxc.input); fxc.output.connect(audioCtx.destination); }
+  else gn.connect(audioCtx.destination);
+  const gen=++playGen;
+  playStartOffset=seg.in; playStartCtxTime=now;
+  src.start(now, seg.in, segDur);
+  sourceNode=src; isPlaying=true;
+  document.getElementById('btn-play').className='btn active-play';
+  document.getElementById('play-label').textContent='暂停';
+  document.getElementById('btn-stop').disabled=false;
+  src.onended=()=>{ if(gen===playGen&&isPlaying) stopPlay(false); };
+  rafId=requestAnimationFrame(tickPlayhead);
+}
+
+function renderSegList(){
+  const list=document.getElementById('seg-list');
+  const empty=document.getElementById('seg-empty');
+  const count=document.getElementById('seg-count');
+  list.innerHTML='';
+  count.textContent=segments.length>0?`(${segments.length})`:'';
+  if(segments.length===0){ empty.style.display=''; return; }
+  empty.style.display='none';
+  const isMerge=(exportMode==='merge');
+
+  segments.forEach((seg,i)=>{
+    const col=SEG_COLORS[i%SEG_COLORS.length];
+    const db=seg.gainDb||0;
+    const dbStr=(db>0?'+':'')+db.toFixed(1)+'dB';
+    const connected=seg.connectedToNext!==false;
+
+    // ── 片段卡片 ──
+    const div=document.createElement('div');
+    div.className='seg-item';
+    div.dataset.idx=i;
+    div.innerHTML=
+      `<div class="seg-main">`+
+        (isMerge?`<span class="drag-handle" style="display:inline" title="长按拖动">⠿</span>`:'')+ 
+        `<span class="seg-dot" style="background:${col}"></span>`+
+        `<span class="seg-label" style="color:${col}">${escapeHtml(seg.label)}</span>`+
+        `<span class="seg-times">${fmtTime(seg.in)}→${fmtTime(seg.out)} <span class="seg-dur">${fmtDur(seg.out-seg.in)}</span></span>`+
+        `<span class="seg-btns">`+
+          `<button class="seg-btn" onclick="previewSegment(${i})">▶</button>`+
+          `<button class="seg-btn dl" onclick="exportSegment(${i})">↓</button>`+
+          `<button class="seg-btn del" onclick="removeSegment(${i})">✕</button>`+
+        `</span>`+
+      `</div>`+
+      `<div class="seg-vol-row">`+
+        `<label>🔊</label>`+
+        `<input class="seg-vol-slider" type="range" min="-18" max="18" step="0.5" value="${db}" onpointerdown="pushHistory()" oninput="setSegGain(${i},this.value)">`+
+        `<span class="seg-vol-val" id="seg-vol-${i}">${dbStr}</span>`+
+      `</div>`+
+      `<div class="seg-fade-row">`+
+        `<label>淡入</label>`+
+        `<input class="fade-input" type="number" min="0" max="2000" step="5" value="${seg.fadeIn||0}" onfocus="pushHistory()" oninput="setSegFade(${i},'in',this.value)">`+
+        `<span class="fade-unit">ms</span>`+
+        `<label style="margin-left:8px">淡出</label>`+
+        `<input class="fade-input" type="number" min="0" max="2000" step="5" value="${seg.fadeOut||0}" onfocus="pushHistory()" oninput="setSegFade(${i},'out',this.value)">`+
+        `<span class="fade-unit">ms</span>`+
+      `</div>`;
+    list.appendChild(div);
+
+    // ── 连接器（合成模式且非最后一段）──
+    if(isMerge && i<segments.length-1){
+      const conn=document.createElement('div');
+      conn.className='seg-connector visible';
+      conn.innerHTML=
+        `<div class="connector-track ${connected?'on':'off'}" onclick="toggleConnector(${i})">`+
+          `<div class="connector-knob"></div>`+
+        `</div>`+
+        `<span class="connector-label ${connected?'on':'off'}">${connected?'相连':'断开'}</span>`;
+      list.appendChild(conn);
+    }
+  });
+
+  // 注册拖拽（合成模式）
+  if(isMerge) initDrag();
+}
+
+// ─── Segment gain ────────────────────────────────────────────────────
+function setSegGain(i,val){
+  segments[i].gainDb=parseFloat(val);
+  const db=segments[i].gainDb;
+  const el=document.getElementById('seg-vol-'+i);
+  if(el) el.textContent=(db>0?'+':'')+db.toFixed(1)+'dB';
+}
+function setSegFade(i,type,val){
+  const ms=Math.max(0,parseInt(val)||0);
+  if(type==='in') segments[i].fadeIn=ms;
+  else segments[i].fadeOut=ms;
+}
+
+// ─── Export mode ─────────────────────────────────────────────────────
+function setExportMode(mode,el){
+  exportMode=mode;
+  document.querySelectorAll('.export-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const mo=document.getElementById('merge-opts');
+  const lbl=document.getElementById('export-all-label');
+  if(mode==='merge'){
+    mo.style.display='flex';
+    lbl.textContent='合成导出';
+  } else {
+    mo.style.display='none';
+    lbl.textContent='全部导出';
+  }
+  renderSegList(); // 切换模式重绘，显示/隐藏连接器和拖拽手柄
+}
+
+// ─── Drag reorder（合成模式） ─────────────────────────────────────────
+function initDrag(){
+  const list=document.getElementById('seg-list');
+  const items=[...list.querySelectorAll('.seg-item')];
+  let dragSrc=null, dragSrcIdx=-1, overIdx=-1, longPressTimer=null;
+
+  items.forEach((item)=>{
+    const handle=item.querySelector('.drag-handle');
+    if(!handle) return;
+    const idx=parseInt(item.dataset.idx);
+
+    // Touch长按启动拖拽
+    handle.addEventListener('touchstart',e=>{
+      longPressTimer=setTimeout(()=>{
+        dragSrc=item; dragSrcIdx=idx;
+        item.classList.add('drag-active');
+        navigator.vibrate&&navigator.vibrate(30);
+      },280);
+    },{passive:true});
+
+    handle.addEventListener('touchend',()=>{ clearTimeout(longPressTimer); },{passive:true});
+
+    handle.addEventListener('touchmove',e=>{
+      clearTimeout(longPressTimer);
+      if(!dragSrc) return;
+      e.preventDefault();
+      const touch=e.touches[0];
+      const els=document.elementsFromPoint(touch.clientX,touch.clientY);
+      const target=els.find(el=>el.classList&&el.classList.contains('seg-item')&&el!==dragSrc);
+      items.forEach(it=>it.classList.remove('drag-over'));
+      if(target){ target.classList.add('drag-over'); overIdx=parseInt(target.dataset.idx); }
+      else overIdx=-1;
+    },{passive:false});
+
+    handle.addEventListener('touchend',e=>{
+      if(dragSrc && overIdx>=0 && overIdx!==dragSrcIdx){
+        // 执行reorder
+        pushHistory();
+        const moved=segments.splice(dragSrcIdx,1)[0];
+        const insertAt=overIdx>(dragSrcIdx)?overIdx-1:overIdx; // splice后位移补偿
+        segments.splice(insertAt,0,moved);
+        segments.forEach((s,j)=>{ s.label=buildLabel(j); });
+        renderSegList(); drawWaveform(); drawOverview();
+      }
+      if(dragSrc) dragSrc.classList.remove('drag-active');
+      items.forEach(it=>it.classList.remove('drag-over'));
+      dragSrc=null; dragSrcIdx=-1; overIdx=-1;
+    },{passive:true});
+
+    // Mouse拖拽（桌面）
+    handle.addEventListener('mousedown',e=>{
+      dragSrc=item; dragSrcIdx=idx;
+      item.classList.add('drag-active');
+      const onMove=ev=>{
+        const els=document.elementsFromPoint(ev.clientX,ev.clientY);
+        const target=els.find(el=>el.classList&&el.classList.contains('seg-item')&&el!==dragSrc);
+        items.forEach(it=>it.classList.remove('drag-over'));
+        if(target){ target.classList.add('drag-over'); overIdx=parseInt(target.dataset.idx); }
+        else overIdx=-1;
+      };
+      const onUp=()=>{
+        if(dragSrc && overIdx>=0 && overIdx!==dragSrcIdx){
+          pushHistory();
+          const moved=segments.splice(dragSrcIdx,1)[0];
+          const insertAt=overIdx>dragSrcIdx?overIdx-1:overIdx;
+          segments.splice(insertAt,0,moved);
+          segments.forEach((s,j)=>{ s.label=buildLabel(j); });
+          renderSegList(); drawWaveform(); drawOverview();
+        }
+        if(dragSrc) dragSrc.classList.remove('drag-active');
+        items.forEach(it=>it.classList.remove('drag-over'));
+        dragSrc=null; dragSrcIdx=-1; overIdx=-1;
+        document.removeEventListener('mousemove',onMove);
+        document.removeEventListener('mouseup',onUp);
+      };
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+    });
+  });
+}
+
+// ─── Format helpers ───────────────────────────────────────────────────
+function getFmtInfo(){
+  const v=document.getElementById('fmt-select').value;
+  if(v.startsWith('mp3')) return {type:'mp3',kbps:parseInt(v.split('-')[1])};
+  if(v==='wav-32f') return {type:'wav',bits:'32f'};
+  return {type:'wav',bits:parseInt(v.split('-')[1])};
+}
+function getFmtExt(){ return getFmtInfo().type==='mp3'?'mp3':'wav'; }
+
+// ─── Core render → Blob ───────────────────────────────────────────────
+async function renderToBlob(i){
+  const seg=segments[i];
+  if(!audioBuffer||!audioCtx) return null;
+  const sr=audioBuffer.sampleRate, ch=audioBuffer.numberOfChannels;
+  const s0=Math.floor(seg.in*sr), s1=Math.floor(seg.out*sr), len=s1-s0;
+  if(len<=0){ setStatus('片段长度为零','err'); return null; }
+
+  const gainLinear=Math.pow(10,(seg.gainDb||0)/20);
+  const fadeInSec=Math.min((seg.fadeIn||0)/1000, len/sr*0.45);
+  const fadeOutSec=Math.min((seg.fadeOut||0)/1000, len/sr*0.45);
+  const durSec=len/sr;
+
+  let rendered;
+  try{
+    const oac=new OfflineAudioContext(ch,len,sr);
+    const buf=oac.createBuffer(ch,len,sr);
+    for(let c2=0;c2<ch;c2++) buf.copyToChannel(audioBuffer.getChannelData(c2).subarray(s0,s1),c2);
+    const src2=oac.createBufferSource(); src2.buffer=buf;
+    const gn=oac.createGain();
+    applyFade(gn, gainLinear, 0, durSec, fadeInSec, fadeOutSec);
+    const fxc=buildFxChain(oac);
+    if(fxc){ gn.connect(fxc.input); fxc.output.connect(oac.destination); }
+    else gn.connect(oac.destination);
+    src2.connect(gn); src2.start();
+    rendered=await oac.startRendering();
+  }catch(e){ setStatus('渲染失败：'+e.message,'err'); return null; }
+
+  const fmt=getFmtInfo();
+  try{
+    if(fmt.type==='mp3') return await encodeToMp3Blob(rendered, fmt.kbps);
+    return encodeToWavBlob(rendered, fmt.bits);
+  }catch(e){ setStatus('编码失败：'+e.message,'err'); return null; }
+}
+
+async function exportSegment(i){
+  setStatus(`导出中：${segments[i].label}…`);
+  const blob=await renderToBlob(i);
+  if(!blob) return;
+  const ext=getFmtExt();
+  const name=safeFilename(segments[i].label)+'.'+ext;
+  await triggerDownload(blob, name);
+  setStatus(`已导出：${segments[i].label}.${ext}`,'ok');
+}
+
+async function exportAll(){
+  if(segments.length===0) return;
+  const eb=document.getElementById('btn-export-all');
+  eb.classList.add('busy');
+  try{ await exportAllInner(); } finally { eb.classList.remove('busy'); setProgress(0); }
+}
+async function exportAllInner(){
+
+  // ── 合成模式 ──────────────────────────────────────────────────────
+  if(exportMode==='merge'){
+    // 按连接器断点分组
+    const groups=[];
+    let cur=[0];
+    for(let i=0;i<segments.length-1;i++){
+      if(segments[i].connectedToNext===false){ groups.push([...cur]); cur=[i+1]; }
+      else cur.push(i+1);
+    }
+    groups.push(cur);
+
+    setStatus(`合成渲染中，${groups.length} 个输出文件…`);
+    const ext=getFmtExt();
+    const isIOS=/iP(ad|hone|od)/.test(navigator.userAgent)&&/WebKit/.test(navigator.userAgent)&&!/CriOS|FxiOS/.test(navigator.userAgent);
+
+    if(groups.length===1){
+      // 单组：直接输出
+      const blob=await renderMergedBlob(groups[0]);
+      if(!blob){ setStatus('合成失败','err'); return; }
+      const outName=groups[0].length===1?safeFilename(segments[groups[0][0]].label)+'.'+ext:'合成音频.'+ext;
+      await triggerDownload(blob, outName);
+      setStatus('合成导出完成','ok');
+    } else if(zipReady){
+      // 多组：全平台zip打包
+      const zip=new JSZip();
+      for(let g=0;g<groups.length;g++){
+        setStatus(`合成 ${g+1}/${groups.length}…`);
+        setProgress(Math.round(g/groups.length*100),`合成 ${g+1}/${groups.length}`);
+        const blob=await renderMergedBlob(groups[g]);
+        if(blob){
+          const fname=groups[g].length===1
+            ?safeFilename(segments[groups[g][0]].label)+'.'+ext
+            :`合成${g+1}.${ext}`;
+          zip.file(fname,blob); // 只加音频，无txt
+        }
+      }
+      const zipBlob=await zip.generateAsync({type:'blob',compression:'STORE'});
+      await triggerDownload(zipBlob,'合成音频_全部.zip');
+      setStatus(`已打包 ${groups.length} 个合成文件`,'ok');
+    } else {
+      // 多组桌面：串行下载
+      for(let g=0;g<groups.length;g++){
+        setStatus(`合成导出 ${g+1}/${groups.length}…`);
+        setProgress(Math.round(g/groups.length*100),`合成导出 ${g+1}/${groups.length}`);
+        const blob=await renderMergedBlob(groups[g]);
+        if(!blob) continue;
+        const fname=groups[g].length===1
+          ?safeFilename(segments[groups[g][0]].label)+'.'+ext
+          :`合成${g+1}.${ext}`;
+        await triggerDownload(blob,fname);
+        if(g<groups.length-1) await new Promise(r=>setTimeout(r,250));
+      }
+      setStatus(`已导出 ${groups.length} 个合成文件`,'ok');
+    }
+    return;
+  }
+
+  // ── 逐段模式 ──────────────────────────────────────────────────────
+  if(segments.length>1 && zipReady){
+    setStatus('批量打包中…');
+    const zip=new JSZip();
+    const ext=getFmtExt();
+    for(let i=0;i<segments.length;i++){
+      setStatus(`编码 ${i+1}/${segments.length}…`);
+      setProgress(Math.round(i/segments.length*100),`编码 ${i+1}/${segments.length}`);
+      const blob=await renderToBlob(i);
+      if(blob) zip.file(safeFilename(segments[i].label)+'.'+ext, blob);
+    }
+    const zipBlob=await zip.generateAsync({type:'blob',compression:'STORE'});
+    await triggerDownload(zipBlob,'音频片段_全部.zip');
+    setStatus(`已打包 ${segments.length} 段`,'ok');
+    return;
+  }
+  for(let i=0;i<segments.length;i++){
+    setStatus(`导出 ${i+1}/${segments.length}：${segments[i].label}…`);
+    setProgress(Math.round(i/segments.length*100),`导出 ${i+1}/${segments.length}`);
+    if(i>0) await new Promise(r=>setTimeout(r,300));
+    const blob=await renderToBlob(i);
+    if(!blob) continue;
+    await triggerDownload(blob, safeFilename(segments[i].label)+'.'+getFmtExt());
+    if(i<segments.length-1) await new Promise(r=>setTimeout(r,250));
+  }
+  setStatus(`已导出全部 ${segments.length} 段`,'ok');
+}
+
+// ─── 分组合成渲染 ─────────────────────────────────────────────────────
+async function renderMergedBlob(idxArr){
+  if(!audioBuffer||!audioCtx||!idxArr||idxArr.length===0) return null;
+  const sr=audioBuffer.sampleRate, ch=audioBuffer.numberOfChannels;
+  const gapMs=Math.max(0,parseInt(document.getElementById('merge-gap')?.value)||0);
+  const gapLen=Math.floor(gapMs/1000*sr);
+  const segs=idxArr.map(i=>segments[i]);
+  const segLens=segs.map(seg=>Math.max(0,Math.floor(seg.out*sr)-Math.floor(seg.in*sr)));
+  const totalLen=segLens.reduce((a,b)=>a+b,0)+gapLen*Math.max(0,segs.length-1);
+  if(totalLen<=0) return null;
+  try{
+    const oac=new OfflineAudioContext(ch,totalLen,sr);
+    const fxc=buildFxChain(oac);
+    const fxDest=fxc?fxc.input:oac.destination;
+    if(fxc) fxc.output.connect(oac.destination);
+    let offset=0;
+    for(let k=0;k<segs.length;k++){
+      const seg=segs[k]; const len=segLens[k];
+      if(len<=0) continue;
+      const s0=Math.floor(seg.in*sr);
+      const gainLinear=Math.pow(10,(seg.gainDb||0)/20);
+      const durSec=len/sr; const startTime=offset/sr;
+      const fadeInSec=Math.min((seg.fadeIn||0)/1000,durSec*0.45);
+      const fadeOutSec=Math.min((seg.fadeOut||0)/1000,durSec*0.45);
+      const buf=oac.createBuffer(ch,len,sr);
+      for(let c2=0;c2<ch;c2++) buf.copyToChannel(audioBuffer.getChannelData(c2).subarray(s0,s0+len),c2);
+      const src2=oac.createBufferSource(); src2.buffer=buf;
+      const gn=oac.createGain();
+      applyFade(gn, gainLinear, startTime, durSec, fadeInSec, fadeOutSec);
+      src2.connect(gn); gn.connect(fxDest); src2.start(startTime);
+      offset+=len; if(k<segs.length-1) offset+=gapLen;
+    }
+    const rendered=await oac.startRendering();
+    const fmt=getFmtInfo();
+    return fmt.type==='mp3'?await encodeToMp3Blob(rendered,fmt.kbps):encodeToWavBlob(rendered,fmt.bits);
+  }catch(e){ setStatus('合成失败：'+e.message,'err'); return null; }
+}
+
+
+
+// ─── WAV encoder（支持16/24/32bit）────────────────────────────────────
+function encodeToWavBlob(buf, bits){
+  const ch=buf.numberOfChannels, sr=buf.sampleRate, len=buf.length;
+  const is32f=(bits==='32f');
+  const fmtTag=is32f?3:1;
+  const bitsN=is32f?32:(bits||16);
+  const bps=bitsN/8;
+  const ab=new ArrayBuffer(44+len*ch*bps);
+  const v=new DataView(ab);
+  const ws=(o,s)=>{ for(let k=0;k<s.length;k++) v.setUint8(o+k,s.charCodeAt(k)); };
+  ws(0,'RIFF'); v.setUint32(4,ab.byteLength-8,true); ws(8,'WAVE');
+  ws(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,fmtTag,true);
+  v.setUint16(22,ch,true); v.setUint32(24,sr,true);
+  v.setUint32(28,sr*ch*bps,true); v.setUint16(32,ch*bps,true); v.setUint16(34,bitsN,true);
+  ws(36,'data'); v.setUint32(40,len*ch*bps,true);
+  let off=44;
+  for(let i=0;i<len;i++) for(let c=0;c<ch;c++){
+    const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));
+    if(is32f){
+      v.setFloat32(off,s,true); off+=4;
+    } else if(bitsN===24){
+      const val=s<0?Math.round(s*8388608):Math.round(s*8388607);
+      v.setUint8(off,val&0xFF); v.setUint8(off+1,(val>>8)&0xFF); v.setUint8(off+2,(val>>16)&0xFF); off+=3;
+    } else {
+      v.setInt16(off,s<0?Math.round(s*32768):Math.round(s*32767),true); off+=2;
+    }
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+// ─── MP3 encoder：Worker优先，主线程兜底 ─────────────────────────────
+function getMp3Worker(){
+  if(mp3Worker) return mp3Worker;
+  const code="importScripts('https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js');"+
+"onmessage=function(e){try{var d=e.data,enc=new lamejs.Mp3Encoder(d.ch===1?1:2,d.sr,d.kbps||192),CHUNK=1152,len=d.left.length,parts=[],last=0;"+
+"function toI16(f,s,en){var o=new Int16Array(en-s);for(var i=s;i<en;i++){var v=Math.max(-1,Math.min(1,f[i]));o[i-s]=v<0?Math.round(v*32768):Math.round(v*32767);}return o;}"+
+"for(var i=0;i<len;i+=CHUNK){var en=Math.min(len,i+CHUNK);"+
+"var out=d.ch===1?enc.encodeBuffer(toI16(d.left,i,en)):enc.encodeBuffer(toI16(d.left,i,en),toI16(d.right,i,en));"+
+"if(out.length>0)parts.push(new Uint8Array(out));"+
+"var pct=Math.floor(i/len*100);if(pct>=last+5){last=pct;postMessage({id:d.id,progress:pct});}}"+
+"var fl=enc.flush();if(fl.length>0)parts.push(new Uint8Array(fl));"+
+"postMessage({id:d.id,done:true,parts:parts},parts.map(function(p){return p.buffer;}));"+
+"}catch(err){postMessage({id:e.data.id,error:String(err&&err.message||err)});}};";
+  mp3Worker=new Worker(URL.createObjectURL(new Blob([code],{type:'application/javascript'})));
+  mp3Worker.onmessage=ev=>{
+    const m=ev.data, job=mp3Jobs[m.id];
+    if(!job) return;
+    if(m.progress!=null){ setStatus('MP3编码 '+m.progress+'%'); return; }
+    delete mp3Jobs[m.id];
+    if(m.error) job.reject(new Error(m.error));
+    else job.resolve(new Blob(m.parts,{type:'audio/mpeg'}));
+  };
+  mp3Worker.onerror=()=>{
+    Object.keys(mp3Jobs).forEach(id=>{ mp3Jobs[id].reject(new Error('worker error')); delete mp3Jobs[id]; });
+    try{ mp3Worker.terminate(); }catch(e){}
+    mp3Worker=null;
+  };
+  return mp3Worker;
+}
+function encodeMp3ViaWorker(rendered, kbps){
+  return new Promise((resolve,reject)=>{
+    let w;
+    try{ w=getMp3Worker(); }catch(e){ return reject(e); }
+    const ch=rendered.numberOfChannels;
+    const left=new Float32Array(rendered.getChannelData(0));
+    const right=ch>1?new Float32Array(rendered.getChannelData(1)):null;
+    const id=++mp3JobId;
+    mp3Jobs[id]={resolve,reject};
+    const tf=[left.buffer]; if(right) tf.push(right.buffer);
+    w.postMessage({id, sr:rendered.sampleRate, ch, kbps, left, right}, tf);
+  });
+}
+function encodeToMp3Blob(rendered, kbps){
+  if(typeof Worker!=='undefined'){
+    return encodeMp3ViaWorker(rendered,kbps).catch(()=>encodeToMp3Main(rendered,kbps));
+  }
+  return encodeToMp3Main(rendered,kbps);
+}
+function encodeToMp3Main(rendered, kbps){
+  if(!lameReady) return Promise.reject(new Error('MP3编码库未加载，请刷新页面重试'));
+  return new Promise((resolve,reject)=>{
+    try{
+      const sr=rendered.sampleRate, ch=rendered.numberOfChannels, len=rendered.length;
+      const encoder=new lamejs.Mp3Encoder(ch===1?1:2, sr, kbps||192);
+      const CHUNK=1152;
+      const parts=[];
+      if(ch===1){
+        const f=rendered.getChannelData(0);
+        for(let i=0;i<len;i+=CHUNK){
+          const sl=f32ToInt16(f,i,Math.min(len,i+CHUNK));
+          const enc=encoder.encodeBuffer(sl);
+          if(enc.length>0) parts.push(new Uint8Array(enc));
+        }
+      } else {
+        const fl=rendered.getChannelData(0), fr=rendered.getChannelData(1);
+        for(let i=0;i<len;i+=CHUNK){
+          const end=Math.min(len,i+CHUNK);
+          const enc=encoder.encodeBuffer(f32ToInt16(fl,i,end),f32ToInt16(fr,i,end));
+          if(enc.length>0) parts.push(new Uint8Array(enc));
+        }
+      }
+      const fl2=encoder.flush();
+      if(fl2.length>0) parts.push(new Uint8Array(fl2));
+      resolve(new Blob(parts,{type:'audio/mpeg'}));
+    }catch(e){ reject(e); }
+  });
+}
+
+function f32ToInt16(f32,start,end){
+  const out=new Int16Array(end-start);
+  for(let i=start;i<end;i++){
+    const s=Math.max(-1,Math.min(1,f32[i]));
+    out[i-start]=s<0?Math.round(s*32768):Math.round(s*32767);
+  }
+  return out;
+}
+
+async function saveViaBridge(blob, filename){
+  // AnKey AppActivity SAF 管道：saveBegin/saveChunk(b64≤512K)/saveEnd → 系统"保存至"对话框 → onSaveResult 回调
+  return new Promise(async (resolve)=>{
+    try{
+      const buf=new Uint8Array(await blob.arrayBuffer());
+      AndroidPW.saveBegin(filename, blob.type||'application/octet-stream');
+      const RAW=384*1024; // b64后约512K，单次跨桥安全
+      for(let i=0;i<buf.length;i+=RAW){
+        let bin=''; const end=Math.min(buf.length,i+RAW);
+        for(let j=i;j<end;j++) bin+=String.fromCharCode(buf[j]);
+        if(!AndroidPW.saveChunk(btoa(bin))){ resolve(false); return; }
+      }
+      window.onSaveResult=(ok,msg)=>{ setStatus(ok?('已保存：'+msg):('保存失败：'+msg), ok?'ok':'err'); resolve(ok); };
+      const r=AndroidPW.saveEnd();
+      if(r!=='PICKER'){ resolve(false); }
+    }catch(e){ resolve(false); }
+  });
+}
+async function triggerDownload(blob, filename){
+  // 安卓 AnKey 容器内：走 SAF 桥（可保存到任意位置/下载目录）
+  if(typeof AndroidPW!=='undefined' && AndroidPW.saveBegin){
+    const ok=await saveViaBridge(blob, filename);
+    if(ok) return;
+    // 桥失败继续走通用路径兜底
+  }
+  // iOS Safari: <a download> 无效，优先用 Web Share API
+  const isIOS=/iP(ad|hone|od)/.test(navigator.userAgent)&&/WebKit/.test(navigator.userAgent)&&!/CriOS|FxiOS/.test(navigator.userAgent);
+  if(isIOS && navigator.canShare && navigator.canShare({files:[new File([blob],filename,{type:blob.type})]})){
+    try{
+      await navigator.share({
+        files:[new File([blob],filename,{type:blob.type})],
+        title:filename
+      });
+      return;
+    }catch(e){
+      if(e.name==='AbortError') return; // 用户取消，正常情况
+      // 其他错误降级到 window.open
+    }
+  }
+  // 标准浏览器 / iOS fallback：新标签打开，长按可存储
+  const url=URL.createObjectURL(blob);
+  if(isIOS){
+    window.open(url,'_blank');
+    // iOS下blob url只在当前session有效，延迟清理
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  } else {
+    const a=document.createElement('a');
+    a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(!audioBuffer) return;
+  const tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  switch(e.code){
+    case 'KeyZ':
+      if(e.ctrlKey||e.metaKey){ e.preventDefault(); if(e.shiftKey) redoOp(); else undoOp(); }
+      break;
+    case 'KeyY':
+      if(e.ctrlKey||e.metaKey){ e.preventDefault(); redoOp(); }
+      break;
+    case 'Space':
+      e.preventDefault(); togglePlay(); break;
+    case 'KeyI':
+      if(!document.getElementById('btn-in').disabled) markIn(); break;
+    case 'KeyO':
+      if(!document.getElementById('btn-out').disabled) markOut(); break;
+    case 'Enter':
+      e.preventDefault();
+      if(!document.getElementById('btn-add').disabled) addSegment(); break;
+    case 'ArrowLeft':
+      e.preventDefault(); seekTo(currentTime-0.05); break;
+    case 'ArrowRight':
+      e.preventDefault(); seekTo(currentTime+0.05); break;
+    case 'Equal': case 'NumpadAdd':{
+      const zs=document.getElementById('zoom-slider');
+      zs.value=Math.min(100,parseFloat(zs.value)+5);
+      zs.dispatchEvent(new Event('input')); break;
+    }
+    case 'Minus': case 'NumpadSubtract':{
+      const zs=document.getElementById('zoom-slider');
+      zs.value=Math.max(0,parseFloat(zs.value)-5);
+      zs.dispatchEvent(new Event('input')); break;
+    }
+  }
+});
+</script>
+</body>
+</html>

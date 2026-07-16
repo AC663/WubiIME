@@ -21,7 +21,7 @@ a{ color:var(--ac); text-decoration:none; }
 @keyframes fadeUp{ from{ transform:translateY(12px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
 @keyframes toastIn{ from{ transform:translate(-50%,-8px); opacity:0; } to{ transform:translate(-50%,0); opacity:1; } }
 /* 顶栏 */
-#topbar{ flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:10px 12px 8px; background:var(--bg); }
+#topbar{ flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:10px 12px 8px; background:var(--bg); position:relative; z-index:2; }
 #urlbox{ flex:1; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
   background:var(--bg2); border:1px solid var(--line); border-radius:12px; }
 #urlbox svg{ flex:0 0 auto; }
@@ -46,7 +46,7 @@ a{ color:var(--ac); text-decoration:none; }
 #webwrap.on{ display:block; }
 #netmsg{ position:absolute; left:0; right:0; top:0; bottom:0; display:none; align-items:center; justify-content:center; background:var(--bg); pointer-events:auto; }
 #netmsg.on{ display:flex; }
-#progress{ position:absolute; left:0; top:0; height:2.5px; width:0; background:var(--ac); z-index:100; transition:width .2s ease, opacity .3s ease; box-shadow:0 0 6px var(--ac); opacity:0; }
+#progress{ position:absolute; left:0; bottom:0; height:2.5px; width:0; background:var(--ac); z-index:100; transition:width .2s ease, opacity .3s ease; box-shadow:0 0 6px var(--ac); opacity:0; }
 /* 起始页 */
 .wordmark{ text-align:center; margin:34px 0 8px; font-weight:800; letter-spacing:12px; font-size:26px; color:var(--tx); }
 .wordsub{ text-align:center; letter-spacing:6px; font-size:11px; color:var(--sub); margin-bottom:22px; }
@@ -123,13 +123,13 @@ a{ color:var(--ac); text-decoration:none; }
     <div class="tbtn" id="btnReload" style="display:none;">↻</div>
     <div class="tbtn" id="btnShield">◈<span id="shield-n">0</span></div>
     <div class="tbtn" id="btnClose">✕</div>
+    <div id="progress"></div>
   </div>
 
   <div id="stage">
     <div class="screen on" id="scr-home"></div>
     <div class="screen" id="scr-tabs"></div>
     <div class="screen" id="scr-set"></div>
-    <div id="progress"></div>
     <div id="webwrap"><div id="netmsg"></div></div>
     <div id="scrim"></div>
     <div id="privacy"></div>
@@ -175,7 +175,7 @@ const S={
   doh: KV.get('doh',DOH[0]),
   dohOn: KV.get('dohOn',true),
   isoOn: KV.get('isoOn',true),
-  blockedTotal: KV.get('blockedTotal', 128470),
+  blockedTotal: KV.get('blockedTotal', 0),     // 真实累计:仅计 Java shouldInterceptRequest 实际拦截数
   tabs: KV.get('tabs', []),          // {t:标题,u:网址,c:容器}
   cur:-1,                            // 当前标签(webview中)
   pageBlocked:[],                    // 本页拦截项(原型演绎)
@@ -233,19 +233,23 @@ function normUrl(q){
   return 'https://www.bing.com/search?q='+encodeURIComponent(q);
 }
 function domainOf(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } }
-function hashN(str,mod){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h)%mod; }
-function fakeBlocked(u){
-  // 原型演绎：按域名稳定生成"本页拦截"清单(同站同结果)，并累计总拦截数
-  const d=domainOf(u), base=hashN(d,9)+3;
-  const pool=['doubleclick.net','google-analytics.com','hm.baidu.com','cnzz.com','umeng.com','facebook.net','scorecardresearch.com','criteo.com','adnxs.com'];
-  const list=[]; let tot=0;
-  for(let i=0;i<Math.min(4,1+hashN(d+'x',4));i++){ const c=1+hashN(d+i,base); tot+=c; list.push({domain:pool[(hashN(d,9)+i*2)%pool.length], count:c}); }
-  S.pageBlocked=list;
-  S.blockedTotal+=tot;
-  $('shield-n').textContent=String(tot);
-  persist();
-}
+// 真实拦截:计数与每域清单全部由 Java shouldInterceptRequest 经 window.__onAdBlocked 回传(见下),此处不再编造。
+function resetPageBlocked(){ S.pageBlocked=[]; S._lastPageN=0; $('shield-n').textContent='0'; }
 const HAS_NET = (typeof AndroidPW!=='undefined' && AndroidPW.browserLoad);
+// #浏览器 让原生网页层(netView)精确覆盖内容区#stage:量取其边界→设备px→传桥,顶栏/底栏露出可点
+function updateInsets(){
+  if(!HAS_NET || typeof AndroidPW.browserSetInsets!=='function') return;
+  try{
+    const st=document.getElementById('stage'); if(!st) return;
+    const r=st.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const top=Math.max(0,Math.round(r.top*dpr));
+    const bot=Math.max(0,Math.round((window.innerHeight-r.bottom)*dpr));
+    AndroidPW.browserSetInsets(top,bot);
+  }catch(e){}
+}
+window.addEventListener('resize',updateInsets);
+window.addEventListener('orientationchange',()=>setTimeout(updateInsets,120));
 function go(q){
   const u=normUrl(q); if(!u) return;
   S.hist=S.hist.slice(0,S.hi+1); S.hist.push(u); S.hi=S.hist.length-1;
@@ -253,7 +257,7 @@ function go(q){
 }
 function navigate(u,isBack){
   $('url').value=u;
-  fakeBlocked(u);
+  resetPageBlocked();   // 真实计数由 Java 逐请求回传;导航先清零
   if(!isBack){
     const d=domainOf(u);
     const t={t:d, u:u, c: S.mode==='ghost'?'无痕':'个人'};
@@ -266,6 +270,7 @@ function navigate(u,isBack){
   hideNetMsg();
   setProgress(8);
   if(HAS_NET){
+    updateInsets();
     try{ AndroidPW.browserSetIncognito(S.mode==='ghost'); }catch(e){}
     try{ AndroidPW.browserLoad(u); }catch(e){ showNetMsg('无法启动网页视图','⚠',u); }
   } else {
@@ -302,14 +307,56 @@ function showNetMsg(title,icon,u){
 function hideNetMsg(){ const m=$('netmsg'); if(m){ m.classList.remove('on'); } }
 // ===== 来自 Java netView 的回调 =====
 window.__onNetProgress=function(p){ setProgress(p); };
-window.__onNetStart=function(u){ setProgress(20); hideNetMsg(); if(u) $('url').value=u; };
+window.__onNetStart=function(u){ setProgress(20); hideNetMsg(); if(u) $('url').value=u; resetPageBlocked(); };
+// #浏览器 真实广告/追踪拦截回传(Java shouldInterceptRequest 命中即调):n=本页累计拦截数,host=被拦域名
+window.__onAdBlocked=function(n,host){
+  n=n||0;
+  $('shield-n').textContent=String(n);
+  if(host){ const e=S.pageBlocked.find(x=>x.domain===host); if(e){ e.count++; } else { S.pageBlocked.push({domain:host,count:1}); } }
+  const prev=S._lastPageN||0;
+  if(n>prev) S.blockedTotal+=(n-prev);   // 仅正增量累加真实拦截
+  S._lastPageN=n;
+  if(n===0){ S.pageBlocked=[]; }          // Java 每次导航发 0=重置
+  persist();
+};
+// #浏览器 证书错误:Java 已 cancel(绝不静默 proceed),此处只呈现错误卡
+window.__onNetSslError=function(u){ setProgress(0); showNetMsg('证书无效，已阻止访问','⚠',u); };
+// #浏览器 下载请求:隐私浏览器不落盘,给提示并把链接放入地址栏供复制
+window.__onNetDownload=function(u){ if(u){ $('url').value=u; } toast('隐私浏览器暂不落盘 · 链接已置入地址栏'); };
+window.__clearRetry=function(u){ try{ const h=new URL(u).host; delete _retriedHttp[h]; }catch(e){} };
 window.__onNetFinish=function(u,title,canBack,canFwd){
   setProgress(100);
   if(u) $('url').value=u;
   if(title){ const d=domainOf(u); const t=S.tabs.find(x=>domainOf(x.u)===d); if(t) t.t=title||t.t; persist(); }
 };
 window.__onNetTitle=function(t){ if(t){ const d=domainOf($('url').value); const tab=S.tabs.find(x=>domainOf(x.u)===d); if(tab){ tab.t=t; persist(); } } };
-window.__onNetError=function(u){ setProgress(0); showNetMsg('网页加载失败','⚠',u); };
+// 缺陷#6：智能降级重试链——https失败→http(老站/局域网路由)→m.前缀移动版，各仅一次，防循环
+let _retriedHttp={}, _retriedM={};
+window.__onNetError=function(u){
+  setProgress(0);
+  try{
+    const url=new URL(u);
+    // ① https → http 降级（4399.com 等 http-only 老站、192.168.x.x 路由后台）
+    if(url.protocol==='https:' && !_retriedHttp[url.host]){
+      _retriedHttp[url.host]=1;
+      const hu='http://'+u.slice(8);
+      showNetMsg('HTTPS 不可达，尝试 HTTP…','↻',hu);
+      setTimeout(()=>{ try{ AndroidPW.browserLoad(hu); }catch(e){} },80);
+      return;
+    }
+    // ② 无 m./wap./www. 前缀的裸域 → 尝试移动版 m.
+    const h=url.hostname;
+    if(!/^(m|wap|www)\./.test(h) && h.split('.').length===2 && !_retriedM[h] && !/^\d+\.\d+/.test(h)){
+      _retriedM[h]=1;
+      const mu=url.protocol+'//m.'+h+url.pathname+url.search;
+      showNetMsg('尝试移动版…','↻',mu);
+      setTimeout(()=>{ try{ AndroidPW.browserLoad(mu); }catch(e){} },80);
+      return;
+    }
+  }catch(e){}
+  showNetMsg('网页加载失败','⚠',u);
+};
+window.__onNetStart=window.__onNetStart; // (占位:成功开始加载时下方原回调已刷新UI)
 window.__onNetGone=function(){ showNetMsg('网页进程已重启','↻',$('url').value); };
 window.__onNetClosed=function(){ nav('home'); };   // Java 返回键网页到头→回起始页
 /* ===== 起始页 ===== */
@@ -320,15 +367,13 @@ function renderHome(){
     +'<div class="homebox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A948F" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
     +'<input id="homeq" placeholder="搜索或输入网址" autocomplete="off"></div>'
     +'<div class="chips">'+MODES.map(m=>'<div class="chip'+(S.mode===m.id?' on':'')+'" data-mode="'+m.id+'">'+m.n+'模式</div>').join('')
-    +'<div class="chip'+(S.dohOn?' on':'')+'" data-t="doh">DoH</div>'
-    +'<div class="chip'+(S.isoOn?' on':'')+'" data-t="iso">容器隔离</div></div>'
+    +'<div class="chip" data-t="doh">加密DNS</div></div>'
     +'<div class="tiles">'+[['必应','bing.com'],['知乎','zhihu.com'],['B站','bilibili.com'],['微博','weibo.com'],['豆瓣','douban.com'],['GitHub','github.com'],['维基','zh.wikipedia.org'],['少数派','sspai.com']]
       .map(x=>'<div class="tile" data-u="'+x[1]+'"><div class="ti">'+x[0][0]+'</div><div class="tn">'+x[0]+'</div></div>').join('')+'</div>';
   $('homeq').addEventListener('keydown',e=>{ if(e.key==='Enter') go(e.target.value); });
   h.querySelectorAll('[data-mode]').forEach(c=>c.addEventListener('click',()=>{ S.mode=c.dataset.mode; persist(); renderHome(); toast(MODES.find(m=>m.id===S.mode).n+'模式已启用'); }));
   h.querySelectorAll('[data-t]').forEach(c=>c.addEventListener('click',()=>{
-    if(c.dataset.t==='doh'){ S.dohOn=!S.dohOn; } else { S.isoOn=!S.isoOn; }
-    persist(); renderHome();
+    if(c.dataset.t==='doh') toast('WebView 走系统 DNS。加密 DNS 请在 系统设置 → 私有 DNS(DoH) 中开启');
   }));
   h.querySelectorAll('.tile').forEach(t=>t.addEventListener('click',()=>go(t.dataset.u)));
 }
@@ -359,9 +404,8 @@ function renderSet(){
   t.innerHTML='<div class="sect"><h3>隐私模式</h3>'
     +MODES.map(m=>'<div class="rowi" data-m="'+m.id+'" style="cursor:pointer;"><div><div class="rl">'+m.n+'模式</div><div class="rd">'+m.d+'</div></div><div class="rv">'+(S.mode===m.id?'●':'○')+'</div></div>').join('')
     +'</div><div class="sect"><h3>网络</h3>'
-    +'<div class="rowi"><div><div class="rl">加密 DNS (DoH)</div><div class="rd">绕过运营商 DNS 劫持与记录</div></div><div class="sw'+(S.dohOn?' on':'')+'" data-sw="doh"></div></div>'
-    +'<div class="rowi" id="dohsel" style="cursor:pointer;"><div><div class="rl">DoH 服务商</div><div class="rd">点按轮换</div></div><div class="rv">'+esc(S.doh)+'</div></div>'
-    +'<div class="rowi"><div><div class="rl">容器隔离</div><div class="rd">按站点隔离 Cookie / 存储 / Canvas 种子</div></div><div class="sw'+(S.isoOn?' on':'')+'" data-sw="iso"></div></div>'
+    +'<div class="rowi" id="dohinfo" style="cursor:pointer;"><div><div class="rl">加密 DNS (DoH)</div><div class="rd">WebView 走系统 DNS · 点按查看如何在系统开启</div></div><div class="rv">›</div></div>'
+    +'<div class="rowi"><div><div class="rl">广告 / 追踪拦截</div><div class="rd">内置黑名单实时拦截 · 计数真实</div></div><div class="rv" style="color:var(--ac);">●</div></div>'
     +'</div><div class="sect"><h3>指纹防护</h3>'
     +'<div class="rowi"><div><div class="rl">Canvas / Audio 种子</div><div class="rd">按站点独立 · 会话结束自动轮换</div></div><div class="rv mono">'+esc(S.seed)+'</div></div>'
     +'<div class="rowi" id="seedbtn" style="cursor:pointer;"><div class="rl" style="color:var(--ac);">立即轮换种子</div><div class="rv">↻</div></div>'
@@ -370,19 +414,17 @@ function renderSet(){
     +'<div class="rowi"><div class="rl">形态</div><div class="rv">交互原型 · 容器内呈现</div></div>'
     +'</div>';
   t.querySelectorAll('[data-m]').forEach(r=>r.addEventListener('click',()=>{ S.mode=r.dataset.m; persist(); renderSet(); }));
-  t.querySelectorAll('[data-sw]').forEach(w=>w.addEventListener('click',()=>{
-    if(w.dataset.sw==='doh') S.dohOn=!S.dohOn; else S.isoOn=!S.isoOn;
-    persist(); renderSet();
-  }));
-  $('dohsel').addEventListener('click',()=>{ S.doh=DOH[(DOH.indexOf(S.doh)+1)%DOH.length]; persist(); renderSet(); });
+  const _di=$('dohinfo'); if(_di) _di.addEventListener('click',()=>toast('WebView 走系统 DNS。加密 DNS 请在 系统设置 → 私有 DNS(DoH) 中开启'));
   $('seedbtn').addEventListener('click',()=>{ S.seed=Math.random().toString(36).slice(2,10); persist(); renderSet(); toast('指纹种子已轮换'); });
 }
 /* ===== 隐私面板 ===== */
 function togglePrivacy(force){
   const p=$('privacy'), on = force!=null ? !!force : !p.classList.contains('on');
+  const webOn = $('webwrap').classList.contains('on');
+  if(HAS_NET && webOn){ try{ on ? AndroidPW.browserHide() : AndroidPW.browserShow(); }catch(e){} }   // 面板浮层在UI层:开→暂隐网页,关→恢复
   if(on){
     p.innerHTML='<h3 class="mono" style="margin:0 0 4px;font-size:13px;letter-spacing:2px;color:var(--ac);">隐私面板</h3>'
-      +'<div style="font-size:11px;color:var(--sub);margin-bottom:12px;">本页已拦截 '+S.pageBlocked.reduce((a,b)=>a+b.count,0)+' 项 · Canvas 已混淆</div>'
+      +'<div style="font-size:11px;color:var(--sub);margin-bottom:12px;">本页已拦截 '+S.pageBlocked.reduce((a,b)=>a+b.count,0)+' 项 · 内置黑名单实时拦截</div>'
       +(S.pageBlocked.length?S.pageBlocked.map(k=>'<div class="tkrow"><span>'+esc(k.domain)+'</span><b>×'+k.count+'</b></div>').join('')
         :'<div class="tkrow"><span>当前无页面</span><b>—</b></div>')
       +'<div style="margin-top:14px;font-size:11px;color:var(--sub);line-height:1.7;">匿名不是把自己藏起来，而是让自己看起来和十万个人一模一样。<br>Canvas / Audio 种子：<span class="mono" style="color:var(--ac);">'+esc(S.seed)+'</span></div>';
@@ -393,6 +435,7 @@ function togglePrivacy(force){
 /* ===== 启动 ===== */
 renderHome();
 $('shield-n').textContent='0';
+requestAnimationFrame(()=>requestAnimationFrame(updateInsets));
 })();
 </script>
 </body>
