@@ -33,7 +33,7 @@ a{ color:var(--ac); text-decoration:none; }
   font-size:15px; cursor:pointer; user-select:none; position:relative; }
 .tbtn:active{ transform:scale(0.92); }
 #shield-n{ position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 4px;
-  border-radius:8px; background:var(--ac); color:#06231A; font-size:9.5px; font-weight:800;
+  border-radius:8px; background:var(--ac); color:var(--acTx,#06231A); font-size:9.5px; font-weight:800;
   font-family:var(--mono); display:flex; align-items:center; justify-content:center; }
 /* 内容区 */
 #stage{ flex:1; min-height:0; position:relative; overflow:hidden; }
@@ -64,7 +64,7 @@ a{ color:var(--ac); text-decoration:none; }
   background:var(--card); border:1px solid var(--line); border-radius:14px; cursor:pointer; }
 .tile:active{ transform:scale(0.95); }
 .tile .ti{ width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center;
-  font-weight:800; font-size:15px; color:#06231A; background:var(--ac); }
+  font-weight:800; font-size:15px; color:var(--acTx,#06231A); background:var(--ac); }
 .tile .tn{ font-size:10.5px; color:var(--sub); }
 /* 面板卡片通用 */
 .sect{ max-width:480px; margin:0 auto 14px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; }
@@ -105,7 +105,7 @@ a{ color:var(--ac); text-decoration:none; }
 .blockcard{ max-width:420px; margin:60px auto 0; text-align:center; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px 22px; }
 .blockcard .bi{ font-size:34px; margin-bottom:12px; }
 .bbtn{ display:inline-block; margin:14px 6px 0; padding:11px 20px; border-radius:12px; font-size:13px; font-weight:700; cursor:pointer; }
-.bbtn.pri{ background:var(--ac); color:#06231A; }
+.bbtn.pri{ background:var(--ac); color:var(--acTx,#06231A); }
 .bbtn.sec{ border:1px solid var(--line); color:var(--tx); }
 #toast{ position:absolute; top:14px; left:50%; transform:translate(-50%,0); z-index:90; background:var(--card);
   border:1px solid var(--ac); color:var(--tx); font-size:12.5px; padding:9px 16px; border-radius:12px;
@@ -166,6 +166,32 @@ const KV={
       else localStorage.setItem('pure_browser',str);   /* 浏览器调试回退 */
     }catch(e){} }
 };
+/* ===== #1 主题跟随：驾驶舱配色随键盘颜色球（读键盘 kbprefs.kbTheme，同源色板） ===== */
+(function(){
+  const P={ /* [bg,bg2,card,line,ac,acd,tx,sub,acTx] 浅主题=浅舱 */
+    't-white' :['#eae5da','#f6f3ec','#fdfcf8','rgba(115,105,80,0.28)','#93876c','#6f6449','#28231a','#736950','#fff'],
+    't-orange':['#ebd5c5','#f5ede5','#fef6f0','rgba(232,80,26,0.25)','#f06a36','#d04a18','#2a1408','#a06a48','#fff'],
+    't-blue'  :['#d8e8f5','#e8f0fa','#eff6ff','rgba(28,120,210,0.25)','#3b8ee6','#1e64c2','#081828','#4a7aa8','#fff'],
+    't-purple':['#e4d0f5','#f0e4fa','#f8eeff','rgba(130,30,220,0.25)','#a44ef0','#7a1ed6','#1a0830','#7a58a0','#fff'],
+    't-red'   :['#f0d0d0','#faeaea','#fff4f4','rgba(200,20,20,0.25)','#d9483a','#b52a1e','#280808','#a05858','#fff'],
+    't-green' :['#d0ecda','#e8f5ec','#f0faf3','rgba(20,140,60,0.25)','#2fae57','#178a3c','#081a10','#4a8862','#fff'],
+    't-pink'  :['#f8d8ee','#fdeaf5','#fff0fa','rgba(210,50,150,0.25)','#e858ae','#c62e8c','#280818','#a05888','#fff'],
+    't-brown' :['#e8d8c4','#f2ece4','#fdf6ee','rgba(130,70,20,0.25)','#a56428','#824a14','#281408','#8a6a48','#fff'],
+    't-cyan'  :['#c8ecf5','#e4f6fa','#edfaff','rgba(0,150,190,0.25)','#14b2d4','#0888ac','#041820','#3a8098','#fff'],
+    't-yellow':['#f8e6b0','#fdf3d8','#fffdf4','rgba(200,140,20,0.30)','#c98400','#a06800','#3a2a08','#8a6a20','#fff'],
+    't-dark'  :['#07080B','#16120a','#221e0e','rgba(200,160,20,0.25)','#c8a020','#a07808','#f0e8c0','#a08a50','#1c1608']
+  };
+  try{
+    let kb={};
+    if(typeof AndroidPW!=='undefined'&&AndroidPW.loadAppData){ kb=JSON.parse(AndroidPW.loadAppData('kbprefs')||'{}')||{}; }
+    const t=P[kb.kbTheme];
+    if(t){
+      const r=document.documentElement.style, k=['--bg','--bg2','--card','--line','--ac','--acd','--tx','--sub','--acTx'];
+      k.forEach((v,i)=>r.setProperty(v,t[i]));
+      document.body&&(document.body.style.background=t[0]);
+    }
+  }catch(e){}
+})();
 /* ===== 状态 ===== */
 const MODES=[{id:'std',n:'标准',d:'拦截追踪与广告'},{id:'strict',n:'严格',d:'附加指纹混淆·脚本收紧'},{id:'ghost',n:'无痕',d:'关闭即焚·零落盘'}];
 const DOH=['Cloudflare 1.1.1.1','Quad9 9.9.9.9','AliDNS 223.5.5.5','DNSPod 120.53.53.53'];

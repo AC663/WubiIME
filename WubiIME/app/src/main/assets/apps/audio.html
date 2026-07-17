@@ -313,6 +313,43 @@ h1 svg{width:20px;height:20px;fill:var(--purple)}
     </div>
     <div id="seg-empty">标记入点和出点后，点击"添加片段"</div>
     <div id="seg-list"></div>
+
+    <!-- ===== #11 双轨混音台：块拖动/切割/删除/跨轨/混音导出 ===== -->
+    <div id="mt-sec" style="margin-top:14px;border-top:1px solid var(--line,rgba(0,0,0,0.1));padding-top:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-weight:600">双轨混音台</span>
+        <span id="mt-dur" style="font-size:12px;color:var(--text2,#888)"></span>
+        <span style="flex:1"></span>
+        <button class="btn" id="mt-toggle" style="padding:4px 12px;font-size:12px" onclick="mtToggle()">展开</button>
+      </div>
+      <div id="mt-body" style="display:none;margin-top:8px">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="mtAddFile(0)">＋文件→轨1</button>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="mtAddFile(1)">＋文件→轨2</button>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="mtAddSel(0)">＋入出点→轨1</button>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="mtAddSel(1)">＋入出点→轨2</button>
+        </div>
+        <div id="mt-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line,rgba(0,0,0,0.12));border-radius:8px;background:var(--bg2,#f4f2ec)">
+          <div id="mt-inner" style="position:relative;min-width:100%">
+            <div id="mt-ruler" style="height:18px;position:relative;font-size:9px;color:var(--text2,#888);border-bottom:1px solid rgba(0,0,0,0.08)"></div>
+            <div class="mt-lane" data-ti="0" style="height:52px;position:relative;border-bottom:1px dashed rgba(0,0,0,0.12)"></div>
+            <div class="mt-lane" data-ti="1" style="height:52px;position:relative"></div>
+            <div id="mt-ph" style="position:absolute;top:0;bottom:0;width:2px;background:#e0483a;left:0;pointer-events:none"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center">
+          <button class="btn" id="mt-play" style="padding:5px 12px;font-size:12px" onclick="mtPlayToggle()">▶ 播放</button>
+          <button class="btn" style="padding:5px 12px;font-size:12px" onclick="mtSeek(0)">⏮ 归零</button>
+          <button class="btn" style="padding:5px 12px;font-size:12px" onclick="mtSplitSel()">✂ 切割</button>
+          <button class="btn" style="padding:5px 12px;font-size:12px" onclick="mtSwapSel()">⇅ 换轨</button>
+          <button class="btn danger" style="padding:5px 12px;font-size:12px" onclick="mtDelSel()">🗑 删除</button>
+          <span style="flex:1"></span>
+          <button class="btn primary" style="padding:5px 14px;font-size:12px" onclick="mtExport()">混音导出</button>
+        </div>
+        <div style="font-size:11px;color:var(--text2,#888);margin-top:6px">点块选中 · 横拖移动(自动吸附邻缘) · 竖拖换轨 · 点空白定播放头 · 切割在播放头处 · 导出为上方所选格式的双轨混音</div>
+      </div>
+      <input type="file" id="mt-file-input" accept="audio/*,.mp3,.wav,.aac,.m4a,.ogg,.flac,.aiff,.aif,.opus,.weba" style="display:none">
+    </div>
   </div>
 </div>
 
@@ -2145,6 +2182,210 @@ document.addEventListener('keydown',e=>{
 
 window.addEventListener('load',function(){ var b=document.getElementById('boot-splash'); if(b){ b.style.opacity='0'; setTimeout(function(){ try{b.remove()}catch(e){} },260); } });
 setTimeout(function(){ var b=document.getElementById('boot-splash'); if(b){ try{b.remove()}catch(e){} } },4000);
+
+/* ===== #11 双轨混音台 ===== */
+const MT={
+  EPS:1e-6,
+  add(tracks,ti,blk){ tracks[ti].push(blk); tracks[ti].sort((a,b)=>a.start-b.start); return blk; },
+  remove(tracks,id){ for(const tr of tracks){ const i=tr.findIndex(b=>b.id===id); if(i>=0){ tr.splice(i,1); return true; } } return false; },
+  find(tracks,id){ for(let t=0;t<tracks.length;t++){ const b=tracks[t].find(x=>x.id===id); if(b) return {b,t}; } return null; },
+  split(tracks,id,at,newId){
+    const f=MT.find(tracks,id); if(!f) return null;
+    const {b,t}=f, rel=at-b.start;
+    if(rel<=0.01 || rel>=b.dur-0.01) return null;
+    const right={id:newId,buf:b.buf,label:b.label,start:b.start+rel,off:b.off+rel,dur:b.dur-rel};
+    b.dur=rel; MT.add(tracks,t,right); return right;
+  },
+  move(tracks,id,newStart,snap){
+    const f=MT.find(tracks,id); if(!f) return null;
+    const {b,t}=f; let s2=Math.max(0,newStart);
+    if(snap>0){
+      const edges=[0];
+      for(const o of tracks[t]) if(o.id!==id){ edges.push(o.start,o.start+o.dur); }
+      for(const e of edges){ if(Math.abs(s2-e)<=snap){ s2=e; break; }
+        if(Math.abs((s2+b.dur)-e)<=snap){ s2=Math.max(0,e-b.dur); break; } }
+    }
+    b.start=s2; tracks[t].sort((x,y)=>x.start-y.start); return s2;
+  },
+  toTrack(tracks,id,ti){
+    const f=MT.find(tracks,id); if(!f||f.t===ti) return false;
+    MT.remove(tracks,id); MT.add(tracks,ti,f.b); return true;
+  },
+  dur(tracks){ let d=0; for(const tr of tracks) for(const b of tr) d=Math.max(d,b.start+b.dur); return d; },
+  sched(b,ph){
+    const end=b.start+b.dur;
+    if(end<=ph+MT.EPS) return null;
+    if(b.start>=ph) return {when:b.start-ph, off:b.off, dur:b.dur};
+    return {when:0, off:b.off+(ph-b.start), dur:end-ph};
+  }
+};
+let mtTracks=[[],[]], mtSel=null, mtPh=0, mtPlaying=false, mtSrcs=[], mtRaf=0, mtSeq=1, mtFileTi=0;
+const MT_PPS=26, MT_COLORS=['#4a90d9','#2fae57'];
+function mtEnsureCtx(){
+  if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
+  return audioCtx;
+}
+function mtToggle(){
+  const b=document.getElementById('mt-body'), t=document.getElementById('mt-toggle');
+  const open=b.style.display==='none';
+  b.style.display=open?'block':'none'; t.textContent=open?'收起':'展开';
+  if(open) mtRender();
+}
+function mtRender(){
+  const d=Math.max(10, MT.dur(mtTracks)+4);
+  const inner=document.getElementById('mt-inner'); if(!inner) return;
+  inner.style.width=Math.ceil(d*MT_PPS)+'px';
+  const ruler=document.getElementById('mt-ruler');
+  ruler.innerHTML='';
+  const step=d>120?30:(d>40?10:5);
+  for(let t2=0;t2<=d;t2+=step){
+    const m=document.createElement('span');
+    m.style.cssText='position:absolute;left:'+(t2*MT_PPS)+'px;top:2px;border-left:1px solid rgba(0,0,0,0.2);padding-left:3px';
+    m.textContent=fmtTime(t2).replace(/\.\d+$/,'');
+    ruler.appendChild(m);
+  }
+  document.querySelectorAll('.mt-lane').forEach(lane=>{
+    const ti=+lane.getAttribute('data-ti');
+    lane.innerHTML='';
+    mtTracks[ti].forEach(blk=>{
+      const el=document.createElement('div');
+      el.className='mt-blk';
+      el.style.cssText='position:absolute;top:5px;bottom:5px;border-radius:7px;overflow:hidden;cursor:grab;'+
+        'left:'+(blk.start*MT_PPS)+'px;width:'+Math.max(14,blk.dur*MT_PPS)+'px;'+
+        'background:'+MT_COLORS[ti]+(mtSel===blk.id?';box-shadow:0 0 0 2.5px #e0483a,0 2px 8px rgba(0,0,0,0.3)':';box-shadow:0 1px 4px rgba(0,0,0,0.25)');
+      el.innerHTML='<div style="font-size:10px;color:#fff;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,0.4)">'+blk.label+'</div>'+
+        '<div style="font-size:9px;color:rgba(255,255,255,0.85);padding:0 5px">'+fmtTime(blk.dur)+'</div>';
+      mtBindBlock(el,blk,ti);
+      lane.appendChild(el);
+    });
+  });
+  document.getElementById('mt-ph').style.left=(mtPh*MT_PPS)+'px';
+  document.getElementById('mt-dur').textContent=MT.dur(mtTracks)>0?('总长 '+fmtTime(MT.dur(mtTracks))):'';
+}
+function _mtPt(e){ const t2=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0])||e; return {x:t2.clientX||0,y:t2.clientY||0}; }
+function mtBindBlock(el,blk,ti){
+  let sx=0,sy=0,os=0,drag=false,moved=false;
+  const dn=e=>{ const p2=_mtPt(e); sx=p2.x; sy=p2.y; os=blk.start; drag=true; moved=false;
+    if(mtSel!==blk.id){ mtSel=blk.id; mtRender(); } };
+  const mv=e=>{ if(!drag) return;
+    const p2=_mtPt(e), dx=p2.x-sx;
+    if(Math.abs(dx)>4||moved){ moved=true; el.style.left=(Math.max(0,os+dx/MT_PPS)*MT_PPS)+'px'; try{e.preventDefault();}catch(_){} } };
+  const up=e=>{ if(!drag) return; drag=false;
+    const p2=_mtPt(e), dx=p2.x-sx, dy=p2.y-sy;
+    if(moved){
+      MT.move(mtTracks,blk.id,os+dx/MT_PPS,0.08);
+      if(Math.abs(dy)>34) MT.toTrack(mtTracks,blk.id,ti===0?1:0);
+      mtRender();
+    } };
+  el.addEventListener('touchstart',dn,{passive:true});
+  el.addEventListener('touchmove',mv,{passive:false});
+  ['touchend','touchcancel'].forEach(ev=>el.addEventListener(ev,up,{passive:true}));
+  el.addEventListener('mousedown',e=>{ dn(e); const mm=ev=>mv(ev), mu=ev=>{ up(ev); document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); };
+    document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu); });
+}
+(function(){
+  const inner=document.getElementById('mt-inner'); if(!inner) return;
+  const seek=e=>{ if(e.target.closest&&e.target.closest('.mt-blk')) return;
+    const r=inner.getBoundingClientRect(), p2=_mtPt(e);
+    mtSeek(Math.max(0,(p2.x-r.left)/MT_PPS)); };
+  inner.addEventListener('click',seek);
+})();
+function mtSeek(t2){ mtPh=Math.max(0,t2); if(mtPlaying) mtStop(); const ph=document.getElementById('mt-ph'); if(ph) ph.style.left=(mtPh*MT_PPS)+'px'; }
+function mtAddFile(ti){ mtFileTi=ti; document.getElementById('mt-file-input').click(); }
+document.getElementById('mt-file-input').addEventListener('change',async function(){
+  const f=this.files[0]; this.value=''; if(!f) return;
+  const ac=mtEnsureCtx(); if(!ac){ setStatus('AudioContext 不可用','err'); return; }
+  try{
+    setStatus('双轨：解码 '+f.name+'…');
+    const ab=await f.arrayBuffer();
+    const buf=await new Promise((res,rej)=>ac.decodeAudioData(ab,res,rej));
+    const end=mtTracks[mtFileTi].reduce((m,b)=>Math.max(m,b.start+b.dur),0);
+    MT.add(mtTracks,mtFileTi,{id:'mtb'+(mtSeq++),buf,label:f.name.replace(/\.[^.]+$/,'').slice(0,18),start:end,off:0,dur:buf.duration});
+    mtRender(); setStatus('已加入轨'+(mtFileTi+1)+'：'+f.name,'ok');
+  }catch(e){ setStatus('双轨解码失败：'+(e&&e.message||e),'err'); }
+});
+function mtAddSel(ti){
+  if(!audioBuffer||pendingIn==null||pendingOut==null||pendingOut<=pendingIn){ setStatus('先在上方波形标好入点/出点','err'); return; }
+  const end=mtTracks[ti].reduce((m,b)=>Math.max(m,b.start+b.dur),0);
+  MT.add(mtTracks,ti,{id:'mtb'+(mtSeq++),buf:audioBuffer,label:'选段'+fmtTime(pendingIn),start:end,off:pendingIn,dur:pendingOut-pendingIn});
+  mtRender(); setStatus('入出点选段已加入轨'+(ti+1),'ok');
+}
+function mtSplitSel(){
+  if(!mtSel){ setStatus('先点选一个音频块','err'); return; }
+  const r=MT.split(mtTracks,mtSel,mtPh,'mtb'+(mtSeq++));
+  if(!r){ setStatus('播放头须落在选中块内部才能切割','err'); return; }
+  mtRender(); setStatus('已在播放头处切割','ok');
+}
+function mtDelSel(){
+  if(!mtSel){ setStatus('先点选一个音频块','err'); return; }
+  MT.remove(mtTracks,mtSel); mtSel=null; mtRender(); setStatus('已删除','ok');
+}
+function mtSwapSel(){
+  if(!mtSel){ setStatus('先点选一个音频块','err'); return; }
+  const f=MT.find(mtTracks,mtSel); if(!f) return;
+  MT.toTrack(mtTracks,mtSel,f.t===0?1:0); mtRender();
+}
+function mtPlayToggle(){ if(mtPlaying){ mtStop(); } else { mtStart(); } }
+function mtStart(){
+  const total=MT.dur(mtTracks);
+  if(total<=0){ setStatus('双轨为空','err'); return; }
+  if(mtPh>=total-0.01) mtPh=0;
+  const ac=mtEnsureCtx(); if(!ac) return;
+  const go=()=>{
+    const t0=ac.currentTime+0.06, ph0=mtPh;
+    mtSrcs=[];
+    for(const tr of mtTracks) for(const b of tr){
+      const sc=MT.sched(b,ph0); if(!sc) continue;
+      try{
+        const src=ac.createBufferSource(); src.buffer=b.buf;
+        src.connect(ac.destination);
+        src.start(t0+sc.when, sc.off, sc.dur);
+        mtSrcs.push(src);
+      }catch(e){}
+    }
+    mtPlaying=true;
+    document.getElementById('mt-play').textContent='⏸ 暂停';
+    const tick=()=>{
+      if(!mtPlaying) return;
+      mtPh=ph0+(ac.currentTime-t0);
+      if(mtPh>=total){ mtStop(); mtPh=total; }
+      const ph=document.getElementById('mt-ph'); if(ph) ph.style.left=(Math.min(mtPh,total)*MT_PPS)+'px';
+      mtRaf=requestAnimationFrame(tick);
+    };
+    mtRaf=requestAnimationFrame(tick);
+  };
+  if(ac.state==='suspended'){ ac.resume().then(go).catch(go); } else { go(); }
+}
+function mtStop(){
+  mtPlaying=false; cancelAnimationFrame(mtRaf);
+  mtSrcs.forEach(s2=>{ try{s2.stop();}catch(e){} }); mtSrcs=[];
+  const pb=document.getElementById('mt-play'); if(pb) pb.textContent='▶ 播放';
+}
+async function mtExport(){
+  const total=MT.dur(mtTracks);
+  if(total<=0){ setStatus('双轨为空，无可导出','err'); return; }
+  if(mtPlaying) mtStop();
+  let sr=44100;
+  outer: for(const tr of mtTracks){ for(const b of tr){ sr=b.buf.sampleRate; break outer; } }
+  try{
+    setStatus('双轨混音渲染中…');
+    const len=Math.ceil(total*sr);
+    const oac=new OfflineAudioContext(2,len,sr);
+    for(const tr of mtTracks) for(const b of tr){
+      const src=oac.createBufferSource(); src.buffer=b.buf;
+      src.connect(oac.destination);
+      src.start(b.start, b.off, b.dur);
+    }
+    const rendered=await oac.startRendering();
+    const fmt=getFmtInfo();
+    const blob = fmt.type==='mp3' ? await encodeToMp3Blob(rendered,fmt.kbps) : encodeToWavBlob(rendered,fmt.bits);
+    if(!blob){ setStatus('编码失败','err'); return; }
+    const ts=new Date(); const pad=n=>String(n).padStart(2,'0');
+    await triggerDownload(blob, '双轨混音_'+pad(ts.getHours())+pad(ts.getMinutes())+pad(ts.getSeconds())+'.'+getFmtExt());
+    setStatus('双轨混音已导出 ('+fmtTime(total)+')','ok');
+  }catch(e){ setStatus('混音导出失败：'+(e&&e.message||e),'err'); }
+}
+
 </script>
 </body>
 </html>
