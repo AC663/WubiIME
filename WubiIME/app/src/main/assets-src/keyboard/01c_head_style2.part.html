@@ -268,7 +268,7 @@
 .kb-row.t9row .key{height:52px}                 /* 末行让出的高度均分回前3行 */
 .kb-row.t9row.t9last .key{height:44px}          /* 末行(计算器/空格/回车)=主键盘空格键同高 */
 /* 九宫功能层副字：与"全选/音效"字样同级观感(加大加粗)，图标键同理 */
-.key.t9fnsub .ks{font-size:14px;font-weight:600;margin-top:2px;opacity:.92}   /* #1 Ctrl/Alt层键帽字样=造词字样(14px) */
+.key.t9fnsub .ks{font-size:16px;font-weight:700;margin-top:1px;opacity:.95}   /* #10 Ctrl/Alt层副字再增大：16px粗体，观感≥"造词"字样 */
 .key.t9pad{pointer-events:none;background:transparent!important;box-shadow:none!important;border:none!important}
 .t-orange .key.del-r3 svg,.t-red .key.del-r3 svg,.t-green .key.del-r3 svg,.t-yellow .key.del-r3 svg,
 .t-pink .key.del-r3 svg,.t-brown .key.del-r3 svg,.t-cyan .key.del-r3 svg,.t-white .key.del-r3 svg,
@@ -299,6 +299,7 @@
   vertical-align:2px;user-select:none;-webkit-user-select:none;cursor:pointer}
 .calc-prep.on{color:var(--acd,#9a4520);border:1.5px solid var(--ac,#e86030);
   background:rgba(232,96,48,0.10)}
+.t-yellow .calc-prep{color:rgba(150,100,10,0.75);border-color:rgba(200,140,20,0.45);background:rgba(255,255,255,0.5)}
 .t-dark .calc-prep{color:rgba(230,215,170,0.5);border-color:rgba(230,215,170,0.35);background:rgba(255,255,255,0.05)}
 .calc-res{font-size:14px;color:var(--ac,#e86030);margin-top:2px;font-weight:600}
 
@@ -454,7 +455,7 @@
 .t-green  .num-key:not(.accent),
 .t-pink   .num-key:not(.accent),
 .t-brown  .num-key:not(.accent),
-.t-cyan   .num-key:not(.accent),.t-white   .num-key:not(.accent),
+.t-cyan   .num-key:not(.accent),.t-white   .num-key:not(.accent),.t-yellow  .num-key:not(.accent),
 .t-dark   .num-key:not(.accent){
   background:linear-gradient(180deg,var(--kbg1),var(--kbg2));
   box-shadow:0 2px 4px rgba(0,0,0,0.15),inset 0 1px rgba(255,255,255,0.8)}
@@ -467,16 +468,16 @@
 .t-green  .num-key:not(.accent) .km,
 .t-pink   .num-key:not(.accent) .km,
 .t-brown  .num-key:not(.accent) .km,
-.t-cyan   .num-key:not(.accent) .km,.t-white   .num-key:not(.accent) .km,
+.t-cyan   .num-key:not(.accent) .km,.t-white   .num-key:not(.accent) .km,.t-yellow  .num-key:not(.accent) .km,
 .t-dark   .num-key:not(.accent) .km{color:var(--ktxt)}
 .t-orange .num-key.accent,.t-blue .num-key.accent,.t-purple .num-key.accent,
 .t-red .num-key.accent,.t-green .num-key.accent,.t-pink .num-key.accent,
-.t-brown .num-key.accent,.t-cyan .num-key.accent,.t-white .num-key.accent,.t-dark .num-key.accent{
+.t-brown .num-key.accent,.t-cyan .num-key.accent,.t-white .num-key.accent,.t-yellow .num-key.accent,.t-dark .num-key.accent{
   background:linear-gradient(180deg,var(--ac),var(--acd));
   box-shadow:0 2px 6px rgba(0,0,0,0.3)}
 .t-orange .num-key.accent .km,.t-blue .num-key.accent .km,.t-purple .num-key.accent .km,
 .t-red .num-key.accent .km,.t-green .num-key.accent .km,.t-pink .num-key.accent .km,
-.t-brown .num-key.accent .km,.t-cyan .num-key.accent .km,.t-white .num-key.accent .km,.t-dark .num-key.accent .km{
+.t-brown .num-key.accent .km,.t-cyan .num-key.accent .km,.t-white .num-key.accent .km,.t-yellow .num-key.accent .km,.t-dark .num-key.accent .km{
   color:#fff;font-weight:600}
 .t-orange .keyboard,.t-blue .keyboard,.t-purple .keyboard,
 .t-red .keyboard,.t-green .keyboard,.t-pink .keyboard,

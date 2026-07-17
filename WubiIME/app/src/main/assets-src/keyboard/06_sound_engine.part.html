@@ -3,7 +3,7 @@
 //   音区整体上移(第1行=C5起亮音区、第2行=C4中音区)；和弦低根音+中声部四音配置更饱满；
 //   按住不放=音符持续鸣响(绵音)，抬指柔性释放——真实钢琴踏板质感。
 let sndTheme='click';   // 'click'键盘机械 | 'piano'钢琴 | 'crystal'水晶 | 'bell'风铃
-try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click'||st==='bell') sndTheme=st; }catch(e){}
+try{ const st=KV.get('kbSndTheme'); if(st==='piano'||st==='crystal'||st==='click'||st==='bell'||st==='drum') sndTheme=st; }catch(e){}
 function saveSndTheme(){ try{ KV.set('kbSndTheme',sndTheme); mirrorPrefs(); }catch(e){} }
 // 缺陷#10：压限器冷启动预热——首个真实声部到来前，压限尚未建立增益衰减，
 //   全电平直出=极大声。喂一枚30ms、-40dB的粉噪让reduction先"咬合"，并给总线80ms淡入。
@@ -345,6 +345,86 @@ function playBellChord(midis){
   if(!soundOn) return;
   midis.forEach((m,i)=>setTimeout(()=>playBell(m,0.16),i*26));
 }
+// ===== #9 军乐鼓主题：小军鼓槌击(上行)/大鼓(中行)/嗵鼓连击(下行)。
+//   全部声部入 _poolAdd(同键快速连击→旧声部柔性收掉再起新声，杜绝同相叠加爆音)，
+//   且一律经 _sndBus 压限总线出声——快速乱打也不出电流爆音。=====
+let _noiseBufCache=null;
+function _noiseBuf(ac){
+  if(_noiseBufCache) return _noiseBufCache;
+  const b=ac.createBuffer(1, Math.floor(ac.sampleRate*0.3), ac.sampleRate);
+  const d=b.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  _noiseBufCache=b; return b;
+}
+function _drumVoice(kind, noteKey, when){
+  if(!soundOn) return null;
+  const ac=_ensureAudio(); if(!ac) return null;
+  const bus=_sndBus(); if(!bus) return null;
+  try{
+    const t=(when!=null?when:ac.currentTime)+0.003;
+    const nodes=[];
+    const mkG=()=>{ const g=ac.createGain(); g.connect(bus); nodes.push(g); return g; };
+    if(kind==='rim'){
+      // 鼓槌边击：高频窄带噪声爆点 + 2.4kHz 短促木质ping
+      const n=ac.createBufferSource(); n.buffer=_noiseBuf(ac);
+      const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=4200; bp.Q.value=1.1;
+      const g=mkG();
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.55,t+0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.055); g.gain.linearRampToValueAtTime(0,t+0.06);
+      n.connect(bp); bp.connect(g); n.start(t); n.stop(t+0.07); nodes.push(n,bp);
+      const o=ac.createOscillator(); o.type='square'; o.frequency.value=2400;
+      const g2=mkG();
+      g2.gain.setValueAtTime(0.0001,t); g2.gain.linearRampToValueAtTime(0.10,t+0.002);
+      g2.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
+      o.connect(g2); o.start(t); o.stop(t+0.035); nodes.push(o);
+    } else if(kind==='bass'){
+      // 大鼓：160→45Hz 扫频正弦鼓腔 + 低通噪声捶皮瞬态
+      const o=ac.createOscillator(); o.type='sine';
+      o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(45,t+0.09);
+      const g=mkG();
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.85,t+0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.30); g.gain.linearRampToValueAtTime(0,t+0.32);
+      o.connect(g); o.start(t); o.stop(t+0.34); nodes.push(o);
+      const n=ac.createBufferSource(); n.buffer=_noiseBuf(ac);
+      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+      const g2=mkG();
+      g2.gain.setValueAtTime(0.0001,t); g2.gain.linearRampToValueAtTime(0.28,t+0.003);
+      g2.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
+      n.connect(lp); lp.connect(g2); n.start(t); n.stop(t+0.05); nodes.push(n,lp);
+    } else {   // 'tom' 嗵鼓：中低扫频，鼓身共鸣
+      const f0=(kind==='tom2')?150:200, f1=(kind==='tom2')?85:110;
+      const o=ac.createOscillator(); o.type='sine';
+      o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+0.10);
+      const g=mkG();
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.60,t+0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.20); g.gain.linearRampToValueAtTime(0,t+0.22);
+      o.connect(g); o.start(t); o.stop(t+0.24); nodes.push(o);
+    }
+    const vc={ release(){ try{
+      const rt=ac.currentTime;
+      nodes.forEach(nd=>{ if(nd.gain){ try{ nd.gain.cancelScheduledValues(rt); nd.gain.setValueAtTime(Math.max(0.0001,nd.gain.value||0.2),rt); nd.gain.linearRampToValueAtTime(0,rt+0.05); }catch(_){} } });
+      nodes.forEach(nd=>{ if(nd.stop){ try{ nd.stop(rt+0.06); }catch(_){} } });
+    }catch(e){} } };
+    let ended=0; const total=nodes.filter(nd=>nd.start).length;
+    nodes.forEach(nd=>{ if(nd.start) nd.onended=()=>{ if(++ended>=total){ nodes.forEach(x=>{try{x.disconnect();}catch(_){}}); if(vc.__drop) vc.__drop(); } }; });
+    return _poolAdd(vc, noteKey);
+  }catch(e){ return null; }
+}
+// 主键盘按行分发：上行=槌击rim、中行=大鼓、下行=嗵鼓连击(双击滚奏)；空格=大鼓，其余回落机械click
+function playDrum(k){
+  if(!soundOn) return;
+  const K=(k||'').toUpperCase();
+  if(typeof R1!=='undefined' && R1.indexOf(K)>=0){ _drumVoice('rim','dr'+K); return true; }
+  if(typeof R2!=='undefined' && R2.indexOf(K)>=0){ _drumVoice('bass','dr'+K); return true; }
+  if(typeof R3!=='undefined' && R3.indexOf(K)>=0){
+    const ac=_ensureAudio();
+    _drumVoice('tom','dr'+K);
+    if(ac) _drumVoice('tom2','dr'+K+'b', ac.currentTime+0.062);   // 连击第二槌:低一皮
+    return true;
+  }
+  if(K===' '||K==='SPACE'){ _drumVoice('bass','drSP'); return true; }
+  return false;
+}
 // 键位→发声(按下)：随音效主题分发；修饰层一律回落机械click
 function keySound(k){
   if(!soundOn) return;
@@ -358,6 +438,8 @@ function keySound(k){
     } else if(sndTheme==='bell'){
       if(_PIANO_KEYMAP[k]!=null){ bellDown(k,_PIANO_KEYMAP[k]); return; }   // #风铃 长按延音
       if(_CHORDS[k]){ playBellChord(_CHORDS[k]); return; }
+    } else if(sndTheme==='drum'){
+      if(playDrum(k)) return;   // #9 军乐鼓：行内键出鼓声，其余回落click
     }
   }
   playClick();
@@ -367,6 +449,7 @@ function keySoundUp(k){ pianoUp(k); }
 // 长按连发时的每拍声：音乐主题下音符已在绵延，不再逐拍点击；默认主题保持机械连击声
 function keySoundRep(k){
   if(!soundOn) return;
+  if(!ctrl && !ctrlLock && !alt && sndTheme==='drum'){ if(playDrum(k)) return; }   // #9 鼓：长按=滚奏逐拍
   const musical = !ctrl && !ctrlLock && !alt && sndTheme!=='click' && (_PIANO_KEYMAP[k]!=null||_CHORDS[k]);   // 钢琴/水晶/风铃：长按靠延音,不逐拍
   if(musical) return;
   playClick();
@@ -387,6 +470,10 @@ function t9Sound(k){
     if(_T9_NOTES[k]!=null){ bellDown('t9'+k,_T9_NOTES[k]); return; }
     if(k==='1'){ playBellChord([60,64,67]); return; }
     if(k==='0'){ playBellChord([55,59,62]); return; }
+  } else if(sndTheme==='drum'){
+    if('123'.indexOf(k)>=0){ _drumVoice('rim','t9'+k); return; }
+    if('456'.indexOf(k)>=0 || k==='0'){ _drumVoice('bass','t9'+k); return; }
+    if('789'.indexOf(k)>=0){ const ac=_ensureAudio(); _drumVoice('tom','t9'+k); if(ac) _drumVoice('tom2','t9'+k+'b',ac.currentTime+0.062); return; }
   }
   playClick();
 }
@@ -398,10 +485,10 @@ function toggleSound(){
   buildKb();                 // 重建以刷新 Ctrl 模式 L 键静音图标态
 }
 // ===== #9 音效轨道：Ctrl+音效 → 编码栏轨道排开 静音/默认/钢琴/水晶 直选 =====
-const SND_OPTS=[{n:'静音',v:null},{n:'键盘',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'},{n:'风铃',v:'bell'}];
+const SND_OPTS=[{n:'静音',v:null},{n:'键盘',v:'click'},{n:'钢琴',v:'piano'},{n:'水晶',v:'crystal'},{n:'风铃',v:'bell'},{n:'军鼓',v:'drum'}];
 function curSndIdx(){
   if(!soundOn) return 0;
-  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : sndTheme==='bell'?4 : 1;
+  return sndTheme==='piano'?2 : sndTheme==='crystal'?3 : sndTheme==='bell'?4 : sndTheme==='drum'?5 : 1;
 }
 function applySndOpt(i){
   const o=SND_OPTS[i]; if(!o) return;
@@ -415,6 +502,7 @@ function applySndOpt(i){
     if(o.v==='piano'){ _loadPianoSamples(); playChord([48,60,64,67]); }
     else if(o.v==='crystal') playCrystal(72);
     else if(o.v==='bell') playBellChord([72,76,79]);   // #风铃 试听:清越三连
+    else if(o.v==='drum'){ const ac=_ensureAudio(); _drumVoice('rim','pv1'); if(ac){ _drumVoice('rim','pv2',ac.currentTime+0.12); _drumVoice('bass','pv3',ac.currentTime+0.24); } }   // #9 试听:咗咗-哚
     else playClick();
   }
   if(wasMute!==(!soundOn)) setTimeout(buildKb,0);   // 静音态翻转→刷新 L 键图标
@@ -448,9 +536,10 @@ function buildSoundStrip(){
     o.frequency.setValueAtTime(420,t);
     o.frequency.exponentialRampToValueAtTime(980,t+0.07);
     g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.14,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.32,t+0.012);   // #9 气泡音增大(0.14→0.32)
     g.gain.exponentialRampToValueAtTime(0.0001,t+0.11);
-    o.connect(g); g.connect(ac.destination);
+    const _bus=_sndBus();
+    o.connect(g); g.connect(_bus||ac.destination);   // 过压限总线：音量提升也不破音
     o.start(t); o.stop(t+0.12);
   }catch(e){}
 }

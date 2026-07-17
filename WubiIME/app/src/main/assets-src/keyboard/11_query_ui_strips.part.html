@@ -284,7 +284,7 @@ function setThemeIdx(i){
   ime.classList.add(THEMES[theme]);
   try{ KV.set('kbTheme',THEMES[theme]); mirrorPrefs(); }catch(e){}   // 持久：重建/重启后仍是该主题
   const ball=document.getElementById('themeBtn');
-  ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:'');
+  ball.className='sball theme-ball '+TNAMES[theme];
   // #3 换主题实时联动：剪贴展开区的锐利配色是构建期内联样式——主题一换必须当场重染，
   //   否则视觉停留旧主题(实际已变但不刷新)。详情门若开着：记住内容原位重开。
   try{
@@ -311,7 +311,7 @@ function buildThemeStrip(){
     d.className='cat-chip ball'+(i===theme?' on':'');
     d.setAttribute('data-tab-idx',i);
     const b=document.createElement('div');
-    b.className='theme-ball'+(i>0?' '+TNAMES[i]:'');
+    b.className='theme-ball '+TNAMES[i];
     d.appendChild(b);
     if(i===theme) d.setAttribute('data-active-tab','1');
     tabs.appendChild(d);
@@ -357,7 +357,7 @@ function buildModeStrip(){
     d.textContent=o.n;
     tabs.appendChild(d);
   });
-  _catSelectFn=(i)=>{ if(i!==curModeIdx()) playPop(); applyModeOpt(i); buildModeStrip(); };
+  _catSelectFn=(i)=>{ if(i!==curModeIdx()) playPop(); applyModeOpt(i); restoreCatStrip(); };   // #6 选定即释放编码栏，轨道不长驻
   syncCodeBar();
 }
 // #6 面板入场：170ms cubic-bezier(.22,1,.36,1) 上滑淡入(纯transform/opacity零布局)，干脆不拖沓

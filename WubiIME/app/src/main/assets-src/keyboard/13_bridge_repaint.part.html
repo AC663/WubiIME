@@ -222,7 +222,14 @@ function releaseModifiers(){
     if(ctrl||ctrlLock||alt||shift){ ctrl=false; ctrlLock=false; alt=false; shift=false; dirty=true; }
     // 状态留持一轮制：切走/中断后回来，数字键盘收回主键盘、编码栏模式轨道收回——
     //   再调出时直接见输入区与功能分类，不被上次状态"抢镜"。
-    if(typeof num!=='undefined' && num && typeof calcMode!=='undefined' && !calcMode){ num=false; dirty=true; }
+    if(typeof num!=='undefined' && num && typeof calcMode!=='undefined' && !calcMode){ num=false; dirty=true;
+      // #6 真根因修复：仅置标志不切视图=数字键盘看似"长驻"。此处不走 switchNum()(其内 closeApp 会误杀应用overlay)，
+      //   只做最小视图收回：重建干净数字键盘+显隐切换+按钮态刷新。
+      try{ if(typeof buildNumpad==='function') buildNumpad(); }catch(e){}
+      try{ const mk=document.getElementById('mainKb'), nk=document.getElementById('numKb');
+        if(mk) mk.classList.remove('hidden'); if(nk) nk.classList.add('hidden'); }catch(e){}
+      try{ if(typeof updateBtnStates==='function') updateBtnStates(); }catch(e){}
+    }
     if(typeof _activePanel!=='undefined' && _activePanel==='mode' && typeof restoreCatStrip==='function'){ restoreCatStrip(); }
     if(dirty && typeof buildKb==='function') buildKb();
   }catch(e){}
@@ -284,6 +291,58 @@ setTimeout(function(){
     if(document.fonts&&document.fonts.ready) document.fonts.ready.then(run); else run();
   }catch(e){}
 }, 2500);
+
+// ===== #2 探针常驻查看：长按[表情]球550ms → 当场重跑探针并弹出结果面板(点关闭退出) =====
+function _probeRun(cb){
+  var res={loaded:null, zwj:null, ua:navigator.userAgent.slice(0,140), t:new Date().toLocaleString()};
+  try{ res.loaded=document.fonts.check('16px KBEmoji','😀'); }catch(e){ res.loaded=false; }
+  try{
+    var c=document.createElement('canvas').getContext('2d');
+    c.font='32px KBEmoji,system-ui';
+    var wZ=c.measureText('\u{1F9DF}').width;
+    var wZM=c.measureText('\u{1F9DF}\u200D\u2642\uFE0F').width;
+    res.zwj=(wZM < wZ*1.5);
+  }catch(e){}
+  try{ KV.set('kbEmojiProbe', JSON.stringify(res)); mirrorPrefs(); }catch(e){}
+  cb(res);
+}
+function showEmojiProbe(){
+  _probeRun(function(res){
+    try{
+      var ov=document.getElementById('probePanel'); if(ov) ov.remove();
+      ov=document.createElement('div'); ov.id='probePanel';
+      ov.style.cssText='position:fixed;inset:0;z-index:390;background:rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center';
+      var box=document.createElement('div');
+      box.style.cssText='background:#fff;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,0.32);padding:16px 18px 14px;min-width:240px;max-width:82vw';
+      box.innerHTML='<div style="font-size:15px;font-weight:700;color:#2a1408;text-align:center;padding-bottom:10px">表情渲染探针</div>'
+        +'<div style="font-size:13.5px;line-height:1.9;color:#2a1408">'
+        +'内嵌字体 KBEmoji：<b style="color:'+(res.loaded?'#178a3c':'#b52a1e')+'">'+(res.loaded?'已生效':'未生效')+'</b><br>'
+        +'ZWJ 组合表情：<b style="color:'+(res.zwj?'#178a3c':'#b52a1e')+'">'+(res.zwj?'合成为单字形':'退化为多枚')+'</b><br>'
+        +'样张：<span style="font-family:KBEmoji,system-ui;font-size:22px">😀🧟\u200D\u2642\uFE0F👍🔥</span><br>'
+        +'<span style="font-size:11px;color:#8a7a68;word-break:break-all">'+res.ua+'</span><br>'
+        +'<span style="font-size:11px;color:#8a7a68">检测时间 '+res.t+'</span></div>';
+      var btn=document.createElement('div');
+      btn.textContent='关闭';
+      btn.style.cssText='margin-top:12px;text-align:center;padding:9px;border-radius:9px;background:var(--ac,#e86030);color:#fff;font-size:14px;font-weight:700;cursor:pointer';
+      var close=function(e){ try{e.preventDefault();e.stopPropagation();}catch(_){ } ov.remove(); };
+      btn.addEventListener('touchstart',close,{passive:false});
+      btn.addEventListener('mousedown',close);
+      box.appendChild(btn); ov.appendChild(box); document.body.appendChild(ov);
+    }catch(e){}
+  });
+}
+(function(){ try{
+  var b=document.getElementById('emjBtn'); if(!b) return;
+  var lt=null, fired=false;
+  var arm=function(){ fired=false; clearTimeout(lt); lt=setTimeout(function(){ fired=true; try{playPop();}catch(_){ } showEmojiProbe(); },550); };
+  var dis=function(){ clearTimeout(lt); lt=null; };
+  b.addEventListener('touchstart',arm,{passive:true});
+  b.addEventListener('touchmove',dis,{passive:true});
+  ['touchend','touchcancel'].forEach(function(ev){ b.addEventListener(ev,dis,{passive:true}); });
+  b.addEventListener('mousedown',arm); ['mouseup','mouseleave'].forEach(function(ev){ b.addEventListener(ev,dis); });
+  // 长按已触发→吞掉随后的 click，不再切换表情面板
+  b.addEventListener('click',function(e){ if(fired){ fired=false; e.stopImmediatePropagation(); e.preventDefault(); } },true);
+}catch(e){} })();
 </script>
 </body>
 </html>

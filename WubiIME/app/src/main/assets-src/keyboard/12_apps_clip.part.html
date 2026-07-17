@@ -97,12 +97,7 @@ function showClipDetail(txt, idx){
   back.innerHTML='‹ 返回';
   back.style.cssText=_btnCss(false);
   // 缺陷#7：按压反馈——按下缩放+加深，抬起回弹（与全键盘按键手感一致）
-  const _bkDown=()=>{ back.style.transform='scale(0.94)'; back.style.filter='brightness(0.92)'; };
-  const _bkUp=()=>{ back.style.transform=''; back.style.filter=''; };
-  back.addEventListener('touchstart',_bkDown,{passive:true});
-  ['touchend','touchcancel'].forEach(ev=>back.addEventListener(ev,_bkUp,{passive:true}));
-  back.addEventListener('mousedown',_bkDown);
-  ['mouseup','mouseleave'].forEach(ev=>back.addEventListener(ev,_bkUp));
+  // #5 旧双份按压反馈监听已并入 _press；返回触发改为触点落下瞬发(见下 bind)
   const delBtn=document.createElement('div');
   delBtn.textContent='删除';
   delBtn.style.cssText=_btnCss(true);
@@ -127,9 +122,14 @@ function showClipDetail(txt, idx){
   door.appendChild(bar); door.appendChild(body); door.appendChild(putBtn);
   panel.appendChild(door);
   const closeDoor=()=>{ door.remove(); };
-  const bind=(el,fn)=>{ let tch=false;
-    el.addEventListener('touchstart',e=>{ tch=true; e.preventDefault(); e.stopPropagation(); fn(); setTimeout(()=>{tch=false;},400); },{passive:false});
-    el.addEventListener('mousedown',e=>{ if(tch)return; e.preventDefault(); e.stopPropagation(); fn(); });
+  // #5 触点落下即触发：pointerdown 优先(WebView 触摸派发最早的一档)，touchstart/mousedown 兜底去重——
+  //   返回/删除/上屏三键统一"触及瞬发"，不等按压回弹动画。
+  const bind=(el,fn)=>{ let fired=0;
+    const go=(e)=>{ const now=Date.now(); if(now-fired<400) return; fired=now;
+      try{ e.preventDefault(); e.stopPropagation(); }catch(_){} fn(); };
+    if(window.PointerEvent) el.addEventListener('pointerdown',go,{passive:false});
+    el.addEventListener('touchstart',go,{passive:false});
+    el.addEventListener('mousedown',go);
   };
   bind(back, closeDoor);
   bind(delBtn, ()=>{ kbConfirm('确认删除此内容？',()=>{ deleteClipTxt(txt); closeDoor(); refreshClip(); }); });   // #5 双侧删除(JS+Java)
@@ -259,6 +259,11 @@ let _trainEdit=false,_teTimer=null;
 function _teIdle(){ clearTimeout(_teTimer); _teTimer=setTimeout(()=>exitTrainEdit(),6000); }
 function enterTrainEdit(){ if(_trainEdit) return; _trainEdit=true; try{playPop();}catch(e){} buildClipStrip(); _teIdle(); }
 function exitTrainEdit(){ if(!_trainEdit) return; _trainEdit=false; clearTimeout(_teTimer); _teTimer=null; buildClipStrip(); }
+// #7 编组态逃生口：按到触控条区域即释放编组(capture 先于触控条自身手势，不拦其后续滑动)
+(function(){ try{
+  const tp=document.getElementById('tp');
+  if(tp) tp.addEventListener('touchstart',()=>{ if(_trainEdit) exitTrainEdit(); },{passive:true,capture:true});
+}catch(e){} })();
 (function(){ try{ const st=document.createElement('style'); st.textContent=
   '@keyframes carWob{0%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}100%{transform:rotate(-1.5deg)}}'
  +'.cat-strip.editing .cat-chip.car{animation:carWob .34s ease-in-out infinite}'

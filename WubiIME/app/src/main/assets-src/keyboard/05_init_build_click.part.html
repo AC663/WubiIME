@@ -3,7 +3,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // 开机恢复最后一次的主题与输入模式(含持久层镜像回灌)：切App回来/重建 WebView 后仍是走时的样子
   try{ const tn=KV.get('kbTheme'); const ti=THEMES.indexOf(tn);
     if(ti>=0&&ti!==theme){ const ime=document.getElementById('ime'); ime.classList.remove(THEMES[theme]); theme=ti; ime.classList.add(THEMES[theme]);
-      const ball=document.getElementById('themeBtn'); if(ball) ball.className='sball theme-ball'+(theme>0?' '+TNAMES[theme]:''); } }catch(e){}
+      const ball=document.getElementById('themeBtn'); if(ball) ball.className='sball theme-ball '+TNAMES[theme]; } }catch(e){}
   try{ const lm=KV.get('kbMode'); if(lm==='wubi'||lm==='pinyin'||lm==='english') mode=lm; }catch(e){}
   buildKb(); buildNumpad(); buildPunct(); buildEmoji();
   initCatStripGestures(); clearCatStrip();   // 编码栏分类条：挂手势(一次) + 初始清空隐藏
