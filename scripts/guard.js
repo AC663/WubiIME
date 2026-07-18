@@ -66,5 +66,13 @@ console.log('== G4 CSS 级联守门 (.sball 主题覆盖必须成对) ==');
   ok('主题覆盖成对: '+(themes.join(', ')||'无'));
 }
 
+// == G5 尾部纯净守门：最后一个 </script> 之后只允许 </body></html>（防散件末尾追加代码被当正文渲染，v13.13事故防线） ==
+console.log('== G5 尾部纯净守门 ==');
+{
+  const html5 = fs.readFileSync(A+'/keyboard.html','utf8');
+  const tail5 = html5.slice(html5.lastIndexOf('</script>')+9).trim();
+  if(!/^<\/body>\s*<\/html>$/.test(tail5)){ console.error('  ✗ </script> 之后有泄漏内容: '+tail5.slice(0,80)); fails++; }
+  else console.log('  ✓ 尾部纯净');
+}
 console.log(fails ? ('\nGUARD FAILED ('+fails+')') : '\nGUARD ALL PASS');
 process.exit(fails ? 1 : 0);
