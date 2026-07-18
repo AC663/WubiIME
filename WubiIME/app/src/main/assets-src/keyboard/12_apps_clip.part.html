@@ -123,7 +123,7 @@ function showClipDetail(txt, idx){
   panel.appendChild(door);
   const closeDoor=()=>{ door.remove(); };
   // #5 触点落下即触发：pointerdown 优先(WebView 触摸派发最早的一档)，touchstart/mousedown 兜底去重——
-  //   返回/删除/上屏三键统一"触及瞬发"，不等按压回弹动画。
+  //   删除/上屏两键"触及瞬发"(删除另有确认弹层兜住误触，上屏为高频动作要快)。
   const bind=(el,fn)=>{ let fired=0;
     const go=(e)=>{ const now=Date.now(); if(now-fired<400) return; fired=now;
       try{ e.preventDefault(); e.stopPropagation(); }catch(_){} fn(); };
@@ -131,7 +131,36 @@ function showClipDetail(txt, idx){
     el.addEventListener('touchstart',go,{passive:false});
     el.addEventListener('mousedown',go);
   };
-  bind(back, closeDoor);
+  // #4 返回键改"抬起生效"：按下只给按压反馈，松手后等回弹动画(约0.1s transition)跑完再关门——
+  //   禁止一触即达，杜绝与命名图标/滑动的误触即退。取消(离开按钮/滚动)则不触发。
+  const bindRelease=(el,fn)=>{
+    let armed=false, sx=0, sy=0, fired=0;
+    const arm=(x,y)=>{ armed=true; sx=x; sy=y; };
+    const cancel=()=>{ armed=false; };
+    const fire=(e)=>{
+      if(!armed){ return; } armed=false;
+      const now=Date.now(); if(now-fired<400) return; fired=now;
+      try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
+      // 等回弹动画完成再生效(与按压 transition .1s 对齐)：先复位视觉→延时执行
+      el.style.transform=''; el.style.boxShadow='2px 2px 0 '+SC.sh;
+      setTimeout(fn, 130);
+    };
+    if(window.PointerEvent){
+      el.addEventListener('pointerdown',(e)=>arm(e.clientX,e.clientY),{passive:true});
+      el.addEventListener('pointerup',fire,{passive:false});
+      el.addEventListener('pointercancel',cancel,{passive:true});
+      el.addEventListener('pointerleave',cancel,{passive:true});
+      el.addEventListener('pointermove',(e)=>{ if(armed && (Math.abs(e.clientX-sx)>14||Math.abs(e.clientY-sy)>14)) cancel(); },{passive:true});
+    }
+    el.addEventListener('touchstart',(e)=>{ const t=e.changedTouches&&e.changedTouches[0]; arm(t?t.clientX:0,t?t.clientY:0); },{passive:true});
+    el.addEventListener('touchmove',(e)=>{ const t=e.changedTouches&&e.changedTouches[0]; if(armed&&t&&(Math.abs(t.clientX-sx)>14||Math.abs(t.clientY-sy)>14)) cancel(); },{passive:true});
+    el.addEventListener('touchend',fire,{passive:false});
+    el.addEventListener('touchcancel',cancel,{passive:true});
+    el.addEventListener('mousedown',(e)=>arm(e.clientX,e.clientY));
+    el.addEventListener('mouseup',fire);
+    el.addEventListener('mouseleave',cancel);
+  };
+  bindRelease(back, closeDoor);   // #4 返回=松手回弹后生效
   bind(delBtn, ()=>{ kbConfirm('确认删除此内容？',()=>{ deleteClipTxt(txt); closeDoor(); refreshClip(); }); });   // #5 双侧删除(JS+Java)
   bind(putBtn, ()=>{ playClick(); commit(txt); closeDoor(); });   // #5 上屏后回到剪贴展开列表，不折回[应用]
 }
@@ -257,7 +286,9 @@ function clipAppsOrdered(){
 //   每节车厢右上✎角标=重命名(与排序并存不打架)；点车身/6s无操作退出。
 let _trainEdit=false,_teTimer=null;
 function _teIdle(){ clearTimeout(_teTimer); _teTimer=setTimeout(()=>exitTrainEdit(),6000); }
-function enterTrainEdit(){ if(_trainEdit) return; _trainEdit=true; try{playPop();}catch(e){} buildClipStrip(); _teIdle(); }
+// #8 skipBuild=true：由长按手势内联进入编组时不整条重建(否则触点所在节点被替换=丢触，须再点一次)，
+//   改由调用方就地补挂编组视觉(抖动+✎角标)，让"长按→弹起可拖→直接拖"一气呵成(iOS 范式)。
+function enterTrainEdit(skipBuild){ if(_trainEdit) return; _trainEdit=true; try{playPop();}catch(e){} if(!skipBuild) buildClipStrip(); _teIdle(); }
 function exitTrainEdit(){ if(!_trainEdit) return; _trainEdit=false; clearTimeout(_teTimer); _teTimer=null; buildClipStrip(); }
 // #7 编组态逃生口：按到触控条区域即释放编组(capture 先于触控条自身手势，不拦其后续滑动)
 (function(){ try{
@@ -286,55 +317,94 @@ function buildClipStrip(){
     if(a.type==='toggle' && a.id==='secure'){ t.id='secChip'; applySecChip(t); }
     else if(a.type==='toggle' && a.id==='iso'){ t.id='isoChip'; applyIsoChip(t); }
     else { t.textContent=appLabel(a); _dressCar(t); }
-    // 缺陷#5：普通态长按450ms→进入编组模式；编组态：✎角标=重命名、中段拖拽=换位
-    if(!_trainEdit){
-      (function(app){
-        let _lt=null,_lx=0,_ly=0;
-        t.addEventListener('touchstart',e=>{ const p=e.touches[0]; _lx=p.clientX; _ly=p.clientY;
-          _lt=setTimeout(()=>{ _lt=null; enterTrainEdit(); },450); },{passive:true});
-        t.addEventListener('touchmove',e=>{ const p=e.touches[0];
-          if(Math.abs(p.clientX-_lx)>12||Math.abs(p.clientY-_ly)>12){ clearTimeout(_lt); _lt=null; } },{passive:true});
-        ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{ clearTimeout(_lt); _lt=null; },{passive:true}));
-      })(a);
-    } else {
+
+    // ✎ 重命名角标（编组态所有车厢均可，与排序并存）
+    const addBadge=(app)=>{
+      if(t.querySelector('.car-edit-badge')) return;
       t.style.position='relative';
-      // ✎ 重命名角标（所有车厢均可，与排序并存）
-      (function(app){
-        const b=document.createElement('span');
-        b.className='car-edit-badge'; b.textContent='✎';
-        b.addEventListener('touchstart',e=>{ e.stopPropagation(); e.preventDefault(); _teIdle(); openRename(app); },{passive:false});
-        t.appendChild(b);
-      })(a);
-      // 中段车厢：单指拖拽换位（跨过邻居中线即交换，邻居 FLIP 滑移 160ms）
-      if(isMid){
-        (function(){
-          let dragging=false, sx=0;
-          const flip=(el,fromX)=>{ try{ el.animate([{transform:'translateX('+fromX+'px)'},{transform:'none'}],{duration:160,easing:'cubic-bezier(.22,1,.36,1)'}); }catch(e){} };
-          t.addEventListener('touchstart',e=>{ if(!_trainEdit) return; dragging=true; sx=e.touches[0].clientX; t.classList.add('dragging'); _teIdle(); },{passive:true});
-          t.addEventListener('touchmove',e=>{
-            if(!dragging) return; e.preventDefault();
-            const x=e.touches[0].clientX, dx=x-sx;
-            t.style.transform='translateX('+dx+'px) scale(1.05)';
-            const r=t.getBoundingClientRect(), cx=r.left+r.width/2;
-            let sib=t.previousElementSibling;
-            if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
-              if(cx<sr.left+sr.width/2){ tabs.insertBefore(t,sib); sx=x; t.style.transform='scale(1.05)'; flip(sib,-r.width); return; } }
-            sib=t.nextElementSibling;
-            if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
-              if(cx>sr.left+sr.width/2){ tabs.insertBefore(sib,t); sx=x; t.style.transform='scale(1.05)'; flip(sib,r.width); } }
-          },{passive:false});
-          ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{
-            if(!dragging) return; dragging=false;
-            t.classList.remove('dragging'); t.style.transform='';
-            const ids=Array.from(tabs.querySelectorAll('[data-mid]')).map(el=>el.getAttribute('data-mid'));
-            setAppOrder(ids); _teIdle();
-          },{passive:true}));
-        })();
-      }
-    }
+      const b=document.createElement('span');
+      b.className='car-edit-badge'; b.textContent='✎';
+      b.addEventListener('touchstart',e=>{ e.stopPropagation(); e.preventDefault(); _teIdle(); openRename(app); },{passive:false});
+      t.appendChild(b);
+    };
+    if(_trainEdit) addBadge(a);
+
+    // ===== #8 统一手势：长按→车厢"弹起"进入编组→同一根手指直接拖拽换位(iOS 直感,免二次点触) =====
+    //   旧版:长按触发 enterTrainEdit()整条重建→触点所在节点被替换→必须松手再按才开始拖(两步、迟钝、
+    //   与✎角标/车身点击撞触)。现改:长按就地补挂编组视觉,不重建,并把进行中的触摸即刻升格为拖拽。
+    (function(app){
+      let sx=0, sy=0;            // 触点起点
+      let lt=null;              // 长按计时器
+      let dragging=false;       // 是否处于拖拽
+      let promoted=false;       // 本次触摸是否由长按内联升格(用于抑制随后的 click 车身逻辑)
+      const flip=(el,fromX)=>{ try{ el.animate([{transform:'translateX('+fromX+'px)'},{transform:'none'}],{duration:160,easing:'cubic-bezier(.22,1,.36,1)'}); }catch(e){} };
+      const clearLt=()=>{ if(lt){ clearTimeout(lt); lt=null; } };
+      const beginDrag=()=>{
+        if(!isMid) return;      // 仅中段车厢可换位(车头 secure/车尾 iso 固定)
+        dragging=true; t.classList.add('dragging'); t.style.transform='scale(1.05)'; _teIdle();
+      };
+      const onMove=(x,y,ev)=>{
+        if(dragging){
+          if(ev) try{ ev.preventDefault(); }catch(_){}
+          const dx=x-sx;
+          t.style.transform='translateX('+dx+'px) scale(1.05)';
+          const r=t.getBoundingClientRect(), cx=r.left+r.width/2;
+          let sib=t.previousElementSibling;
+          if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
+            if(cx<sr.left+sr.width/2){ tabs.insertBefore(t,sib); sx=x; t.style.transform='scale(1.05)'; flip(sib,-r.width); return; } }
+          sib=t.nextElementSibling;
+          if(sib&&sib.dataset&&sib.dataset.mid!=null){ const sr=sib.getBoundingClientRect();
+            if(cx>sr.left+sr.width/2){ tabs.insertBefore(sib,t); sx=x; t.style.transform='scale(1.05)'; flip(sib,r.width); } }
+          return;
+        }
+        // 未拖拽:偏移过阈值则取消待定的长按(视为滚动/滑动)
+        if(lt && (Math.abs(x-sx)>12||Math.abs(y-sy)>12)) clearLt();
+      };
+      const endDrag=()=>{
+        clearLt();
+        if(dragging){
+          dragging=false; t.classList.remove('dragging'); t.style.transform='';
+          const ids=Array.from(tabs.querySelectorAll('[data-mid]')).map(el=>el.getAttribute('data-mid'));
+          setAppOrder(ids); _teIdle();
+        }
+      };
+      t.addEventListener('touchstart',e=>{
+        const p=e.touches[0]; sx=p.clientX; sy=p.clientY; promoted=false;
+        if(_trainEdit){
+          // 已在编组态:长按不必要,轻触即可拖(中段);此处直接待命拖拽(移动即拖)
+          if(isMid) beginDrag();
+          _teIdle();
+        } else {
+          // 普通态:起长按计时;到时就地进入编组并把当前手指升格为拖拽(不重建=不丢触)
+          clearLt();
+          lt=setTimeout(()=>{
+            lt=null; promoted=true;
+            enterTrainEdit(true);                 // 就地进入,不整条重建
+            try{ tabs.classList.add('editing'); }catch(_){}
+            // 就地给所有车厢补挂✎角标+抖动(不动 DOM 结构,触点不丢)
+            try{ Array.prototype.forEach.call(tabs.querySelectorAll('.cat-chip.car'),(el,idx)=>{
+              const app2=APPS[idx]; if(app2 && !el.querySelector('.car-edit-badge')){
+                el.style.position='relative';
+                const bb=document.createElement('span'); bb.className='car-edit-badge'; bb.textContent='✎';
+                bb.addEventListener('touchstart',ev2=>{ ev2.stopPropagation(); ev2.preventDefault(); _teIdle(); openRename(app2); },{passive:false});
+                el.appendChild(bb);
+              }
+            }); }catch(_){}
+            beginDrag();                          // 同指立即可拖
+          },350);
+        }
+      },{passive:true});
+      t.addEventListener('touchmove',e=>{ const p=e.touches[0]; onMove(p.clientX,p.clientY,e); },{passive:false});
+      ['touchend','touchcancel'].forEach(ev=>t.addEventListener(ev,()=>{ endDrag(); },{passive:true}));
+      // 记住是否由长按升格,供 _catSelectFn 判定(升格后本次不应触发车身点击进 app)
+      t._wasPromoted=()=>promoted;
+    })(a);
+
     tabs.appendChild(t);
   });
   _catSelectFn=(i)=>{
+    const chip=tabs.children[i];
+    if(chip && typeof chip._wasPromoted==='function' && chip._wasPromoted()) return;   // #8 长按升格拖拽的这一下不当点击
     if(_trainEdit){ exitTrainEdit(); return; }   // 缺陷#5：编组态点车身=收起编组
     const a=APPS[i]; if(!a) return;
     if(a.type==='app'){ playClick(); openApp(a.id); return; }

@@ -230,7 +230,15 @@ function releaseModifiers(){
         if(mk) mk.classList.remove('hidden'); if(nk) nk.classList.add('hidden'); }catch(e){}
       try{ if(typeof updateBtnStates==='function') updateBtnStates(); }catch(e){}
     }
-    if(typeof _activePanel!=='undefined' && _activePanel==='mode' && typeof restoreCatStrip==='function'){ restoreCatStrip(); }
+    // #7 面板保活：mode/theme 临时轨道返回时收回；若符号/表情/剪贴大面板仍展开，
+    //   主动 restoreCatStrip 校正 _activePanel 与分类条(其内部按可见面板恢复)——
+    //   避免切应用/切模式往返后"面板还在但分类条空了、须重新点分类"的错位(缺陷#7)。
+    if(typeof restoreCatStrip==='function' && typeof _activePanel!=='undefined'){
+      var _vis=function(id){ var e=document.getElementById(id); return e && !e.classList.contains('hidden'); };
+      if(_activePanel==='mode' || _activePanel==='theme' || _vis('symPanel') || _vis('emjPanel') || _vis('clipPanel')){
+        restoreCatStrip();
+      }
+    }
     if(dirty && typeof buildKb==='function') buildKb();
   }catch(e){}
 }
@@ -250,6 +258,7 @@ function onIMEFocus(){
 }
 function onIMEBlur(){
   try{ if(typeof KV!=='undefined') KV.flush(); }catch(e){}   // 收键盘即持久落盘
+  try{ if(typeof stopAllSound==='function') stopAllSound(); }catch(e){}   // #6 兜底:收键盘立即停掉一切在鸣声部(含风铃长按)
   // #8 键盘被任意情形收回/切走：Ctrl/Alt(含锁定层、九宫功能层)一律立即释放，
   //   绝不挂起带到下次弹出——重新弹出永远是干净的普通层。
   try{
@@ -274,7 +283,8 @@ setTimeout(function(){
     var res={loaded:null, zwj:null, ua:navigator.userAgent.slice(0,140)};
     var fin=function(){
       try{ KV.set('kbEmojiProbe', JSON.stringify(res)); KV.set('kbEmojiProbeV2','1'); mirrorPrefs(); }catch(e){}
-      try{ wmToast('表情探针: 字体'+(res.loaded?'已生效':'未生效')+' · ZWJ'+(res.zwj?'合成':'退化')); }catch(e){}
+      // #3 不再启动瞬闪 toast(此前一闪而过无法观察)；取证静默存 KV，
+      //    随时长按【表情】键调出常驻面板查看，见下方 showEmojiProbe。
     };
     var run=function(){
       try{ res.loaded=document.fonts.check('16px KBEmoji','😀'); }catch(e){ res.loaded=false; }
@@ -320,7 +330,8 @@ function showEmojiProbe(){
         +'ZWJ 组合表情：<b style="color:'+(res.zwj?'#178a3c':'#b52a1e')+'">'+(res.zwj?'合成为单字形':'退化为多枚')+'</b><br>'
         +'样张：<span style="font-family:KBEmoji,system-ui;font-size:22px">😀🧟\u200D\u2642\uFE0F👍🔥</span><br>'
         +'<span style="font-size:11px;color:#8a7a68;word-break:break-all">'+res.ua+'</span><br>'
-        +'<span style="font-size:11px;color:#8a7a68">检测时间 '+res.t+'</span></div>';
+        +'<span style="font-size:11px;color:#8a7a68">检测时间 '+res.t+'</span><br>'
+        +'<span style="font-size:11px;color:#c07a30">提示：随时长按【表情】键即可重开本页复查</span></div>';
       var btn=document.createElement('div');
       btn.textContent='关闭';
       btn.style.cssText='margin-top:12px;text-align:center;padding:9px;border-radius:9px;background:var(--ac,#e86030);color:#fff;font-size:14px;font-weight:700;cursor:pointer';
@@ -334,7 +345,7 @@ function showEmojiProbe(){
 (function(){ try{
   var b=document.getElementById('emjBtn'); if(!b) return;
   var lt=null, fired=false;
-  var arm=function(){ fired=false; clearTimeout(lt); lt=setTimeout(function(){ fired=true; try{playPop();}catch(_){ } showEmojiProbe(); },550); };
+  var arm=function(){ fired=false; clearTimeout(lt); lt=setTimeout(function(){ fired=true; try{playPop();}catch(_){ } showEmojiProbe(); },500); };
   var dis=function(){ clearTimeout(lt); lt=null; };
   b.addEventListener('touchstart',arm,{passive:true});
   b.addEventListener('touchmove',dis,{passive:true});
