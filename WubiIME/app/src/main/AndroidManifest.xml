@@ -1,1 +1,85 @@
-a
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <application
+        android:usesCleartextTraffic="true"
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
+        android:supportsRtl="false"
+        android:allowBackup="false">
+
+        <service
+            android:name=".ime.WubiWebViewIME"
+            android:label="@string/ime_name"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/method"/>
+        </service>
+
+        <activity
+            android:name=".ime.SettingsActivity"
+            android:label="@string/settings_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- 独立应用全屏窗口（密码生成器/笔记本）：仅本应用内部启动，不进最近任务 -->
+        <activity
+            android:name=".ime.AppActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="standard"
+            android:taskAffinity="com.wubi.ime.apps"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard" />
+
+        <!-- #1 外部文件查看：单独 alias 暴露 VIEW 入口（exported=true），目标仍是 AppActivity。
+             拆分原因：AppActivity 本体带 VIEW filter 却 exported=false，导致文件管理器无法拉起→黑屏。
+             alias 不接受 app extra，外部只能触发查看分支，拿不到拉起任意应用窗口的能力（安全隔离）。 -->
+        <activity-alias
+            android:name=".ime.FileViewerAlias"
+            android:targetActivity=".ime.AppActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="text/markdown" />
+                <data android:mimeType="text/x-markdown" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!-- 后备：部分文件管理器以 */* 或 application/octet-stream 传 .md/.html，按后缀兜底匹配 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.md" />
+                <data android:pathPattern=".*\\.markdown" />
+                <data android:pathPattern=".*\\.html" />
+                <data android:pathPattern=".*\\.htm" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+</manifest>
