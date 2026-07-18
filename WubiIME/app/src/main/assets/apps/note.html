@@ -978,6 +978,21 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
         }catch(_){}
       }
       this.syncFromDom(ed);
+      this.scrollCaretIntoView(ed);   // #9 换行后重心跟光标：块内换行原漏此步→装机上跳回文首
+    },
+    // #9 光标滚动跟随：取选区光标真实 y，只在超出可视上/下边界时最小滚动，
+    //    重心永远落在光标处(而非整块 scrollIntoView 的粗粒度或整页归零)。
+    scrollCaretIntoView(ed){
+      try{
+        const sc=document.getElementById('editor-scroll'); if(!sc) return;
+        const sel=getSelection(); if(!sel||!sel.rangeCount) return;
+        let r=sel.getRangeAt(0).cloneRange(); r.collapse(false);
+        let rect=r.getClientRects()[0];
+        if(!rect){ const rr=document.createRange(); rr.selectNodeContents(ed); rr.collapse(false); rect=rr.getClientRects()[0]||ed.getBoundingClientRect(); }
+        const host=sc.getBoundingClientRect(), pad=28;
+        if(rect.bottom>host.bottom-pad) sc.scrollTop += (rect.bottom-(host.bottom-pad));
+        else if(rect.top<host.top+pad) sc.scrollTop -= ((host.top+pad)-rect.top);
+      }catch(_){}
     },
     splitAtCaret(ed){
       const id=ed.dataset.id, off=this.caretOffset(ed), full=this.txtOf(ed).replace(/\n+$/,'');
@@ -990,6 +1005,7 @@ document.addEventListener('DOMContentLoaded',applyAppLabel);
       const ned=el.querySelector('[contenteditable]');
       if(ned) this.caretTo(ned, 0);
       this.markActive(nb.id);
+      if(ned) this.scrollCaretIntoView(ned);   // #9 断块同样重心跟随
     },
     focusBlockAt(id, offset){
       setTimeout(()=>{
