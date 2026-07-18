@@ -1,1 +1,42 @@
-a
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.wubi.ime'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.wubi.ime"
+        minSdk 23
+        targetSdk 34
+        versionCode = (project.findProperty("versionCode") ?: "1").toString().toInteger()
+        versionName = (project.findProperty("versionName") ?: "1.0").toString()
+        vectorDrawables.useSupportLibrary = false
+    }
+    signingConfigs {
+        fixed {
+            // CI 在构建前把固定 keystore 写到此路径(见 build.yml)。
+            // 显式指定，避免依赖 AGP 默认 ~/.android/debug.keystore（CI 可能重新生成导致签名漂移）。
+            storeFile file(project.findProperty("fixedKeystore") ?: System.getenv("FIXED_KEYSTORE") ?: "${System.getProperty('user.home')}/.android/shiyan-fixed.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+    buildTypes {
+        release {
+            // 安防：R8 代码混淆+压缩+资源收缩——自家类名/方法名全部混淆，仅保系统入口与 JS 桥(见 proguard-rules.pro)
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.fixed
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    aaptOptions { noCompress "dict" }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.12.0'
+}
