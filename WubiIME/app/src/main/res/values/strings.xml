@@ -1,1 +1,6 @@
-a
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">拾砚</string>
+    <string name="ime_name">拾砚·五笔拼音</string>
+    <string name="settings_title">拾砚输入法设置</string>
+</resources>
