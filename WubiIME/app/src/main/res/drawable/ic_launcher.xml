@@ -1,1 +1,44 @@
-a
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+
+  <!-- 圆角方底：深色釉面 -->
+  <path android:pathData="M16,0 L92,0 Q108,0 108,16 L108,92 Q108,108 92,108 L16,108 Q0,108 0,92 L0,16 Q0,0 16,0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="40" android:centerY="34" android:gradientRadius="96">
+        <item android:offset="0.0" android:color="#3A2A20"/>
+        <item android:offset="0.55" android:color="#241813"/>
+        <item android:offset="1.0" android:color="#140C08"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- 陶瓷球：亮橙→橙→暗角 -->
+  <path android:pathData="M54,54 m-34,0 a34,34 0 1,0 68,0 a34,34 0 1,0 -68,0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="42" android:centerY="40" android:gradientRadius="60">
+        <item android:offset="0.0" android:color="#FFB877"/>
+        <item android:offset="0.4" android:color="#E8501A"/>
+        <item android:offset="1.0" android:color="#741C00"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- 高光 -->
+  <path android:pathData="M36,31 m-10,0 a10,6.5 0 1,0 20,0 a10,6.5 0 1,0 -20,0 Z" android:fillAlpha="0.6">
+    <aapt:attr name="android:fillColor">
+      <gradient android:type="radial" android:centerX="36" android:centerY="31" android:gradientRadius="11">
+        <item android:offset="0.0" android:color="#FFFFFF"/>
+        <item android:offset="1.0" android:color="#00FFFFFF"/>
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- 砚字（Noto Serif CJK SC Bold 轮廓），Y轴翻转 -->
+  <group android:translateX="32.211" android:translateY="70.331"
+         android:scaleX="0.04384" android:scaleY="-0.04384">
+    <path android:fillColor="#FFF8F0" android:fillAlpha="0.97" android:pathData="M765 658 622 672C622 314 643 86 342 -74L352 -90C531 -26 624 58 673 164V22C673 -42 686 -62 764 -62H828C940 -62 976 -40 976 -1C976 17 972 29 947 40L944 174H932C917 116 904 61 896 45C891 35 887 33 878 32C871 32 856 32 837 32H791C772 32 769 36 769 48V297C789 300 798 309 800 322L717 330C728 418 728 519 730 631C753 634 763 644 765 658ZM350 825 292 751H24L32 723H149C126 551 83 352 18 211L32 202C58 233 82 266 104 301V-43H121C170 -43 201 -20 201 -14V64H289V3H305C339 3 388 22 389 30V404C407 408 420 416 427 423L327 500L280 448H214L187 459C221 541 247 629 263 723H428C441 723 450 727 453 736V223H471C521 223 552 243 552 250V748H806V234H824C875 234 910 256 910 261V738C933 743 943 749 950 758L852 835L802 776H564L453 819V741C414 776 350 825 350 825ZM201 92V419H289V92Z"/>
+  </group>
+</vector>
